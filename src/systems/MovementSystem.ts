@@ -22,14 +22,6 @@ export class MovementSystem {
   update(dt: number, state: GameState, spatialHash: SpatialHash): void {
     const planets = state.planets;
 
-    const travelingByFaction = new Map<string, ParticleData[]>();
-    for (const p of state.particles) {
-      if (!p.alive || p.mode !== 'traveling') continue;
-      let group = travelingByFaction.get(p.faction);
-      if (!group) { group = []; travelingByFaction.set(p.faction, group); }
-      group.push(p);
-    }
-
     for (const particle of state.particles) {
       if (!particle.alive) continue;
 
@@ -38,7 +30,7 @@ export class MovementSystem {
           this._updateOrbiting(particle, planets, dt);
           break;
         case 'traveling':
-          this._updateTraveling(particle, planets, travelingByFaction, dt, spatialHash);
+          this._updateTraveling(particle, planets, dt, spatialHash);
           break;
         case 'combat':
           this._updateCombat(particle, planets, dt, spatialHash);
@@ -76,7 +68,6 @@ export class MovementSystem {
   private _updateTraveling(
     p: ParticleData,
     planets: Map<string, PlanetData>,
-    travelingByFaction: Map<string, ParticleData[]>,
     dt: number,
     spatialHash: SpatialHash
   ): void {
@@ -103,27 +94,25 @@ export class MovementSystem {
     let aliX = 0, aliY = 0;
     let neighbours = 0;
 
-    const factionGroup = travelingByFaction.get(p.faction);
-    if (factionGroup) {
-      for (const other of factionGroup) {
-        if (other === p || !other.alive) continue;
-        const dx = p.x - other.x;
-        const dy = p.y - other.y;
-        const dSq = dx * dx + dy * dy;
-        if (dSq > BOID_RADIUS_SQ) continue;
+    const nearbyBoids = spatialHash.getNearby(p);
+    for (const other of nearbyBoids) {
+      if (other === p || !other.alive || other.faction !== p.faction || other.mode !== 'traveling') continue;
+      const dx = p.x - other.x;
+      const dy = p.y - other.y;
+      const dSq = dx * dx + dy * dy;
+      if (dSq > BOID_RADIUS_SQ) continue;
 
-        const dist = Math.sqrt(dSq);
-        neighbours++;
+      const dist = Math.sqrt(dSq);
+      neighbours++;
 
-        if (dist > 0) {
-          sepX += (dx / dist) / Math.max(dist, 1);
-          sepY += (dy / dist) / Math.max(dist, 1);
-        }
-        cohX += other.x;
-        cohY += other.y;
-        aliX += other.vx;
-        aliY += other.vy;
+      if (dist > 0) {
+        sepX += (dx / dist) / Math.max(dist, 1);
+        sepY += (dy / dist) / Math.max(dist, 1);
       }
+      cohX += other.x;
+      cohY += other.y;
+      aliX += other.vx;
+      aliY += other.vy;
     }
 
     let forceX = 0;

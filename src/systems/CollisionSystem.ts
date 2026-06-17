@@ -29,15 +29,9 @@ export class CollisionSystem {
     }
     if (particles.length < 2) return;
 
-    // ---- Rebuild spatial hash ----
-    spatialHash.clear();
-    for (const p of particles) {
-      if (p.alive) spatialHash.insert(p);
-    }
-
     // ---- Pass 1: Accumulate damage ----
-    // Use string key "${lo}_${hi}" to safely deduplicate pairs regardless of ID magnitude
-    const processedPairs = new Set<string>();
+    // Use numeric pair key to avoid string allocation GC overhead
+    const processedPairs = new Set<number>();
 
     for (const p of particles) {
       if (!p.alive) continue;
@@ -50,9 +44,9 @@ export class CollisionSystem {
         if (other.faction === p.faction) continue; // same faction
 
         // Deduplicate pair
-        const lo = Math.min(p.id, other.id);
-        const hi = Math.max(p.id, other.id);
-        const pairKey = `${lo}_${hi}`;
+        const lo = p.id < other.id ? p.id : other.id;
+        const hi = p.id < other.id ? other.id : p.id;
+        const pairKey = (lo * 1000000000) + hi; // Safe up to MAX_SAFE_INTEGER for IDs < 9,000,000
         if (processedPairs.has(pairKey)) continue;
 
         const dx = p.x - other.x;
