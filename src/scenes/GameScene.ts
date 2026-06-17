@@ -447,9 +447,9 @@ export class GameScene {
       }
     });
 
-    // Select stationed player particles in box
+    // Select player particles in box (excluding orbiting)
     for (const p of this.state.particles) {
-      if (!p.alive || p.mode !== 'stationed' || p.faction !== 'player') continue;
+      if (!p.alive || p.faction !== 'player' || p.mode === 'orbiting') continue;
       if (
         p.x >= worldTL.x && p.x <= worldBR.x &&
         p.y >= worldTL.y && p.y <= worldBR.y
@@ -477,9 +477,9 @@ export class GameScene {
       }
     }
 
-    // Redeploy stationed particles
+    // Redeploy selected particles
     if (this.state.selectedParticleIds.size > 0) {
-      this._redeployStationedParticles(
+      this._redeploySelectedParticles(
         hitPlanetId ?? undefined,
         hitPlanetId ? undefined : world.x,
         hitPlanetId ? undefined : world.y
@@ -487,8 +487,8 @@ export class GameScene {
     }
   }
 
-  /** Move selected stationed particles to a new target. */
-  private _redeployStationedParticles(
+  /** Move selected particles to a new target. */
+  private _redeploySelectedParticles(
     targetPlanetId?: string,
     targetX?: number,
     targetY?: number
