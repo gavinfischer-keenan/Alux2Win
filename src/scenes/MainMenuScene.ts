@@ -531,79 +531,85 @@ export class MainMenuScene {
     volWrapper.appendChild(volLabel);
     panel.appendChild(volWrapper);
 
-    // ── AI Personality ────────────────────────────────────
-    panel.appendChild(this._makeSectionLabel('AI PERSONALITY'));
+    // ── Game Challenge ─────────────────────────────────────
+    panel.appendChild(this._makeSectionLabel('GAME CHALLENGE'));
 
-    const personalities: Array<{ label: string; value: GameSettings['aiPersonality']; soon: boolean }> = [
-      { label: 'Balanced',   value: 'balanced',   soon: false },
-      { label: 'Aggressive', value: 'aggressive',  soon: true  },
-      { label: 'Turtle',     value: 'turtle',      soon: true  },
+    const difficultyHint = document.createElement('div');
+    difficultyHint.style.cssText = `
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.3);
+      letter-spacing: 0.05em;
+      width: 100%;
+      text-align: center;
+      margin-top: -4px;
+      margin-bottom: 2px;
+    `;
+
+    const difficulties: Array<{ label: string; hint: string; value: GameSettings['difficulty']; color: string }> = [
+      { label: 'Easy',   hint: 'Passive Turtle AI',          value: 'easy',   color: '#66bb6a' },
+      { label: 'Normal', hint: 'Balanced — varies each game', value: 'normal', color: '#ffa726' },
+      { label: 'Hard',   hint: 'Unhinged — unpredictable',   value: 'hard',   color: '#ef5350' },
     ];
 
-    const aiRow = document.createElement('div');
-    aiRow.style.cssText = 'display:flex; gap:8px; width:100%;';
+    const diffRow = document.createElement('div');
+    diffRow.style.cssText = 'display:flex; gap:8px; width:100%;';
 
-    let currentAI = settings.aiPersonality;
-    const aiBtns = new Map<string, HTMLButtonElement>();
+    let currentDiff = settings.difficulty;
+    const diffBtns = new Map<string, HTMLButtonElement>();
 
-    const applyAIStyles = (val: string) => {
-      aiBtns.forEach((b, v) => {
+    const applyDiffStyles = (val: string) => {
+      diffBtns.forEach((b, v) => {
+        const diff = difficulties.find(d => d.value === v)!;
         const active = v === val;
-        b.style.background  = active ? 'rgba(149,117,205,0.25)' : 'rgba(255,255,255,0.06)';
-        b.style.borderColor = active ? 'rgba(149,117,205,0.75)' : 'rgba(255,255,255,0.12)';
-        b.style.color       = active ? '#b39ddb'                : 'rgba(255,255,255,0.55)';
+        b.style.background  = active ? `${diff.color}33` : 'rgba(255,255,255,0.06)';
+        b.style.borderColor = active ? `${diff.color}bb` : 'rgba(255,255,255,0.12)';
+        b.style.boxShadow   = active ? `0 0 10px ${diff.color}44` : 'none';
+        const hintEl = b.querySelector<HTMLElement>('.diff-hint');
+        if (hintEl) hintEl.style.color = active ? `${diff.color}cc` : 'rgba(255,255,255,0.3)';
       });
+      const selected = difficulties.find(d => d.value === val);
+      if (selected) difficultyHint.textContent = selected.hint;
     };
 
-    for (const { label, value, soon } of personalities) {
+    for (const { label, value, color } of difficulties) {
       const btn = document.createElement('button');
       btn.style.cssText = `
         flex: 1;
-        padding: 8px 4px;
+        padding: 10px 4px 8px;
         background: rgba(255,255,255,0.06);
         border: 1px solid rgba(255,255,255,0.12);
         border-radius: 6px;
-        color: rgba(255,255,255,0.55);
-        font-family: 'Rajdhani', sans-serif;
-        font-size: 0.8rem;
+        color: rgba(255,255,255,0.9);
+        font-family: 'Orbitron', sans-serif;
+        font-size: 0.75rem;
         font-weight: 700;
-        cursor: ${soon ? 'not-allowed' : 'pointer'};
-        transition: background 0.15s, border-color 0.15s, color 0.15s;
-        position: relative;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 2px;
-        opacity: ${soon ? '0.6' : '1'};
+        gap: 4px;
+        letter-spacing: 0.06em;
       `;
 
       const labelEl = document.createElement('span');
       labelEl.textContent = label;
       btn.appendChild(labelEl);
 
-      if (soon) {
-        const badge = document.createElement('span');
-        badge.textContent = 'Soon';
-        badge.style.cssText = `
-          font-family: 'Rajdhani', sans-serif;
-          font-size: 0.6rem;
-          color: rgba(255,200,100,0.75);
-          letter-spacing: 0.05em;
-        `;
-        btn.appendChild(badge);
-      } else {
-        btn.addEventListener('click', () => {
-          currentAI = value;
-          SettingsStore.update({ aiPersonality: value });
-          applyAIStyles(value);
-        });
-      }
+      btn.addEventListener('click', () => {
+        currentDiff = value;
+        SettingsStore.update({ difficulty: value });
+        applyDiffStyles(value);
+      });
 
-      aiBtns.set(value, btn);
-      aiRow.appendChild(btn);
+      diffBtns.set(value, btn);
+      diffRow.appendChild(btn);
     }
-    applyAIStyles(currentAI);
-    panel.appendChild(aiRow);
+
+    applyDiffStyles(currentDiff);
+    panel.appendChild(diffRow);
+    panel.appendChild(difficultyHint);
 
     // ── Color Theme ────────────────────────────────────────
     panel.appendChild(this._makeSectionLabel('COLOR THEME'));

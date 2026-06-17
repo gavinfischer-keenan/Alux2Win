@@ -4,20 +4,22 @@
 
 import type { GameSpeed } from '../ui/PauseMenu';
 
+export type AIDifficulty = 'easy' | 'normal' | 'hard';
+
 export interface GameSettings {
-  gameSpeed:      GameSpeed;
-  aiPersonality:  'balanced' | 'aggressive' | 'turtle';
-  colorTheme:     'default' | 'nebula' | 'ice' | 'lava';
-  masterVolume:   number;   // 0–1
+  gameSpeed:    GameSpeed;
+  difficulty:   AIDifficulty;
+  colorTheme:   'default' | 'nebula' | 'ice' | 'lava';
+  masterVolume: number;   // 0–1
 }
 
-const STORAGE_KEY = 'alux2win_settings_v1';
+const STORAGE_KEY = 'alux2win_settings_v2';
 
 const DEFAULTS: GameSettings = {
-  gameSpeed:     1,
-  aiPersonality: 'balanced',
-  colorTheme:    'default',
-  masterVolume:  0.6,
+  gameSpeed:   1,
+  difficulty:  'normal',
+  colorTheme:  'default',
+  masterVolume: 0.6,
 };
 
 export const SettingsStore = {

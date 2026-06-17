@@ -13,6 +13,7 @@ class AudioManager {
   private _ambientNodes: OscillatorNode[] = [];
   private _noiseSource: AudioBufferSourceNode | null = null;
   private _shimmerTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _lastWarningTime = 0;
 
   // ── Init ─────────────────────────────────────────────────
 
@@ -274,6 +275,117 @@ class AudioManager {
         osc.stop(startTime + noteDuration + 0.45);
       });
     }
+  }
+
+  playSelect(): void {
+    const ctx = this._ctx;
+    const master = this._masterGain;
+    if (!ctx || !master) return;
+
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.05);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+
+    osc.connect(gain);
+    gain.connect(master);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.06);
+  }
+
+  playCommand(): void {
+    const ctx = this._ctx;
+    const master = this._masterGain;
+    if (!ctx || !master) return;
+
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(400, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.1);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+
+    osc.connect(gain);
+    gain.connect(master);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.11);
+  }
+
+  playUpgrade(isPlayer: boolean): void {
+    const ctx = this._ctx;
+    const master = this._masterGain;
+    if (!ctx || !master || !isPlayer) return;
+
+    const freqs = [440, 554, 659, 880];
+    freqs.forEach((freq, i) => {
+      const startTime = ctx.currentTime + i * 0.1;
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.15, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
+
+      osc.connect(gain);
+      gain.connect(master);
+      osc.start(startTime);
+      osc.stop(startTime + 0.35);
+    });
+  }
+
+  playWarning(): void {
+    const ctx = this._ctx;
+    const master = this._masterGain;
+    if (!ctx || !master) return;
+
+    if (ctx.currentTime - this._lastWarningTime < 3.0) return; // Throttle to every 3s
+    this._lastWarningTime = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(250, ctx.currentTime);
+    osc.frequency.setValueAtTime(200, ctx.currentTime + 0.1);
+    osc.frequency.setValueAtTime(250, ctx.currentTime + 0.2);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+
+    osc.connect(gain);
+    gain.connect(master);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.45);
+  }
+
+  playClick(): void {
+    const ctx = this._ctx;
+    const master = this._masterGain;
+    if (!ctx || !master) return;
+
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(800, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.05);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+
+    osc.connect(gain);
+    gain.connect(master);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.06);
   }
 
   // ── Cleanup ───────────────────────────────────────────────

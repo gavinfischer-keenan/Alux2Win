@@ -10,6 +10,7 @@ import {
   PLANET_RADIUS,
   PLANET_BONUS_HEALTH,
 } from '../types';
+import { audioManager } from '../core/AudioManager';
 
 export class UpgradeSystem {
   update(state: GameState): void {
@@ -29,6 +30,10 @@ export class UpgradeSystem {
         const bh = PLANET_BONUS_HEALTH[nextLevel];
         planet.bonusHealth    = bh;
         planet.maxBonusHealth = bh;
+
+        if (planet.faction === 'player') {
+          audioManager.playUpgrade(true);
+        }
       }
     }
   }

@@ -157,7 +157,7 @@ export class GameScene {
         aiFactions.add(p.faction);
       }
     });
-    this.aiController = new AIController(Array.from(aiFactions));
+    this.aiController = new AIController(Array.from(aiFactions), SettingsStore.get().difficulty);
     this.spatialHash  = new SpatialHash(64);
 
     // Input — attach to the container (canvas has pointer-events:none so events pass through to it)
@@ -396,6 +396,7 @@ export class GameScene {
           this.state.selectedPlanetIds.clear();
           this.state.selectedParticleIds.clear();
           this.state.selectedPlanetIds.add(hit);
+          audioManager.playSelect();
         }
       } else {
         this.state.selectedPlanetIds.clear();
@@ -457,6 +458,10 @@ export class GameScene {
         this.state.selectedParticleIds.add(p.id);
       }
     }
+
+    if (this.state.selectedPlanetIds.size > 0 || this.state.selectedParticleIds.size > 0) {
+      audioManager.playSelect();
+    }
   }
 
   private handleRightClick(screenX: number, screenY: number): void {
@@ -475,6 +480,7 @@ export class GameScene {
       } else {
         this.deployFromSelected(undefined, world.x, world.y);
       }
+      audioManager.playCommand();
     }
 
     // Redeploy selected particles
@@ -484,6 +490,7 @@ export class GameScene {
         hitPlanetId ? undefined : world.x,
         hitPlanetId ? undefined : world.y
       );
+      audioManager.playCommand();
     }
   }
 

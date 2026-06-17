@@ -5,6 +5,7 @@
 import type { GameState, ParticleData, PlanetData } from '../types';
 import { PLANET_RADIUS } from '../types';
 import type { EventBus } from '../core/EventBus';
+import { audioManager } from '../core/AudioManager';
 
 export class CombatSystem {
   update(state: GameState, eventBus: EventBus): void {
@@ -81,6 +82,10 @@ export class CombatSystem {
           // ---- Enemy / Neutral interaction ----
           particle.alive = false;
           anyDied = true;
+
+          if (planet.faction === 'player') {
+            audioManager.playWarning();
+          }
 
           const dmg = particle.strength; // 1X = 1 dmg, 5X = 5 dmg
 

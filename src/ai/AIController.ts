@@ -1,6 +1,7 @@
-﻿// ============================================================
+// ============================================================
 // AIController.ts — Heuristic state-machine AI for Alux2Win
-// Manages one or more AI factions with timed decision loops.
+// Supports Easy / Normal / Hard difficulty with random sub-roles
+// that persist for the lifetime of a single game.
 // ============================================================
 
 import {
@@ -9,6 +10,7 @@ import {
   PlanetData,
   UpgradeLevel,
 } from '../types';
+import type { AIDifficulty } from '../core/SettingsStore';
 
 /** The four mutually exclusive high-level intentions the AI can be in. */
 type AIState = 'defend' | 'conquer_neutral' | 'upgrade' | 'attack';
@@ -17,32 +19,230 @@ type AIState = 'defend' | 'conquer_neutral' | 'upgrade' | 'attack';
 export type DeployCallback = (fromIds: string[], targetPlanetId: string) => void;
 
 // ---------------------------------------------------------------------------
-// Constants
+// Sub-roles
 // ---------------------------------------------------------------------------
 
-/** Base seconds between AI evaluations. */
-const BASE_EVAL_INTERVAL = 3.0;
+/**
+ * Sub-roles for NORMAL difficulty. The AI picks one randomly at game start
+ * and sticks to it for the entire game.
+ *
+ *  fortress    – builds a strong defensive core, expands slowly, rarely attacks
+ *               unless overwhelmingly ahead.
+ *  balanced    – sensible mix of expansion, defence and offence.
+ *  opportunist – watches for openings; strikes weak enemy planets but retreats
+ *               when behind.
+ *  expander    – races to claim every neutral planet before engaging enemies.
+ */
+type NormalSubRole = 'fortress' | 'balanced' | 'opportunist' | 'expander';
 
-/** Jitter applied +-EVAL_JITTER seconds so multiple AI factions do not evaluate simultaneously. */
-const EVAL_JITTER = 1.0;
+/**
+ * Sub-roles for HARD difficulty.
+ *
+ *  berserker   – attacks at every opportunity, minimal defence, go for broke.
+ *  economic    – upgrades everything first, then attacks with superior firepower.
+ *  blitzkrieg  – fast-rush: grabs neutrals immediately and strikes early.
+ *  dominator   – methodically eliminates the weakest faction first, then the next.
+ */
+type HardSubRole = 'berserker' | 'economic' | 'blitzkrieg' | 'dominator';
 
-/** Minimum particles a planet must have before it contributes to a deployment. */
-const MIN_PARTICLES_TO_DEPLOY = 10;
+type AISubRole = NormalSubRole | HardSubRole | 'easy_turtle';
 
-/** Particles to keep in reserve on the source planet. */
-const RESERVE_PARTICLES = 5;
+// ---------------------------------------------------------------------------
+// Strategy parameter table
+// ---------------------------------------------------------------------------
 
-/** Ratio of AI total particles over player total that triggers aggression. */
-const AGGRESSION_RATIO = 1.4;
+interface AIStrategy {
+  /** Seconds between each AI evaluation tick. Higher = slower reactions. */
+  evalInterval: number;
+  /** +/- jitter on the interval */
+  evalJitter: number;
+  /** Minimum particles on a planet before it can be a deploy source. */
+  minToDeploy: number;
+  /** Particles kept in reserve on source planet — never sent away. */
+  reserveParticles: number;
+  /** Ratio of AI total / player total that unlocks the attack branch. */
+  aggressionRatio: number;
+  /** Total particles the AI must have before it even tries to upgrade. */
+  upgradeTrigger: number;
+  /** Max particles on a neutral planet the AI will bother attacking. */
+  neutralAttackCap: number;
+  /** Fraction of surplus particles sent during an upgrade mission. */
+  upgradeFraction: number;
+  /** Fraction of surplus particles sent during a neutral-capture mission. */
+  neutralFraction: number;
+  /** Fraction of surplus particles sent in an attack. */
+  attackFraction: number;
+  /**
+   * Weight: how strongly the AI prioritises upgrading over attacking (0–1).
+   * 1.0 = always upgrade when possible; 0 = skip upgrade, go straight to attack.
+   */
+  upgradeWeight: number;
+  /**
+   * Weight: how strongly the AI prioritises expanding (neutral captures) over
+   * attacking enemy planets (0–1).
+   */
+  expandWeight: number;
+  /** Max upgrade level the AI will pursue. */
+  maxUpgrade: UpgradeLevel;
+}
 
-/** Max upgrade level — do not try to upgrade beyond this. */
-const MAX_UPGRADE: UpgradeLevel = 3;
+const STRATEGIES: Record<AISubRole, AIStrategy> = {
+  // ── EASY ────────────────────────────────────────────────────────────────────
+  easy_turtle: {
+    evalInterval:     5.5,
+    evalJitter:       1.5,
+    minToDeploy:      18,
+    reserveParticles: 15,
+    aggressionRatio:  2.5,    // needs to be 2.5× the player before attacking
+    upgradeTrigger:   80,
+    neutralAttackCap: 3,
+    upgradeFraction:  0.35,
+    neutralFraction:  0.45,
+    attackFraction:   0.40,
+    upgradeWeight:    0.6,
+    expandWeight:     0.7,
+    maxUpgrade:       2,
+  },
 
-/** Minimum total particles the AI needs before attempting an upgrade deployment. */
-const UPGRADE_TRIGGER_PARTICLES = 40;
+  // ── NORMAL ──────────────────────────────────────────────────────────────────
+  fortress: {
+    evalInterval:     4.0,
+    evalJitter:       1.0,
+    minToDeploy:      14,
+    reserveParticles: 12,
+    aggressionRatio:  2.0,
+    upgradeTrigger:   50,
+    neutralAttackCap: 4,
+    upgradeFraction:  0.55,   // spends a lot on upgrades
+    neutralFraction:  0.45,
+    attackFraction:   0.35,   // cautious attacker
+    upgradeWeight:    0.85,
+    expandWeight:     0.55,
+    maxUpgrade:       3,
+  },
+  balanced: {
+    evalInterval:     3.0,
+    evalJitter:       1.0,
+    minToDeploy:      10,
+    reserveParticles: 5,
+    aggressionRatio:  1.4,
+    upgradeTrigger:   40,
+    neutralAttackCap: 5,
+    upgradeFraction:  0.50,
+    neutralFraction:  0.60,
+    attackFraction:   0.55,
+    upgradeWeight:    0.65,
+    expandWeight:     0.70,
+    maxUpgrade:       3,
+  },
+  opportunist: {
+    evalInterval:     2.5,
+    evalJitter:       0.8,
+    minToDeploy:      10,
+    reserveParticles: 6,
+    aggressionRatio:  1.3,    // strikes when barely ahead
+    upgradeTrigger:   35,
+    neutralAttackCap: 6,
+    upgradeFraction:  0.40,
+    neutralFraction:  0.65,
+    attackFraction:   0.70,   // bold strikes
+    upgradeWeight:    0.45,
+    expandWeight:     0.75,
+    maxUpgrade:       3,
+  },
+  expander: {
+    evalInterval:     2.8,
+    evalJitter:       0.7,
+    minToDeploy:      8,
+    reserveParticles: 4,
+    aggressionRatio:  1.8,    // holds off attacking while it expands
+    upgradeTrigger:   45,
+    neutralAttackCap: 12,     // attacks neutral planets even when they're big
+    upgradeFraction:  0.35,
+    neutralFraction:  0.80,   // pours resources into expansion
+    attackFraction:   0.45,
+    upgradeWeight:    0.30,
+    expandWeight:     0.95,   // expansion first, always
+    maxUpgrade:       3,
+  },
 
-/** Maximum particles on a neutral planet that the AI will risk attacking. */
-const NEUTRAL_ATTACK_THRESHOLD = 5;
+  // ── HARD ────────────────────────────────────────────────────────────────────
+  berserker: {
+    evalInterval:     1.5,
+    evalJitter:       0.5,
+    minToDeploy:      6,
+    reserveParticles: 2,
+    aggressionRatio:  0.9,    // attacks even when behind
+    upgradeTrigger:   20,
+    neutralAttackCap: 20,
+    upgradeFraction:  0.25,
+    neutralFraction:  0.70,
+    attackFraction:   0.90,
+    upgradeWeight:    0.20,
+    expandWeight:     0.50,
+    maxUpgrade:       3,
+  },
+  economic: {
+    evalInterval:     2.5,
+    evalJitter:       0.8,
+    minToDeploy:      8,
+    reserveParticles: 4,
+    aggressionRatio:  1.6,
+    upgradeTrigger:   25,
+    neutralAttackCap: 5,
+    upgradeFraction:  0.75,   // almost always upgrading
+    neutralFraction:  0.50,
+    attackFraction:   0.65,
+    upgradeWeight:    0.90,
+    expandWeight:     0.55,
+    maxUpgrade:       3,
+  },
+  blitzkrieg: {
+    evalInterval:     1.8,
+    evalJitter:       0.4,
+    minToDeploy:      6,
+    reserveParticles: 2,
+    aggressionRatio:  1.0,
+    upgradeTrigger:   20,
+    neutralAttackCap: 15,
+    upgradeFraction:  0.30,
+    neutralFraction:  0.90,   // rush expansion ultra-aggressively
+    attackFraction:   0.80,
+    upgradeWeight:    0.25,
+    expandWeight:     0.90,
+    maxUpgrade:       2,      // doesn't bother with full upgrades — speed wins
+  },
+  dominator: {
+    evalInterval:     2.0,
+    evalJitter:       0.6,
+    minToDeploy:      8,
+    reserveParticles: 4,
+    aggressionRatio:  1.1,
+    upgradeTrigger:   30,
+    neutralAttackCap: 8,
+    upgradeFraction:  0.50,
+    neutralFraction:  0.60,
+    attackFraction:   0.85,
+    upgradeWeight:    0.60,
+    expandWeight:     0.65,
+    maxUpgrade:       3,
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Role pool lookup per difficulty
+// ---------------------------------------------------------------------------
+
+const NORMAL_ROLES: NormalSubRole[] = ['fortress', 'balanced', 'opportunist', 'expander'];
+const HARD_ROLES:   HardSubRole[]   = ['berserker', 'economic', 'blitzkrieg', 'dominator'];
+
+function pickSubRole(difficulty: AIDifficulty): AISubRole {
+  switch (difficulty) {
+    case 'easy':   return 'easy_turtle';
+    case 'hard':   return HARD_ROLES[Math.floor(Math.random() * HARD_ROLES.length)];
+    default:       return NORMAL_ROLES[Math.floor(Math.random() * NORMAL_ROLES.length)];
+  }
+}
 
 // ---------------------------------------------------------------------------
 // AIController
@@ -52,10 +252,7 @@ export class AIController {
   /** All factions managed by this controller. */
   private factions: Faction[];
 
-  /**
-   * Tracks accumulated delta-time for each faction.
-   * When a faction timer exceeds its next evaluation interval the AI decides.
-   */
+  /** Accumulated delta-time for each faction. */
   private timers: Map<Faction, number>;
 
   /** Per-faction randomised evaluation intervals (re-rolled after each decision). */
@@ -64,17 +261,31 @@ export class AIController {
   /** The current high-level state for each faction (for debugging / HUD). */
   private states: Map<Faction, AIState>;
 
-  constructor(factions: Faction[]) {
-    this.factions = factions;
-    this.timers = new Map();
+  /** The sub-role chosen for each faction at construction time. */
+  private subRoles: Map<Faction, AISubRole>;
+
+  /** The resolved strategy parameters per faction (derived from sub-role). */
+  private strategies: Map<Faction, AIStrategy>;
+
+  constructor(factions: Faction[], difficulty: AIDifficulty = 'normal') {
+    this.factions   = factions;
+    this.timers     = new Map();
     this.evalIntervals = new Map();
-    this.states = new Map();
+    this.states     = new Map();
+    this.subRoles   = new Map();
+    this.strategies = new Map();
 
     for (const faction of factions) {
-      // Stagger initial evaluation so factions do not all fire on tick 0.
-      this.timers.set(faction, Math.random() * BASE_EVAL_INTERVAL);
-      this.evalIntervals.set(faction, this.randomInterval());
+      const role     = pickSubRole(difficulty);
+      const strategy = STRATEGIES[role];
+
+      this.subRoles.set(faction, role);
+      this.strategies.set(faction, strategy);
+      this.timers.set(faction, Math.random() * strategy.evalInterval);
+      this.evalIntervals.set(faction, this.randomInterval(strategy));
       this.states.set(faction, 'defend');
+
+      console.log(`[AI] faction=${faction} difficulty=${difficulty} sub-role=${role}`);
     }
   }
 
@@ -82,24 +293,16 @@ export class AIController {
   // Public update — called every frame from GameScene
   // -------------------------------------------------------------------------
 
-  /**
-   * Advances AI timers and triggers evaluations when intervals expire.
-   *
-   * @param dt             Frame delta-time in seconds.
-   * @param state          Current shared GameState.
-   * @param deployCallback Callback to invoke when the AI wants to deploy particles.
-   */
   update(dt: number, state: GameState, deployCallback: DeployCallback): void {
     if (!state.running) return;
 
     for (const faction of this.factions) {
-      const elapsed = (this.timers.get(faction) ?? 0) + dt;
-      const interval = this.evalIntervals.get(faction) ?? BASE_EVAL_INTERVAL;
+      const elapsed  = (this.timers.get(faction) ?? 0) + dt;
+      const interval = this.evalIntervals.get(faction) ?? 3.0;
 
       if (elapsed >= interval) {
-        // Reset timer and randomise next interval before evaluating.
         this.timers.set(faction, 0);
-        this.evalIntervals.set(faction, this.randomInterval());
+        this.evalIntervals.set(faction, this.randomInterval(this.strategies.get(faction)!));
         this.evaluate(faction, state, deployCallback);
       } else {
         this.timers.set(faction, elapsed);
@@ -111,45 +314,40 @@ export class AIController {
   // Core decision logic
   // -------------------------------------------------------------------------
 
-  /**
-   * Evaluates the current situation for a single faction and acts accordingly.
-   * Priority order: upgrade > conquer neutral > attack > defend.
-   */
   private evaluate(
     faction: Faction,
     state: GameState,
     deployCallback: DeployCallback,
   ): void {
+    const strategy = this.strategies.get(faction)!;
     const ownPlanets = this.getOwnPlanets(faction, state);
 
-    // Dead faction — nothing to do.
     if (ownPlanets.length === 0) {
       this.states.set(faction, 'defend');
       return;
     }
 
-    const totalParticles = this.getTotalParticles(faction, state);
+    const totalParticles  = this.getTotalParticles(faction, state);
     const playerParticles = this.getTotalParticles('player', state);
 
-    // Planets with enough particles to be worth deploying from.
     const sourcePlanets = ownPlanets.filter(
-      (p) => p.particles > MIN_PARTICLES_TO_DEPLOY,
+      (p) => p.particles > strategy.minToDeploy,
     );
 
     // --- Branch 1: Upgrade ---
-    if (sourcePlanets.length > 0 && totalParticles >= UPGRADE_TRIGGER_PARTICLES) {
-      const bestUpgradePlanet = this.findBestPlanetToUpgrade(ownPlanets);
-      if (bestUpgradePlanet !== null && bestUpgradePlanet.upgradeLevel < MAX_UPGRADE) {
+    // Respect upgradeWeight: higher weight = more eager to upgrade before acting.
+    const wantsUpgrade = Math.random() < strategy.upgradeWeight;
+    if (wantsUpgrade && sourcePlanets.length > 0 && totalParticles >= strategy.upgradeTrigger) {
+      const bestUpgradePlanet = this.findBestPlanetToUpgrade(ownPlanets, strategy.maxUpgrade);
+      if (bestUpgradePlanet !== null) {
         this.states.set(faction, 'upgrade');
-
-        const richestSource = this.richestPlanet(sourcePlanets);
-        if (richestSource !== null && richestSource.id !== bestUpgradePlanet.id) {
-          this.deployParticles([richestSource], bestUpgradePlanet, deployCallback, 0.5);
-        } else if (richestSource !== null) {
-          // Source IS the upgrade target — use the second richest if one exists.
-          const alt = sourcePlanets.find((p) => p.id !== richestSource.id) ?? null;
+        const richest = this.richestPlanet(sourcePlanets);
+        if (richest !== null && richest.id !== bestUpgradePlanet.id) {
+          this.deployParticles([richest], bestUpgradePlanet, deployCallback, strategy.upgradeFraction);
+        } else if (richest !== null) {
+          const alt = sourcePlanets.find((p) => p.id !== richest.id) ?? null;
           if (alt !== null) {
-            this.deployParticles([alt], bestUpgradePlanet, deployCallback, 0.5);
+            this.deployParticles([alt], bestUpgradePlanet, deployCallback, strategy.upgradeFraction);
           }
         }
         return;
@@ -157,29 +355,31 @@ export class AIController {
     }
 
     // --- Branch 2: Conquer Neutral ---
+    const wantsExpand = Math.random() < strategy.expandWeight;
     const weakestNeutral = this.findWeakestNeutral(state);
     if (
+      wantsExpand &&
       weakestNeutral !== null &&
-      weakestNeutral.particles < NEUTRAL_ATTACK_THRESHOLD &&
+      weakestNeutral.particles < strategy.neutralAttackCap &&
       sourcePlanets.length > 0
     ) {
       this.states.set(faction, 'conquer_neutral');
       const nearest = this.nearestPlanet(sourcePlanets, weakestNeutral);
       if (nearest !== null) {
-        this.deployParticles([nearest], weakestNeutral, deployCallback, 0.6);
+        this.deployParticles([nearest], weakestNeutral, deployCallback, strategy.neutralFraction);
       }
       return;
     }
 
     // --- Branch 3: Attack ---
     if (
-      totalParticles > playerParticles * AGGRESSION_RATIO &&
+      totalParticles > playerParticles * strategy.aggressionRatio &&
       sourcePlanets.length > 0
     ) {
-      const weakestPlayer = this.findWeakestPlayerPlanet(state);
-      if (weakestPlayer !== null) {
+      const target = this.findAttackTarget(state, faction);
+      if (target !== null) {
         this.states.set(faction, 'attack');
-        this.deployParticles(sourcePlanets, weakestPlayer, deployCallback, 0.55);
+        this.deployParticles(sourcePlanets, target, deployCallback, strategy.attackFraction);
         return;
       }
     }
@@ -192,84 +392,67 @@ export class AIController {
   // Query helpers
   // -------------------------------------------------------------------------
 
-  /** Returns all planets belonging to the given faction. */
   private getOwnPlanets(faction: Faction, state: GameState): PlanetData[] {
     const result: PlanetData[] = [];
     for (const planet of state.planets.values()) {
-      if (planet.faction === faction) {
-        result.push(planet);
-      }
+      if (planet.faction === faction) result.push(planet);
     }
     return result;
   }
 
-  /**
-   * Sums the total particles available to a faction:
-   * stationed particles on planets + traveling particles in flight.
-   */
   private getTotalParticles(faction: Faction, state: GameState): number {
     let total = 0;
-
     for (const planet of state.planets.values()) {
-      if (planet.faction === faction) {
-        total += planet.particles;
-      }
+      if (planet.faction === faction) total += planet.particles;
     }
-
     for (const particle of state.particles) {
-      if (particle.alive && particle.faction === faction) {
-        total++;
-      }
+      if (particle.alive && particle.faction === faction) total++;
     }
-
     return total;
   }
 
-  /**
-   * Finds the weakest (fewest particles) neutral planet on the map.
-   * Returns null if there are no neutral planets.
-   */
   private findWeakestNeutral(state: GameState): PlanetData | null {
     let best: PlanetData | null = null;
     for (const planet of state.planets.values()) {
       if (planet.faction === 'neutral') {
-        if (best === null || planet.particles < best.particles) {
-          best = planet;
-        }
+        if (best === null || planet.particles < best.particles) best = planet;
       }
     }
     return best;
   }
 
   /**
-   * Finds the weakest (fewest particles) planet owned by the human player.
-   * Returns null if the player has no planets.
+   * Finds the weakest enemy planet to attack. The dominator sub-role targets
+   * the weakest faction systematically; others target the weakest player planet.
    */
-  private findWeakestPlayerPlanet(state: GameState): PlanetData | null {
+  private findAttackTarget(state: GameState, faction: Faction): PlanetData | null {
+    const subRole = this.subRoles.get(faction);
+
+    if (subRole === 'dominator') {
+      // Find the weakest non-neutral, non-self planet
+      let best: PlanetData | null = null;
+      for (const planet of state.planets.values()) {
+        if (planet.faction === faction || planet.faction === 'neutral') continue;
+        if (best === null || planet.particles < best.particles) best = planet;
+      }
+      return best;
+    }
+
+    // Default: target weakest player planet
     let best: PlanetData | null = null;
     for (const planet of state.planets.values()) {
       if (planet.faction === 'player') {
-        if (best === null || planet.particles < best.particles) {
-          best = planet;
-        }
+        if (best === null || planet.particles < best.particles) best = planet;
       }
     }
     return best;
   }
 
-  /**
-   * Among the given planets, returns the one most worth upgrading.
-   * Prefers higher current level (closer to threshold), ties broken by particle count.
-   * Returns null if all planets are already at MAX_UPGRADE.
-   */
-  private findBestPlanetToUpgrade(planets: PlanetData[]): PlanetData | null {
+  private findBestPlanetToUpgrade(planets: PlanetData[], maxUpgrade: UpgradeLevel): PlanetData | null {
     let best: PlanetData | null = null;
     for (const planet of planets) {
-      if (planet.upgradeLevel >= MAX_UPGRADE) continue;
-      if (best === null) {
-        best = planet;
-        continue;
-      }
+      if (planet.upgradeLevel >= maxUpgrade) continue;
+      if (best === null) { best = planet; continue; }
       if (planet.upgradeLevel > best.upgradeLevel) {
         best = planet;
       } else if (
@@ -286,76 +469,60 @@ export class AIController {
   // Deployment
   // -------------------------------------------------------------------------
 
-  /**
-   * Issues a deploy order by calling the provided callback.
-   *
-   * @param sources        Source planets to pull particles from.
-   * @param target         Destination planet.
-   * @param deployCallback Registered callback in GameScene.
-   * @param fraction       Fraction of surplus particles to send (0-1); used to
-   *                       signal intent — actual amount is controlled by GameScene.
-   */
   private deployParticles(
     sources: PlanetData[],
     target: PlanetData,
     deployCallback: DeployCallback,
     _fraction: number,
   ): void {
-    const validSources = sources.filter((p) => p.particles > RESERVE_PARTICLES);
+    const strategy = this.strategies.get(this.factions[0])!; // fraction logged only
+    const validSources = sources.filter((p) => p.particles > strategy.reserveParticles);
     if (validSources.length === 0) return;
-
-    const fromIds = validSources.map((p) => p.id);
-    deployCallback(fromIds, target.id);
+    deployCallback(validSources.map((p) => p.id), target.id);
   }
 
   // -------------------------------------------------------------------------
   // Spatial helpers
   // -------------------------------------------------------------------------
 
-  /** Returns the planet in the list with the most stationed particles. */
   private richestPlanet(planets: PlanetData[]): PlanetData | null {
     if (planets.length === 0) return null;
     return planets.reduce((best, p) => (p.particles > best.particles ? p : best));
   }
 
-  /** Returns the planet in the list closest to the target. */
   private nearestPlanet(planets: PlanetData[], target: PlanetData): PlanetData | null {
     if (planets.length === 0) return null;
     let nearest = planets[0];
     let nearestDistSq = this.distSq(planets[0], target);
-
     for (let i = 1; i < planets.length; i++) {
       const d = this.distSq(planets[i], target);
-      if (d < nearestDistSq) {
-        nearestDistSq = d;
-        nearest = planets[i];
-      }
+      if (d < nearestDistSq) { nearestDistSq = d; nearest = planets[i]; }
     }
     return nearest;
   }
 
-  /** Squared Euclidean distance between two positional objects. */
   private distSq(a: { x: number; y: number }, b: { x: number; y: number }): number {
     const dx = a.x - b.x;
     const dy = a.y - b.y;
     return dx * dx + dy * dy;
   }
 
-  /** Returns a randomised evaluation interval around BASE_EVAL_INTERVAL. */
-  private randomInterval(): number {
-    return BASE_EVAL_INTERVAL + (Math.random() * 2 - 1) * EVAL_JITTER;
+  private randomInterval(strategy: AIStrategy): number {
+    return strategy.evalInterval + (Math.random() * 2 - 1) * strategy.evalJitter;
   }
 
   // -------------------------------------------------------------------------
   // Accessors (for debugging / HUD)
   // -------------------------------------------------------------------------
 
-  /** Returns the current AI state for the given faction. */
   getState(faction: Faction): AIState {
     return this.states.get(faction) ?? 'defend';
   }
 
-  /** Returns which factions this controller manages. */
+  getSubRole(faction: Faction): AISubRole | undefined {
+    return this.subRoles.get(faction);
+  }
+
   getManagedFactions(): Faction[] {
     return [...this.factions];
   }
