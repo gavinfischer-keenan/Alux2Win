@@ -191,7 +191,7 @@ export class MainMenuScene {
       { name: 'Normal', image: '/assets/galaxies/normal.png', locked: false, levels: [skirmishData as LevelData, skirmishData2 as LevelData], isTutorial: false },
       { name: 'Plasma Storms', image: '/assets/galaxies/plasma.png', locked: true },
       { name: 'Asteroids', image: '/assets/galaxies/asteroid.png', locked: true },
-      { name: 'Nebula Fog', image: '/assets/galaxies/nebula.png', locked: true },
+      { name: 'Gamma Rays', image: '/assets/galaxies/nebula.png', locked: true },
       { name: 'Ice World', image: '/assets/galaxies/ice.png', locked: true },
       { name: 'Lava Core', image: '/assets/galaxies/lava.png', locked: true },
       { name: 'Void Sector', image: '/assets/galaxies/void.png', locked: true },
