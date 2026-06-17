@@ -36,10 +36,12 @@ export class EditorSidebar {
   onToolChange: (tool: EditorTool) => void = () => {};
   onTestLevel: () => void = () => {};
   onSaveLevel: () => void = () => {};
+  onLoadLevel: () => void = () => {};
   onBack: () => void = () => {};
   onLevelNameChange: (name: string) => void = () => {};
 
   private toolButtons: Map<EditorTool, HTMLElement> = new Map();
+  private nameInput!: HTMLInputElement;
 
   constructor(container: HTMLElement) {
     this.element = this.createElement();
@@ -109,11 +111,11 @@ export class EditorSidebar {
       margin-bottom: 4px;
     `;
     nameLabel.textContent = 'NAME';
-    const nameInput = document.createElement('input');
-    nameInput.type = 'text';
-    nameInput.placeholder = 'Level';
-    nameInput.maxLength = 24;
-    nameInput.style.cssText = `
+    this.nameInput = document.createElement('input');
+    this.nameInput.type = 'text';
+    this.nameInput.placeholder = 'Level';
+    this.nameInput.maxLength = 24;
+    this.nameInput.style.cssText = `
       width: 100%;
       background: rgba(255,255,255,0.07);
       border: 1px solid rgba(255,255,255,0.12);
@@ -125,9 +127,9 @@ export class EditorSidebar {
       text-align: center;
       outline: none;
     `;
-    nameInput.addEventListener('input', () => this.onLevelNameChange(nameInput.value));
+    this.nameInput.addEventListener('input', () => this.onLevelNameChange(this.nameInput.value));
     nameWrapper.appendChild(nameLabel);
-    nameWrapper.appendChild(nameInput);
+    nameWrapper.appendChild(this.nameInput);
     sidebar.appendChild(nameWrapper);
 
     sidebar.appendChild(this.createDivider());
@@ -136,6 +138,11 @@ export class EditorSidebar {
     const saveBtn = this.createIconBtn('💾', 'Save Level', '#4fc3f7');
     saveBtn.addEventListener('click', () => this.onSaveLevel());
     sidebar.appendChild(saveBtn);
+
+    // ── Load Level button ────────────────────────────────────
+    const loadBtn = this.createIconBtn('📂', 'Load Level', '#fbc02d');
+    loadBtn.addEventListener('click', () => this.onLoadLevel());
+    sidebar.appendChild(loadBtn);
 
     // ── Test Level button ────────────────────────────────────
     const testBtn = this.createIconBtn('▶', 'Test Level', '#22c55e');
@@ -273,6 +280,13 @@ export class EditorSidebar {
     this.activeTool = tool;
     this.refreshActiveState();
     this.onToolChange(tool);
+  }
+
+  setLevelName(name: string): void {
+    if (this.nameInput) {
+      this.nameInput.value = name;
+    }
+    this.onLevelNameChange(name);
   }
 
   destroy(): void {

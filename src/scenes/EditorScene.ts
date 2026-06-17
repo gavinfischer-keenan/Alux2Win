@@ -31,6 +31,7 @@ import { Renderer }        from '../engine/Renderer';
 import { EventBus }        from '../engine/EventBus';
 import { EditorSidebar, EditorTool } from '../ui/EditorSidebar';
 import { PropertiesPanel } from '../ui/PropertiesPanel';
+import { LevelStore }      from '../core/LevelStore';
 
 // ── Helper to build a default new planet ─────────────────────
 function defaultPlanet(id: string, x: number, y: number): PlanetData {
@@ -165,7 +166,8 @@ export class EditorScene {
     this.sidebar = new EditorSidebar(container);
     this.sidebar.onToolChange = (tool) => { this.editState.tool = tool; this.updateCursor(); };
     this.sidebar.onBack       = () => this.onBack();
-    this.sidebar.onSaveLevel  = () => this.exportLevel();
+    this.sidebar.onSaveLevel  = () => this.showSaveOverlay();
+    this.sidebar.onLoadLevel  = () => this.showLoadOverlay();
     this.sidebar.onTestLevel  = () => this.testLevel();
     this.sidebar.onLevelNameChange = (name) => { this.editState.levelName = name; };
 
@@ -922,10 +924,10 @@ export class EditorScene {
     return best;
   }
 
-  // ── Export ────────────────────────────────────────────────
+  // ── Export / Import ────────────────────────────────────────────────
 
-  private exportLevel(): void {
-    const levelData = this.buildLevelData();
+  private exportLevel(overrideData?: LevelData): void {
+    const levelData = overrideData || this.buildLevelData();
     const json = JSON.stringify(levelData, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
@@ -1005,5 +1007,380 @@ export class EditorScene {
       trappingBlackHoles:  trappingBlackHoles.length > 0  ? trappingBlackHoles  : undefined,
       whiteHoles:          whiteHoles.length > 0          ? whiteHoles          : undefined,
     };
+  }
+
+  private evaluateLevel(): { category: string, players: number, particles: number } {
+    let category = 'Normal';
+    const hasSpeedZones = this.editState.speedZones.size > 0;
+    const hasPortals = this.editState.portals.size > 0;
+    const hasBH = this.editState.blackHoles.size > 0 || this.editState.trappingBlackHoles.size > 0;
+    const hasWhiteHoles = this.editState.whiteHoles.size > 0;
+
+    const hazardCounts = {
+      speedZones: hasSpeedZones ? 1 : 0,
+      portals: hasPortals ? 1 : 0,
+      bh: hasBH ? 1 : 0,
+      whiteHoles: hasWhiteHoles ? 1 : 0,
+    };
+    
+    const activeHazardTypes = Object.entries(hazardCounts).filter(([_, count]) => count > 0).map(([k, _]) => k);
+
+    if (activeHazardTypes.length === 0) {
+      category = 'Normal';
+    } else if (activeHazardTypes.length === 1) {
+      if (activeHazardTypes[0] === 'speedZones') category = 'Speed Traps';
+      else if (activeHazardTypes[0] === 'portals') category = 'Portals';
+      else if (activeHazardTypes[0] === 'bh') category = 'Black Holes';
+      else if (activeHazardTypes[0] === 'whiteHoles') category = 'White Holes';
+    } else {
+      category = 'Custom';
+    }
+
+    const uniqueFactions = new Set<string>();
+    let totalNeutralCapacity = 0;
+    this.editState.planets.forEach(p => {
+      if (p.faction !== 'neutral') {
+        uniqueFactions.add(p.faction);
+      } else {
+        totalNeutralCapacity += PLANET_CAPACITY[p.upgradeLevel];
+      }
+    });
+
+    let players = uniqueFactions.size;
+    if (players < 2) players = 2;
+
+    let particles = 50;
+    if (players > 0) {
+       particles = Math.round(totalNeutralCapacity / 2 / players);
+    }
+    if (particles < 10) particles = 10;
+    
+    return { category, players, particles };
+  }
+
+  private showSaveOverlay(): void {
+    const { category, players, particles } = this.evaluateLevel();
+    
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(10, 10, 26, 0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    `;
+
+    const dialog = document.createElement('div');
+    dialog.style.cssText = `
+      background: rgba(20, 20, 40, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 24px;
+      width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      font-family: 'Rajdhani', sans-serif;
+      color: white;
+    `;
+
+    const title = document.createElement('h2');
+    title.textContent = 'Save / Export Level';
+    title.style.cssText = 'margin: 0; text-align: center; font-size: 24px;';
+    dialog.appendChild(title);
+
+    const form = document.createElement('div');
+    form.style.cssText = 'display: flex; flex-direction: column; gap: 12px;';
+
+    const createInput = (labelText: string, initialValue: string) => {
+      const wrapper = document.createElement('div');
+      wrapper.style.display = 'flex';
+      wrapper.style.flexDirection = 'column';
+      const label = document.createElement('label');
+      label.textContent = labelText;
+      label.style.fontSize = '12px';
+      label.style.color = 'rgba(255,255,255,0.6)';
+      const input = document.createElement('input');
+      input.value = initialValue;
+      input.style.cssText = 'background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 6px; border-radius: 4px; font-family: inherit;';
+      wrapper.appendChild(label);
+      wrapper.appendChild(input);
+      return { wrapper, input };
+    };
+
+    const nameField = createInput('Level Name', this.editState.levelName);
+    form.appendChild(nameField.wrapper);
+
+    const catWrapper = document.createElement('div');
+    catWrapper.style.display = 'flex';
+    catWrapper.style.flexDirection = 'column';
+    const catLabel = document.createElement('label');
+    catLabel.textContent = 'Category';
+    catLabel.style.fontSize = '12px';
+    catLabel.style.color = 'rgba(255,255,255,0.6)';
+    const catInput = document.createElement('input');
+    catInput.value = category;
+    catInput.style.cssText = 'background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 6px; border-radius: 4px; font-family: inherit;';
+    catWrapper.appendChild(catLabel);
+    catWrapper.appendChild(catInput);
+    form.appendChild(catWrapper);
+
+    const info = document.createElement('div');
+    info.style.cssText = 'font-size: 14px; color: rgba(255,255,255,0.8); margin-top: 8px;';
+    info.innerHTML = `Suggested Players: <strong>${players}</strong><br>Suggested Starting Particles: <strong>${particles}</strong>`;
+    form.appendChild(info);
+
+    dialog.appendChild(form);
+
+    const btnContainer = document.createElement('div');
+    btnContainer.style.cssText = 'display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end;';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.cssText = 'padding: 8px 16px; background: rgba(255,255,255,0.1); border: none; color: white; border-radius: 4px; cursor: pointer;';
+    cancelBtn.onclick = () => overlay.remove();
+
+    const exportBtn = document.createElement('button');
+    exportBtn.textContent = 'Export to JSON';
+    exportBtn.style.cssText = 'padding: 8px 16px; background: rgba(79, 195, 247, 0.3); border: 1px solid #4fc3f7; color: #4fc3f7; border-radius: 4px; cursor: pointer;';
+    exportBtn.onclick = () => {
+      this.editState.levelName = nameField.input.value;
+      const ld = this.buildLevelData();
+      ld.category = catInput.value;
+      this.exportLevel(ld);
+      if ((this.sidebar as any).setLevelName) {
+        (this.sidebar as any).setLevelName(this.editState.levelName);
+      }
+      overlay.remove();
+    };
+
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save to Local Storage';
+    saveBtn.style.cssText = 'padding: 8px 16px; background: rgba(34, 197, 94, 0.3); border: 1px solid #22c55e; color: #22c55e; border-radius: 4px; cursor: pointer;';
+    saveBtn.onclick = () => {
+      this.editState.levelName = nameField.input.value;
+      const ld = this.buildLevelData();
+      ld.category = catInput.value;
+      LevelStore.saveLevel(ld);
+      if ((this.sidebar as any).setLevelName) {
+        (this.sidebar as any).setLevelName(this.editState.levelName);
+      }
+      overlay.remove();
+    };
+
+    btnContainer.appendChild(cancelBtn);
+    btnContainer.appendChild(exportBtn);
+    btnContainer.appendChild(saveBtn);
+    dialog.appendChild(btnContainer);
+
+    overlay.appendChild(dialog);
+    this.uiContainer.appendChild(overlay);
+  }
+
+  private showLoadOverlay(): void {
+    const levels = LevelStore.loadLevels();
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(10, 10, 26, 0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    `;
+
+    const dialog = document.createElement('div');
+    dialog.style.cssText = `
+      background: rgba(20, 20, 40, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 24px;
+      width: 500px;
+      max-height: 80%;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      font-family: 'Rajdhani', sans-serif;
+      color: white;
+    `;
+
+    const title = document.createElement('h2');
+    title.textContent = 'Load Custom Level';
+    title.style.cssText = 'margin: 0; text-align: center; font-size: 24px;';
+    dialog.appendChild(title);
+
+    const list = document.createElement('div');
+    list.style.cssText = 'display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; padding-right: 8px;';
+
+    if (levels.length === 0) {
+      const noLevels = document.createElement('div');
+      noLevels.textContent = 'No custom levels found in local storage.';
+      noLevels.style.textAlign = 'center';
+      noLevels.style.color = 'rgba(255,255,255,0.5)';
+      list.appendChild(noLevels);
+    } else {
+      levels.forEach(ld => {
+        const item = document.createElement('div');
+        item.style.cssText = `
+          display: flex; justify-content: space-between; align-items: center;
+          padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 6px; cursor: pointer; transition: background 0.1s;
+        `;
+        item.onmouseenter = () => item.style.background = 'rgba(255,255,255,0.1)';
+        item.onmouseleave = () => item.style.background = 'rgba(0,0,0,0.3)';
+        
+        const info = document.createElement('div');
+        info.innerHTML = `<strong>${ld.name}</strong><br><span style="font-size:12px;color:rgba(255,255,255,0.5)">Category: ${ld.category || 'Custom'}</span>`;
+        item.appendChild(info);
+
+        const loadBtn = document.createElement('button');
+        loadBtn.textContent = 'Load';
+        loadBtn.style.cssText = 'padding: 6px 12px; background: #fbc02d; border: none; color: black; border-radius: 4px; cursor: pointer; font-family: inherit; font-weight: bold;';
+        loadBtn.onclick = (e) => {
+          e.stopPropagation();
+          this.loadLevelData(ld);
+          overlay.remove();
+        };
+        item.onclick = () => loadBtn.click();
+        
+        const delBtn = document.createElement('button');
+        delBtn.textContent = 'Delete';
+        delBtn.style.cssText = 'padding: 6px 12px; background: #ef5350; border: none; color: white; border-radius: 4px; cursor: pointer; font-family: inherit; margin-left: 8px;';
+        delBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (ld.id) LevelStore.deleteLevel(ld.id);
+          item.remove();
+        };
+
+        const btnRow = document.createElement('div');
+        btnRow.appendChild(loadBtn);
+        btnRow.appendChild(delBtn);
+        item.appendChild(btnRow);
+        
+        list.appendChild(item);
+      });
+    }
+
+    dialog.appendChild(list);
+
+    const btnContainer = document.createElement('div');
+    btnContainer.style.cssText = 'display: flex; justify-content: center; margin-top: 16px;';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.cssText = 'padding: 8px 32px; background: rgba(255,255,255,0.1); border: none; color: white; border-radius: 4px; cursor: pointer; font-family: inherit;';
+    cancelBtn.onclick = () => overlay.remove();
+    btnContainer.appendChild(cancelBtn);
+
+    dialog.appendChild(btnContainer);
+    overlay.appendChild(dialog);
+    this.uiContainer.appendChild(overlay);
+  }
+
+  private loadLevelData(ld: LevelData): void {
+    this.editState.planets.clear();
+    this.editState.blackHoles.clear();
+    this.editState.speedZones.clear();
+    this.editState.portals.clear();
+    this.editState.trappingBlackHoles.clear();
+    this.editState.whiteHoles.clear();
+    this.editState.selectedEntityId = null;
+    this.propertiesPanel.hide();
+
+    this.editState.levelName = ld.name;
+    this.editState.worldWidth = ld.worldWidth;
+    this.editState.worldHeight = ld.worldHeight;
+    
+    if ((this.sidebar as any).setLevelName) {
+      (this.sidebar as any).setLevelName(ld.name);
+    }
+
+    let maxPid = 0, maxBhId = 0, maxSzId = 0, maxPortalId = 0, maxTbhId = 0, maxWhId = 0;
+
+    ld.planets.forEach(p => {
+      this.editState.planets.set(p.id, {
+        ...defaultPlanet(p.id, p.x, p.y),
+        faction: p.faction,
+        upgradeLevel: p.upgradeLevel,
+        particles: p.startingParticles,
+        capacity: PLANET_CAPACITY[p.upgradeLevel],
+        productionRate: PLANET_PRODUCTION[p.upgradeLevel],
+        isOrbiting: !!p.isOrbiting,
+        orbitCenterX: p.orbitCenterX,
+        orbitCenterY: p.orbitCenterY,
+        orbitRadius: p.orbitRadius,
+        orbitSpeed: p.orbitSpeed,
+        orbitAngle: p.orbitStartAngle,
+      });
+      const num = parseInt(p.id.replace(/\\D/g, ''), 10);
+      if (!isNaN(num) && num > maxPid) maxPid = num;
+    });
+
+    ld.blackHoles.forEach(bh => {
+      this.editState.blackHoles.set(bh.id, {
+        ...defaultBlackHole(bh.id, bh.x, bh.y),
+        radius: bh.radius,
+        pullStrength: bh.pullStrength,
+      });
+      const num = parseInt(bh.id.replace(/\\D/g, ''), 10);
+      if (!isNaN(num) && num > maxBhId) maxBhId = num;
+    });
+
+    if (ld.speedZones) {
+      ld.speedZones.forEach(sz => {
+        this.editState.speedZones.set(sz.id, {
+          ...defaultSpeedZone(sz.id, sz.x, sz.y),
+          radius: sz.radius,
+          type: sz.type,
+        });
+        const num = parseInt(sz.id.replace(/\\D/g, ''), 10);
+        if (!isNaN(num) && num > maxSzId) maxSzId = num;
+      });
+    }
+
+    if (ld.portals) {
+      ld.portals.forEach(p => {
+        this.editState.portals.set(p.id, {
+          ...defaultPortal(p.id, p.x, p.y, p.pairId, p.color),
+        });
+        const num = parseInt(p.id.replace(/\\D/g, ''), 10);
+        if (!isNaN(num) && num > maxPortalId) maxPortalId = num;
+      });
+    }
+
+    if (ld.trappingBlackHoles) {
+      ld.trappingBlackHoles.forEach(tbh => {
+        this.editState.trappingBlackHoles.set(tbh.id, {
+          ...defaultTrappingBH(tbh.id, tbh.x, tbh.y),
+          pullRadius: tbh.pullRadius,
+        });
+        const num = parseInt(tbh.id.replace(/\\D/g, ''), 10);
+        if (!isNaN(num) && num > maxTbhId) maxTbhId = num;
+      });
+    }
+
+    if (ld.whiteHoles) {
+      ld.whiteHoles.forEach(wh => {
+        this.editState.whiteHoles.set(wh.id, {
+          ...defaultWhiteHole(wh.id, wh.x, wh.y),
+        });
+        const num = parseInt(wh.id.replace(/\\D/g, ''), 10);
+        if (!isNaN(num) && num > maxWhId) maxWhId = num;
+      });
+    }
+
+    this.editState.nextPlanetId = maxPid + 1;
+    this.editState.nextBhId = maxBhId + 1;
+    this.editState.nextSpeedZoneId = maxSzId + 1;
+    this.editState.nextPortalId = maxPortalId + 1;
+    this.editState.nextTBHId = maxTbhId + 1;
+    this.editState.nextWhiteHoleId = maxWhId + 1;
   }
 }

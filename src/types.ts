@@ -196,10 +196,12 @@ export interface WhiteHoleData {
   pulseAngle: number;           // visual animation
 }
 
-// ---- Level JSON Schema ----
 export interface LevelData {
   version: 1;
   name: string;
+  id?: string;               // Unique ID for custom levels
+  isCustom?: boolean;        // True if saved from the editor
+  category?: string;         // E.g., 'Normal', 'Speed Traps', 'Custom'
   worldWidth: number;
   worldHeight: number;
   planets: PlanetDef[];

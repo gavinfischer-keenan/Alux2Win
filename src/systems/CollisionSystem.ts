@@ -18,6 +18,8 @@ const COLLISION_DIST_SQ = COLLISION_DISTANCE * COLLISION_DISTANCE;
  * Pair deduplication prevents double-counting via a processed-pair Set.
  */
 export class CollisionSystem {
+  private _processedPairs = new Set<number>();
+
   constructor(private readonly _ownedSpatialHash?: SpatialHash) {}
 
   update(state: GameState, externalHash?: SpatialHash): void {
@@ -31,7 +33,8 @@ export class CollisionSystem {
 
     // ---- Pass 1: Accumulate damage ----
     // Use numeric pair key to avoid string allocation GC overhead
-    const processedPairs = new Set<number>();
+    this._processedPairs.clear();
+    const processedPairs = this._processedPairs;
 
     for (const p of particles) {
       if (!p.alive) continue;

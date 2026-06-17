@@ -54,7 +54,9 @@ export class SpatialHash {
 
   /** Reset all buckets. Must be called at the start of each frame. */
   clear(): void {
-    this.buckets.clear();
+    for (const bucket of this.buckets.values()) {
+      bucket.length = 0;
+    }
   }
 
   /** Insert a particle into its appropriate cell. */

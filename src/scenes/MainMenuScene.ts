@@ -18,6 +18,9 @@ import { SettingsStore } from '../core/SettingsStore';
 import type { GameSettings } from '../core/SettingsStore';
 import { audioManager } from '../core/AudioManager';
 import type { GameSpeed } from '../ui/PauseMenu';
+import { LevelStore } from '../core/LevelStore';
+import { HighScoreStore } from '../core/HighScoreStore';
+import { generateRandomLevel } from '../utils/RandomLevelGenerator';
 
 export class MainMenuScene {
   private element: HTMLElement;
@@ -183,26 +186,38 @@ export class MainMenuScene {
     header.appendChild(auxContainer);
     card.appendChild(header);
 
-    // ── Horizontal Galaxy Scroll View ───────────────────────
+    // ── Grid Galaxy View ───────────────────────
     const scrollContainer = document.createElement('div');
     scrollContainer.style.cssText = `
-      display: flex;
-      gap: 24px;
-      overflow-x: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      overflow-y: auto;
       padding: 10px 10px 20px 10px;
-      scroll-behavior: smooth;
+      max-height: 65vh;
+      width: 100%;
     `;
+
+    const customLevels = LevelStore.loadLevels();
+    const customGroups: Record<string, LevelData[]> = {};
+    customLevels.forEach(level => {
+      const cat = level.category || 'Custom';
+      if (!customGroups[cat]) customGroups[cat] = [];
+      customGroups[cat].push(level);
+    });
 
     const galaxies = [
       { name: 'Tutorial',      image: '/assets/galaxies/tutorial.png',  locked: false, levels: [tutorialMovementData as LevelData], isTutorial: true },
-      { name: 'Normal',        image: '/assets/galaxies/normal.png',    locked: false, levels: [skirmishData as LevelData, skirmishData2 as LevelData], isTutorial: false },
-      { name: 'Plasma Storms', image: '/assets/galaxies/plasma.png',    locked: false, levels: [plasmaStorm1Data as LevelData],  isTutorial: false },
-      { name: 'Asteroids',     image: '/assets/galaxies/asteroid.png',  locked: false, levels: [asteroids1Data as LevelData],    isTutorial: false },
-      { name: 'Gamma Rays',    image: '/assets/galaxies/nebula.png',    locked: false, levels: [gammaRays1Data as LevelData],    isTutorial: false },
-      { name: 'Speed Traps',   image: '/assets/galaxies/ice.png',       locked: false, levels: [speedTraps1Data as LevelData],   isTutorial: false },
-      { name: 'Portals',       image: '/assets/galaxies/lava.png',      locked: false, levels: [portals1Data as LevelData],      isTutorial: false },
-      { name: 'Black Holes',   image: '/assets/galaxies/void.png',      locked: false, levels: [blackholes1Data as LevelData],   isTutorial: false },
-      { name: 'White Holes',   image: '/assets/galaxies/quantum.png',   locked: false, levels: [whiteholes1Data as LevelData],   isTutorial: false },
+      { name: 'Normal',        image: '/assets/galaxies/normal.png',    locked: false, levels: [skirmishData as LevelData, skirmishData2 as LevelData, ...(customGroups['Normal'] || [])], isTutorial: false },
+      { name: 'Plasma Storms', image: '/assets/galaxies/plasma.png',    locked: false, levels: [plasmaStorm1Data as LevelData, ...(customGroups['Plasma Storms'] || [])],  isTutorial: false },
+      { name: 'Asteroids',     image: '/assets/galaxies/asteroid.png',  locked: false, levels: [asteroids1Data as LevelData, ...(customGroups['Asteroids'] || [])],    isTutorial: false },
+      { name: 'Gamma Rays',    image: '/assets/galaxies/nebula.png',    locked: false, levels: [gammaRays1Data as LevelData, ...(customGroups['Gamma Rays'] || [])],    isTutorial: false },
+      { name: 'Speed Traps',   image: '/assets/galaxies/ice.png',       locked: false, levels: [speedTraps1Data as LevelData, ...(customGroups['Speed Traps'] || [])],   isTutorial: false },
+      { name: 'Portals',       image: '/assets/galaxies/lava.png',      locked: false, levels: [portals1Data as LevelData, ...(customGroups['Portals'] || [])],      isTutorial: false },
+      { name: 'Black Holes',   image: '/assets/galaxies/void.png',      locked: false, levels: [blackholes1Data as LevelData, ...(customGroups['Black Holes'] || [])],   isTutorial: false },
+      { name: 'White Holes',   image: '/assets/galaxies/quantum.png',   locked: false, levels: [whiteholes1Data as LevelData, ...(customGroups['White Holes'] || [])],   isTutorial: false },
+      { name: 'Custom',        image: '/assets/galaxies/normal.png',    locked: false, levels: customGroups['Custom'] || [], isTutorial: false },
+      { name: 'Random',        image: '/assets/galaxies/quantum.png',   locked: false, levels: [], isTutorial: false },
     ];
 
     galaxies.forEach((g, idx) => {
@@ -210,8 +225,7 @@ export class MainMenuScene {
       tile.className = 'menu-anim-child';
       
       tile.style.cssText = `
-        flex: 0 0 280px;
-        height: 380px;
+        height: 280px;
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 16px;
@@ -237,7 +251,12 @@ export class MainMenuScene {
         });
         tile.addEventListener('click', () => {
           audioManager.playClick();
-          this.openSystemsPanel(g);
+          if (g.name === 'Random') {
+            const randomLevel = generateRandomLevel();
+            this.onPlay(randomLevel, false);
+          } else {
+            this.openSystemsPanel(g);
+          }
         });
       }
 
@@ -1108,9 +1127,27 @@ export class MainMenuScene {
       'Void Nexus'
     ];
 
-    for (let i = 0; i < 9; i++) {
+    const levelsCount = galaxy.levels ? galaxy.levels.length : 0;
+    const isCustomGalaxy = galaxy.name === 'Custom';
+    const totalTiles = isCustomGalaxy ? levelsCount : Math.max(levelsCount, 9);
+
+    if (totalTiles === 0 && isCustomGalaxy) {
+      const emptyMsg = document.createElement('div');
+      emptyMsg.textContent = 'No custom systems found. Create one in the Level Editor!';
+      emptyMsg.style.cssText = `
+        grid-column: 1 / -1;
+        text-align: center;
+        font-family: 'Rajdhani', sans-serif;
+        color: rgba(255,255,255,0.4);
+        padding: 40px;
+      `;
+      grid.appendChild(emptyMsg);
+      return;
+    }
+
+    for (let i = 0; i < totalTiles; i++) {
       const level = galaxy.levels ? galaxy.levels[i] : null;
-      const isLocked = !level;
+      const isLocked = !isCustomGalaxy && !level;
       const tile = document.createElement('div');
 
       tile.style.cssText = `
@@ -1141,7 +1178,8 @@ export class MainMenuScene {
           tile.style.boxShadow = 'none';
           tile.style.borderColor = 'rgba(255, 255, 255, 0.1)';
         });
-        tile.addEventListener('click', () => {
+        tile.addEventListener('click', (e) => {
+          if ((e.target as HTMLElement).closest('.delete-custom-btn')) return;
           audioManager.playClick();
           if (level) {
             this.closeSystemsPanel();
@@ -1151,7 +1189,7 @@ export class MainMenuScene {
       }
 
       const numLabel = document.createElement('div');
-      numLabel.textContent = `SYSTEM 0${i + 1}`;
+      numLabel.textContent = isCustomGalaxy ? `CUSTOM` : `SYSTEM 0${i + 1}`;
       numLabel.style.cssText = `
         font-family: 'Rajdhani', sans-serif;
         font-size: 0.9rem;
@@ -1160,8 +1198,9 @@ export class MainMenuScene {
         margin-bottom: 8px;
       `;
 
+      const nameStr = level ? level.name : (systemNames[i] || `System ${i+1}`);
       const nameLabel = document.createElement('div');
-      nameLabel.textContent = systemNames[i];
+      nameLabel.textContent = nameStr;
       nameLabel.style.cssText = `
         font-family: 'Orbitron', sans-serif;
         font-size: 1.1rem;
@@ -1185,6 +1224,88 @@ export class MainMenuScene {
           text-transform: uppercase;
         `;
         tile.appendChild(lockLabel);
+      }
+
+      if (level && level.isCustom) {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-custom-btn';
+        deleteBtn.textContent = '🗑️';
+        deleteBtn.title = 'Delete Custom Level';
+        deleteBtn.style.cssText = `
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          background: rgba(255, 50, 50, 0.2);
+          border: 1px solid rgba(255, 50, 50, 0.4);
+          border-radius: 4px;
+          color: white;
+          cursor: pointer;
+          font-size: 12px;
+          padding: 4px 6px;
+          transition: background 0.2s;
+          pointer-events: auto;
+        `;
+        deleteBtn.addEventListener('mouseenter', () => { deleteBtn.style.background = 'rgba(255, 50, 50, 0.6)'; });
+        deleteBtn.addEventListener('mouseleave', () => { deleteBtn.style.background = 'rgba(255, 50, 50, 0.2)'; });
+        deleteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          audioManager.playClick();
+          if (confirm(`Delete custom level "${level.name}"?`)) {
+            LevelStore.deleteLevel(level.id!);
+            tile.remove();
+            const idx = galaxy.levels.indexOf(level);
+            if (idx >= 0) galaxy.levels.splice(idx, 1);
+          }
+        });
+        tile.appendChild(deleteBtn);
+      }
+
+      if (level) {
+        // Display top 5 times
+        const levelKey = level.id || level.name;
+        const topTimes = HighScoreStore.getTop(levelKey).slice(0, 5);
+        
+        if (topTimes.length > 0) {
+          const timesContainer = document.createElement('div');
+          timesContainer.style.cssText = `
+            margin-top: 12px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+          `;
+
+          const timesHeader = document.createElement('div');
+          timesHeader.textContent = 'TOP TIMES';
+          timesHeader.style.cssText = `
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.75rem;
+            color: rgba(79, 195, 247, 0.8);
+            letter-spacing: 0.1em;
+            margin-bottom: 4px;
+          `;
+          timesContainer.appendChild(timesHeader);
+
+          topTimes.forEach((score, idx) => {
+            const timeRow = document.createElement('div');
+            
+            // Format time as MM:SS
+            const timeStr = HighScoreStore.formatTime(score.bestTime);
+            
+            timeRow.textContent = `${idx + 1}. ${timeStr}`;
+            timeRow.style.cssText = `
+              font-family: 'Orbitron', sans-serif;
+              font-size: 0.8rem;
+              color: ${idx === 0 ? '#ffca28' : 'rgba(255, 255, 255, 0.6)'};
+              margin: 1px 0;
+            `;
+            timesContainer.appendChild(timeRow);
+          });
+          
+          tile.appendChild(timesContainer);
+        }
       }
 
       grid.appendChild(tile);
