@@ -21,7 +21,8 @@ export class CombatSystem {
         const dist = Math.sqrt(dx * dx + dy * dy);
         const planetRadius = PLANET_RADIUS[planet.upgradeLevel];
 
-        if (dist > planetRadius) continue;
+        // The interaction distance is increased by 40 (the aggro radius)
+        if (dist > planetRadius + 40) continue;
 
         if (particle.faction === planet.faction) {
           // ---- Friendly absorption (upgrade fuel) ----
