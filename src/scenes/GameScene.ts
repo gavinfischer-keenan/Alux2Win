@@ -323,7 +323,7 @@ export class GameScene {
     // Systems in order
     this.systems.orbit.update(dt, this.state);
     this.systems.production.update(dt, this.state);
-    this.systems.movement.update(dt, this.state);
+    this.systems.movement.update(dt, this.state, this.spatialHash);
     this.systems.gravity.update(dt, this.state);
     this.systems.collision.update(this.state, this.spatialHash);
     this.systems.combat.update(this.state, this.eventBus);

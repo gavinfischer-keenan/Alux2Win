@@ -4,8 +4,11 @@
 
 import type { GameState, ParticleData, PlanetData } from '../types';
 import { PARTICLE_SPEED, PLANET_RADIUS, ARRIVE_THRESHOLD } from '../types';
+import type { SpatialHash } from '../core/SpatialHash';
 
 const BOID_RADIUS         = 60;
+const AGGRO_RADIUS        = 40;
+const AGGRO_WEIGHT        = 4.0;
 const BOID_RADIUS_SQ      = BOID_RADIUS * BOID_RADIUS;
 const SEP_WEIGHT          = 1.5;
 const COH_WEIGHT          = 0.5;
@@ -16,7 +19,7 @@ const COMBAT_PROXIMITY    = 20;
 const COMBAT_SPEED_FACTOR = 0.8;
 
 export class MovementSystem {
-  update(dt: number, state: GameState): void {
+  update(dt: number, state: GameState, spatialHash: SpatialHash): void {
     const planets = state.planets;
 
     const travelingByFaction = new Map<string, ParticleData[]>();
@@ -35,15 +38,13 @@ export class MovementSystem {
           this._updateOrbiting(particle, planets, dt);
           break;
         case 'traveling':
-          this._updateTraveling(particle, planets, travelingByFaction, dt);
+          this._updateTraveling(particle, planets, travelingByFaction, dt, spatialHash);
           break;
         case 'combat':
-          this._updateCombat(particle, planets, dt);
+          this._updateCombat(particle, planets, dt, spatialHash);
           break;
         case 'stationed':
-          // Hold position — no movement
-          particle.vx = 0;
-          particle.vy = 0;
+          this._updateStationed(particle, spatialHash, dt);
           break;
       }
     }
@@ -76,7 +77,8 @@ export class MovementSystem {
     p: ParticleData,
     planets: Map<string, PlanetData>,
     travelingByFaction: Map<string, ParticleData[]>,
-    dt: number
+    dt: number,
+    spatialHash: SpatialHash
   ): void {
     // Resolve target: planet (dynamic chase) or empty space coordinate
     const targetPlanet = p.targetPlanetId ? planets.get(p.targetPlanetId) : null;
@@ -165,6 +167,27 @@ export class MovementSystem {
       }
     }
 
+    // ---- Aggro force ----
+    let aggroX = 0, aggroY = 0;
+    let closestDistSq = AGGRO_RADIUS * AGGRO_RADIUS;
+    const nearby = spatialHash.getNearby(p);
+    for (const other of nearby) {
+      if (!other.alive || other.faction === p.faction || other.faction === 'neutral') continue;
+      const odx = other.x - p.x;
+      const ody = other.y - p.y;
+      const dSq = odx * odx + ody * ody;
+      if (dSq < closestDistSq) {
+        closestDistSq = dSq;
+        aggroX = odx;
+        aggroY = ody;
+      }
+    }
+    if (closestDistSq < AGGRO_RADIUS * AGGRO_RADIUS) {
+      const dist = Math.sqrt(closestDistSq);
+      forceX += (aggroX / dist) * AGGRO_WEIGHT;
+      forceY += (aggroY / dist) * AGGRO_WEIGHT;
+    }
+
     // ---- Integrate velocity ----
     p.vx += forceX * PARTICLE_SPEED * dt;
     p.vy += forceY * PARTICLE_SPEED * dt;
@@ -184,19 +207,104 @@ export class MovementSystem {
   private _updateCombat(
     p: ParticleData,
     planets: Map<string, PlanetData>,
-    dt: number
+    dt: number,
+    spatialHash: SpatialHash
   ): void {
     const target = p.targetPlanetId ? planets.get(p.targetPlanetId) : null;
     if (!target) return;
+
+    let forceX = 0;
+    let forceY = 0;
 
     const dx   = target.x - p.x;
     const dy   = target.y - p.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     if (dist > 0) {
-      const maxSpeed = PARTICLE_SPEED * COMBAT_SPEED_FACTOR;
-      p.vx = (dx / dist) * maxSpeed;
-      p.vy = (dy / dist) * maxSpeed;
+      forceX += (dx / dist);
+      forceY += (dy / dist);
+    }
+
+    // ---- Aggro force ----
+    let aggroX = 0, aggroY = 0;
+    let closestDistSq = AGGRO_RADIUS * AGGRO_RADIUS;
+    const nearby = spatialHash.getNearby(p);
+    for (const other of nearby) {
+      if (!other.alive || other.faction === p.faction || other.faction === 'neutral') continue;
+      const odx = other.x - p.x;
+      const ody = other.y - p.y;
+      const dSq = odx * odx + ody * ody;
+      if (dSq < closestDistSq) {
+        closestDistSq = dSq;
+        aggroX = odx;
+        aggroY = ody;
+      }
+    }
+    if (closestDistSq < AGGRO_RADIUS * AGGRO_RADIUS) {
+      const aDist = Math.sqrt(closestDistSq);
+      forceX += (aggroX / aDist) * AGGRO_WEIGHT;
+      forceY += (aggroY / aDist) * AGGRO_WEIGHT;
+    }
+
+    const forceDist = Math.sqrt(forceX * forceX + forceY * forceY) || 1;
+    const maxSpeed = PARTICLE_SPEED * COMBAT_SPEED_FACTOR;
+
+    // We instantly apply this to velocity for combat
+    p.vx = (forceX / forceDist) * maxSpeed;
+    p.vy = (forceY / forceDist) * maxSpeed;
+
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+  }
+
+  // ---- Stationed ----
+
+  private _updateStationed(p: ParticleData, spatialHash: SpatialHash, dt: number): void {
+    let aggroX = 0;
+    let aggroY = 0;
+    let closestDistSq = AGGRO_RADIUS * AGGRO_RADIUS;
+    
+    const nearby = spatialHash.getNearby(p);
+    for (const other of nearby) {
+       if (!other.alive || other.faction === p.faction || other.faction === 'neutral') continue;
+       const dx = other.x - p.x;
+       const dy = other.y - p.y;
+       const dSq = dx * dx + dy * dy;
+       if (dSq < closestDistSq) {
+          closestDistSq = dSq;
+          aggroX = dx;
+          aggroY = dy;
+       }
+    }
+    
+    if (closestDistSq < AGGRO_RADIUS * AGGRO_RADIUS) {
+       const dist = Math.sqrt(closestDistSq);
+       p.vx += (aggroX / dist) * AGGRO_WEIGHT * PARTICLE_SPEED * dt;
+       p.vy += (aggroY / dist) * AGGRO_WEIGHT * PARTICLE_SPEED * dt;
+    } else {
+       // gently return to targetX, targetY if pulled away
+       if (p.targetX !== undefined && p.targetY !== undefined) {
+         const dx = p.targetX - p.x;
+         const dy = p.targetY - p.y;
+         const dist = Math.sqrt(dx * dx + dy * dy);
+         if (dist > ARRIVE_THRESHOLD) {
+            p.vx += (dx / dist) * SEEK_WEIGHT * PARTICLE_SPEED * dt;
+            p.vy += (dy / dist) * SEEK_WEIGHT * PARTICLE_SPEED * dt;
+         } else {
+            // Decelerate
+            p.vx *= 0.8;
+            p.vy *= 0.8;
+         }
+       } else {
+         p.vx = 0;
+         p.vy = 0;
+       }
+    }
+
+    const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+    if (speed > PARTICLE_SPEED) {
+      p.vx = (p.vx / speed) * PARTICLE_SPEED;
+      p.vy = (p.vy / speed) * PARTICLE_SPEED;
     }
 
     p.x += p.vx * dt;
