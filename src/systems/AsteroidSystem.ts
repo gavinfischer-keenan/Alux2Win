@@ -4,6 +4,7 @@
 //
 // Manages the single-asteroid-at-a-time hazard:
 //   • Spawns one asteroid at a time from a random world edge
+//   • Avoids aiming at occupied (non-neutral) planets where possible
 //   • Moves it each tick; applies a visual spin angle
 //   • Bounces off planets (resetting them to neutral) and kills
 //     orbiting particles on contact
@@ -39,12 +40,63 @@ const RADIUS_RANGE = 10;
 /** Visual spin rate in radians per second. */
 const SPIN_RATE = 1.5;
 
+/**
+ * How many alternative target points to try before giving up on safety.
+ * We try to find a trajectory that doesn't pass near any occupied planet.
+ */
+const MAX_SAFE_ATTEMPTS = 15;
+
+/**
+ * The clearance distance we require between the asteroid trajectory line
+ * and the centre of any occupied (non-neutral) planet.
+ * asteroid.radius (≈14-24) + planet radius (18-40) + generous buffer = 120 px.
+ */
+const OCCUPIED_CLEARANCE = 120;
+
 // ── Utility helpers ─────────────────────────────────────────
 
 function dist(ax: number, ay: number, bx: number, by: number): number {
   const dx = ax - bx;
   const dy = ay - by;
   return Math.sqrt(dx * dx + dy * dy);
+}
+
+/**
+ * Perpendicular distance from point (px, py) to the infinite line defined
+ * by (ax, ay) → (bx, by). Returns Infinity if the line has zero length.
+ */
+function perpDist(
+  px: number, py: number,
+  ax: number, ay: number,
+  bx: number, by: number,
+): number {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len === 0) return Infinity;
+  return Math.abs((px - ax) * dy - (py - ay) * dx) / len;
+}
+
+/**
+ * Returns the minimum perpendicular clearance between the trajectory
+ * (spawnX,spawnY) → (targetX,targetY) and every occupied planet.
+ * Higher = safer.
+ */
+function minClearanceToOccupied(
+  spawnX: number, spawnY: number,
+  targetX: number, targetY: number,
+  state: GameState,
+): number {
+  let minClear = Infinity;
+  for (const planet of state.planets.values()) {
+    if (planet.faction === 'neutral') continue; // neutrals are fair game
+    const d = perpDist(planet.x, planet.y, spawnX, spawnY, targetX, targetY);
+    const planetR = PLANET_RADIUS[planet.upgradeLevel];
+    // Effective clearance subtracts planet radius and asteroid radius
+    const effective = d - planetR - RADIUS_MIN;
+    if (effective < minClear) minClear = effective;
+  }
+  return minClear; // Infinity means no occupied planets in world
 }
 
 // ── AsteroidSystem ──────────────────────────────────────────
@@ -193,52 +245,67 @@ export class AsteroidSystem {
    * Spawn a new asteroid from a random world edge aimed at the
    * central 50 % of the world at a randomised speed and size.
    *
+   * Safety: tries up to MAX_SAFE_ATTEMPTS trajectories and picks
+   * the one with the greatest perpendicular clearance from any
+   * occupied (non-neutral) planet. If no "safe" trajectory is
+   * found (clearance >= OCCUPIED_CLEARANCE) we use the safest
+   * candidate anyway — the asteroid will at worst graze space
+   * near an occupied planet rather than fly directly at it.
+   *
    * Edge codes: 0 = top, 1 = right, 2 = bottom, 3 = left.
    */
   private _spawnAsteroid(state: GameState): void {
     const { worldWidth: W, worldHeight: H } = state;
-    const edge = Math.floor(Math.random() * 4) as 0 | 1 | 2 | 3;
 
-    // ── Spawn position — 50 px outside the chosen edge ──────
-    let spawnX: number;
-    let spawnY: number;
+    const radius = RADIUS_MIN + Math.random() * RADIUS_RANGE;
+    const speed  = SPEED_MIN  + Math.random() * SPEED_RANGE;
 
-    switch (edge) {
-      case 0: // top
-        spawnX = Math.random() * W;
-        spawnY = -50;
-        break;
-      case 1: // right
-        spawnX = W + 50;
-        spawnY = Math.random() * H;
-        break;
-      case 2: // bottom
-        spawnX = Math.random() * W;
-        spawnY = H + 50;
-        break;
-      case 3: // left
-      default:
-        spawnX = -50;
-        spawnY = Math.random() * H;
-        break;
+    // ── Try multiple trajectories; keep the safest ────────────
+    let bestSpawnX   = 0;
+    let bestSpawnY   = 0;
+    let bestTargetX  = 0;
+    let bestTargetY  = 0;
+    let bestClearance = -Infinity;
+
+    for (let attempt = 0; attempt < MAX_SAFE_ATTEMPTS; attempt++) {
+      const edge = Math.floor(Math.random() * 4) as 0 | 1 | 2 | 3;
+
+      let spawnX: number;
+      let spawnY: number;
+      switch (edge) {
+        case 0: spawnX = Math.random() * W; spawnY = -50;       break;
+        case 1: spawnX = W + 50;            spawnY = Math.random() * H; break;
+        case 2: spawnX = Math.random() * W; spawnY = H + 50;    break;
+        default: spawnX = -50;              spawnY = Math.random() * H; break;
+      }
+
+      // Random target inside the central 50 % of the world.
+      const targetX = W * 0.25 + Math.random() * (W * 0.5);
+      const targetY = H * 0.25 + Math.random() * (H * 0.5);
+
+      const clearance = minClearanceToOccupied(spawnX, spawnY, targetX, targetY, state);
+
+      if (clearance > bestClearance) {
+        bestClearance = clearance;
+        bestSpawnX  = spawnX;
+        bestSpawnY  = spawnY;
+        bestTargetX = targetX;
+        bestTargetY = targetY;
+      }
+
+      // Good enough — stop early.
+      if (clearance >= OCCUPIED_CLEARANCE) break;
     }
 
-    // ── Random target inside the central 50 % of the world ──
-    const targetX = W * 0.25 + Math.random() * (W * 0.5);
-    const targetY = H * 0.25 + Math.random() * (H * 0.5);
-
-    // ── Direction vector (normalised) ────────────────────────
-    const dx  = targetX - spawnX;
-    const dy  = targetY - spawnY;
+    // ── Build final velocity vector ───────────────────────────
+    const dx  = bestTargetX - bestSpawnX;
+    const dy  = bestTargetY - bestSpawnY;
     const len = Math.sqrt(dx * dx + dy * dy) || 1;
-
-    const speed  = SPEED_MIN  + Math.random() * SPEED_RANGE;
-    const radius = RADIUS_MIN + Math.random() * RADIUS_RANGE;
 
     const asteroid: AsteroidData = {
       id:       `asteroid_${++this._nextId}`,
-      x:        spawnX,
-      y:        spawnY,
+      x:        bestSpawnX,
+      y:        bestSpawnY,
       vx:       (dx / len) * speed,
       vy:       (dy / len) * speed,
       radius,

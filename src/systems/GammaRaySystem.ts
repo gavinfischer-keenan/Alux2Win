@@ -2,6 +2,12 @@
 // GammaRaySystem.ts — Alux2Win
 // Handles the gamma-ray hazard: warning countdown, path
 // generation, beam sweep, and planet reset on fire.
+//
+// Path selection uses a 3-tier priority to avoid instantly
+// punishing players:
+//   Tier 1 (preferred): path hits only neutral planets.
+//   Tier 2 (acceptable): path hits enemy/neutral but NOT player.
+//   Tier 3 (last resort): any path that hits something.
 // ============================================================
 
 import {
@@ -51,7 +57,7 @@ export class GammaRaySystem {
 
     // Generate the warning path once we enter the warning window.
     if (gr.timer <= WARNING_SECS && gr.path === null) {
-      gr.path = this._generatePathWithRetry(state);
+      gr.path = this._generateSafePath(state);
     }
 
     // Begin firing when the countdown expires.
@@ -59,7 +65,7 @@ export class GammaRaySystem {
       // If somehow we still have no path (e.g. zero planets), generate one
       // last time — even an empty-target path is fine to fire.
       if (gr.path === null) {
-        gr.path = this._generatePathWithRetry(state);
+        gr.path = this._generateSafePath(state);
       }
       gr.firing       = true;
       gr.fireProgress = 0;
@@ -69,21 +75,72 @@ export class GammaRaySystem {
   // ── Private helpers ────────────────────────────────────────
 
   /**
-   * Try up to MAX_PATH_RETRIES times to find a path that hits at least
-   * one planet.  Falls back to the last generated path on failure.
+   * 3-tier path selection:
+   *
+   * Tier 1 — Preferred: hits neutral planets only (no occupied planets).
+   *   Tries up to 30 times.
+   *
+   * Tier 2 — Acceptable: hits some planets but NONE that belong to the
+   *   player faction. (Enemy planets are fair targets — good for the player.)
+   *   Tries up to 15 more times.
+   *
+   * Tier 3 — Last resort: any path with at least one target (or empty).
+   *   5 final attempts.
+   *
+   * This means the gamma ray almost never fires a beam directly
+   * through the player's own planets, while still being a meaningful hazard.
    */
-  private _generatePathWithRetry(state: GameState): GammaRayPath | null {
-    let candidate: GammaRayPath | null = null;
-
-    for (let attempt = 0; attempt < MAX_PATH_RETRIES; attempt++) {
-      candidate = this._generatePath(state);
-      if (candidate !== null && candidate.targetedPlanetIds.length > 0) {
+  private _generateSafePath(state: GameState): GammaRayPath | null {
+    // ── Tier 1: neutral-only targets ──────────────────────────
+    for (let i = 0; i < 30; i++) {
+      const candidate = this._generatePath(state);
+      if (!candidate) continue;
+      if (this._countOccupiedTargets(candidate, state) === 0 &&
+          candidate.targetedPlanetIds.length > 0) {
         return candidate;
       }
     }
 
-    // Return whatever the last attempt produced (may have 0 targets).
-    return candidate;
+    // ── Tier 2: no player planets in path ─────────────────────
+    for (let i = 0; i < 15; i++) {
+      const candidate = this._generatePath(state);
+      if (!candidate) continue;
+      if (!this._hitsPlayerPlanet(candidate, state) &&
+          candidate.targetedPlanetIds.length > 0) {
+        return candidate;
+      }
+    }
+
+    // ── Tier 3: last resort — any path (prefer one with targets) ─
+    let fallback: GammaRayPath | null = null;
+    for (let i = 0; i < MAX_PATH_RETRIES - 45; i++) {
+      const candidate = this._generatePath(state);
+      if (!candidate) continue;
+      if (candidate.targetedPlanetIds.length > 0) return candidate;
+      if (!fallback) fallback = candidate;
+    }
+    return fallback;
+  }
+
+  /**
+   * Count how many targeted planets in this path are non-neutral
+   * (i.e. owned by a player or enemy faction).
+   */
+  private _countOccupiedTargets(path: GammaRayPath, state: GameState): number {
+    return path.targetedPlanetIds.filter(id => {
+      const planet = state.planets.get(id);
+      return planet && planet.faction !== 'neutral';
+    }).length;
+  }
+
+  /**
+   * Returns true if any targeted planet belongs to the 'player' faction.
+   */
+  private _hitsPlayerPlanet(path: GammaRayPath, state: GameState): boolean {
+    return path.targetedPlanetIds.some(id => {
+      const planet = state.planets.get(id);
+      return planet?.faction === 'player';
+    });
   }
 
   /**
