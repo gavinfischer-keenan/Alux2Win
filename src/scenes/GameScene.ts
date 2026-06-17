@@ -547,7 +547,33 @@ export class GameScene {
       src.particles -= count;
       audioManager.playLaunch();
 
-      for (let i = 0; i < count; i++) {
+      // Find orbiting particles belonging to this planet
+      const orbiting = this.state.particles.filter(
+        p => p.alive && p.mode === 'orbiting' && p.homePlanetId === srcId
+      );
+
+      const toDeploy = orbiting.slice(0, count);
+
+      for (const p of toDeploy) {
+        p.mode           = 'traveling';
+        p.targetPlanetId = targetPlanetId;
+        p.targetX        = targetX;
+        p.targetY        = targetY;
+        p.orbitTimer     = 0;
+
+        const destX = targetPlanet ? targetPlanet.x : (targetX ?? p.x);
+        const destY = targetPlanet ? targetPlanet.y : (targetY ?? p.y);
+        const dx    = destX - p.x;
+        const dy    = destY - p.y;
+        const len   = Math.sqrt(dx * dx + dy * dy) || 1;
+
+        p.vx = (dx / len) * PARTICLE_SPEED;
+        p.vy = (dy / len) * PARTICLE_SPEED;
+      }
+
+      // Fallback: spawn new particles if we somehow didn't have enough orbiting ones
+      const deficit = count - toDeploy.length;
+      for (let i = 0; i < deficit; i++) {
         const angle  = Math.random() * Math.PI * 2;
         const r      = PLANET_RADIUS[src.upgradeLevel] + 2;
         const spawnX = src.x + Math.cos(angle) * r;
