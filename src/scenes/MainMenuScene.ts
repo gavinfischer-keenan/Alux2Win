@@ -10,6 +10,10 @@ import skirmishData2 from '../levels/skirmish_2.json';
 import plasmaStorm1Data from '../levels/plasma_storm_1.json';
 import asteroids1Data from '../levels/asteroids_1.json';
 import gammaRays1Data from '../levels/gamma_rays_1.json';
+import speedTraps1Data from '../levels/speed_traps_1.json';
+import portals1Data from '../levels/portals_1.json';
+import blackholes1Data from '../levels/blackholes_1.json';
+import whiteholes1Data from '../levels/whiteholes_1.json';
 import { SettingsStore } from '../core/SettingsStore';
 import type { GameSettings } from '../core/SettingsStore';
 import { audioManager } from '../core/AudioManager';
@@ -190,15 +194,15 @@ export class MainMenuScene {
     `;
 
     const galaxies = [
-      { name: 'Tutorial', image: '/assets/galaxies/tutorial.png', locked: false, levels: [tutorialMovementData as LevelData], isTutorial: true },
-      { name: 'Normal', image: '/assets/galaxies/normal.png', locked: false, levels: [skirmishData as LevelData, skirmishData2 as LevelData], isTutorial: false },
-      { name: 'Plasma Storms', image: '/assets/galaxies/plasma.png', locked: false, levels: [plasmaStorm1Data as LevelData], isTutorial: false },
-      { name: 'Asteroids', image: '/assets/galaxies/asteroid.png', locked: false, levels: [asteroids1Data as LevelData], isTutorial: false },
-      { name: 'Gamma Rays', image: '/assets/galaxies/nebula.png', locked: false, levels: [gammaRays1Data as LevelData], isTutorial: false },
-      { name: 'Ice World', image: '/assets/galaxies/ice.png', locked: true },
-      { name: 'Lava Core', image: '/assets/galaxies/lava.png', locked: true },
-      { name: 'Void Sector', image: '/assets/galaxies/void.png', locked: true },
-      { name: 'Quantum Rift', image: '/assets/galaxies/quantum.png', locked: true }
+      { name: 'Tutorial',      image: '/assets/galaxies/tutorial.png',  locked: false, levels: [tutorialMovementData as LevelData], isTutorial: true },
+      { name: 'Normal',        image: '/assets/galaxies/normal.png',    locked: false, levels: [skirmishData as LevelData, skirmishData2 as LevelData], isTutorial: false },
+      { name: 'Plasma Storms', image: '/assets/galaxies/plasma.png',    locked: false, levels: [plasmaStorm1Data as LevelData],  isTutorial: false },
+      { name: 'Asteroids',     image: '/assets/galaxies/asteroid.png',  locked: false, levels: [asteroids1Data as LevelData],    isTutorial: false },
+      { name: 'Gamma Rays',    image: '/assets/galaxies/nebula.png',    locked: false, levels: [gammaRays1Data as LevelData],    isTutorial: false },
+      { name: 'Speed Traps',   image: '/assets/galaxies/ice.png',       locked: false, levels: [speedTraps1Data as LevelData],   isTutorial: false },
+      { name: 'Portals',       image: '/assets/galaxies/lava.png',      locked: false, levels: [portals1Data as LevelData],      isTutorial: false },
+      { name: 'Black Holes',   image: '/assets/galaxies/void.png',      locked: false, levels: [blackholes1Data as LevelData],   isTutorial: false },
+      { name: 'White Holes',   image: '/assets/galaxies/quantum.png',   locked: false, levels: [whiteholes1Data as LevelData],   isTutorial: false },
     ];
 
     galaxies.forEach((g, idx) => {

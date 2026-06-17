@@ -101,6 +101,9 @@ export class CollisionSystem {
             alive:         true,
             stormTimer:    0,
             inStorm:       false,
+            speedMod:      1.0,
+            portalCooldown: 0,
+            trappedByBH:   null,
           });
         }
       }

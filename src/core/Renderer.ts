@@ -8,16 +8,20 @@ import { randomRange } from '../utils/MathUtils';
 
 /** Named render layers, composited in draw order (back → front). */
 export interface RenderLayers {
-  background:   Container;  // screen-space, full viewport
-  plasmaStorms: Container;  // world-space (hazard, behind planets)
-  blackHoles:   Container;  // world-space
-  orbitPaths:   Container;  // world-space
-  planets:      Container;  // world-space
-  particles:    Container;  // world-space
-  asteroids:    Container;  // world-space (hazard, above particles)
-  gammaRay:     Container;  // world-space (hazard, top of world)
-  ui:           Container;  // screen-space (HUD, etc.)
-  selectionBox: Container;  // screen-space
+  background:          Container;  // screen-space, full viewport
+  speedZones:          Container;  // world-space (hazard, behind everything)
+  plasmaStorms:        Container;  // world-space (hazard, behind planets)
+  blackHoles:          Container;  // world-space
+  trappingBlackHoles:  Container;  // world-space (new trapping variant)
+  whiteHoles:          Container;  // world-space (behind planets)
+  orbitPaths:          Container;  // world-space
+  portals:             Container;  // world-space (behind planets, above floor)
+  planets:             Container;  // world-space
+  particles:           Container;  // world-space
+  asteroids:           Container;  // world-space (hazard, above particles)
+  gammaRay:            Container;  // world-space (hazard, top of world)
+  ui:                  Container;  // screen-space (HUD, etc.)
+  selectionBox:        Container;  // screen-space
 }
 
 const STAR_COUNT = 300;
@@ -81,16 +85,24 @@ export class Renderer {
     this.app.stage.addChild(this._worldContainer);
 
     // World-space layers (children of worldContainer, in draw order)
-    const plasmaStorms = new Container();
-    const blackHoles   = new Container();
-    const orbitPaths   = new Container();
-    const planets      = new Container();
-    const particles    = new Container();
-    const asteroids    = new Container();
-    const gammaRay     = new Container();
+    const speedZones         = new Container();
+    const plasmaStorms       = new Container();
+    const blackHoles         = new Container();
+    const trappingBlackHoles = new Container();
+    const whiteHoles         = new Container();
+    const orbitPaths         = new Container();
+    const portals            = new Container();
+    const planets            = new Container();
+    const particles          = new Container();
+    const asteroids          = new Container();
+    const gammaRay           = new Container();
+    this._worldContainer.addChild(speedZones);
     this._worldContainer.addChild(plasmaStorms);
     this._worldContainer.addChild(blackHoles);
+    this._worldContainer.addChild(trappingBlackHoles);
+    this._worldContainer.addChild(whiteHoles);
     this._worldContainer.addChild(orbitPaths);
+    this._worldContainer.addChild(portals);
     this._worldContainer.addChild(planets);
     this._worldContainer.addChild(particles);
     this._worldContainer.addChild(asteroids);
@@ -104,9 +116,13 @@ export class Renderer {
 
     this.layers = {
       background,
+      speedZones,
       plasmaStorms,
       blackHoles,
+      trappingBlackHoles,
+      whiteHoles,
       orbitPaths,
+      portals,
       planets,
       particles,
       asteroids,

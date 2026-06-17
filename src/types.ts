@@ -70,6 +70,9 @@ export interface ParticleData {
   // hazard state
   stormTimer: number;      // seconds spent inside storm (not protected)
   inStorm: boolean;        // currently inside a plasma storm
+  speedMod: number;        // speed multiplier from SpeedZone (1.0 = normal)
+  portalCooldown: number;  // seconds remaining before particle can re-enter a portal
+  trappedByBH: string | null; // id of TrappingBlackHole currently holding this particle
 }
 
 // ---- Black Hole Data (runtime) ----
@@ -136,6 +139,63 @@ export interface GammaRayState {
   fireProgress: number;   // 0..1 — beam sweep progress
 }
 
+// ---- Speed Zone ----
+export type SpeedZoneType = 'speedup' | 'slowdown';
+
+export interface SpeedZoneDef {
+  id: string;
+  x: number;
+  y: number;
+  radius: number;
+  type: SpeedZoneType;
+}
+
+export interface SpeedZoneData extends SpeedZoneDef {
+  pulseAngle: number;   // visual animation
+}
+
+// ---- Portal ----
+export interface PortalDef {
+  id: string;
+  x: number;
+  y: number;
+  pairId: string;   // links two portals together
+  color: number;    // PixiJS hex color for the pair
+}
+
+export interface PortalData extends PortalDef {
+  pulseAngle: number;   // visual animation
+}
+
+// ---- Trapping Black Hole ----
+export interface TrappingBlackHoleDef {
+  id: string;
+  x: number;
+  y: number;
+  pullRadius: number;   // attraction range in world px
+}
+
+export interface TrappingBlackHoleData extends TrappingBlackHoleDef {
+  pulseAngle: number;   // visual animation
+}
+
+// ---- White Hole ----
+export interface WhiteHoleDef {
+  id: string;
+  x: number;
+  y: number;
+}
+
+export interface WhiteHoleData {
+  id: string;
+  x: number;
+  y: number;
+  ownerFaction: Faction | null; // faction currently investing
+  progress: number;             // 0–20 particles invested
+  exploded: boolean;
+  pulseAngle: number;           // visual animation
+}
+
 // ---- Level JSON Schema ----
 export interface LevelData {
   version: 1;
@@ -144,9 +204,13 @@ export interface LevelData {
   worldHeight: number;
   planets: PlanetDef[];
   blackHoles: BlackHoleDef[];
-  plasmaStorms?:  PlasmaStormDef[];
-  asteroidConfig?: { enabled: boolean };
-  gammaRayConfig?: { enabled: boolean; intervalSeconds?: number };
+  plasmaStorms?:       PlasmaStormDef[];
+  asteroidConfig?:     { enabled: boolean };
+  gammaRayConfig?:     { enabled: boolean; intervalSeconds?: number };
+  speedZones?:         SpeedZoneDef[];
+  portals?:            PortalDef[];
+  trappingBlackHoles?: TrappingBlackHoleDef[];
+  whiteHoles?:         WhiteHoleDef[];
 }
 
 export interface PlanetDef {
@@ -190,6 +254,11 @@ export interface GameState {
   asteroids: AsteroidData[];
   asteroidRespawnTimer: number;
   gammaRay: GammaRayState;
+  // new hazard systems
+  speedZones:          SpeedZoneData[];
+  portals:             PortalData[];
+  trappingBlackHoles:  TrappingBlackHoleData[];
+  whiteHoles:          WhiteHoleData[];
 }
 
 // ---- Upgrade thresholds ----

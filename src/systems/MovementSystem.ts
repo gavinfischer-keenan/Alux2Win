@@ -177,14 +177,15 @@ export class MovementSystem {
       forceY += (aggroY / dist) * AGGRO_WEIGHT;
     }
 
-    // ---- Integrate velocity ----
+    // ---- Integrate velocity (apply speedMod from SpeedZones) ----
     p.vx += forceX * PARTICLE_SPEED * dt;
     p.vy += forceY * PARTICLE_SPEED * dt;
 
+    const effectiveSpeed = PARTICLE_SPEED * (p.speedMod ?? 1.0);
     const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-    if (speed > PARTICLE_SPEED) {
-      p.vx = (p.vx / speed) * PARTICLE_SPEED;
-      p.vy = (p.vy / speed) * PARTICLE_SPEED;
+    if (speed > effectiveSpeed) {
+      p.vx = (p.vx / speed) * effectiveSpeed;
+      p.vy = (p.vy / speed) * effectiveSpeed;
     }
 
     p.x += p.vx * dt;
