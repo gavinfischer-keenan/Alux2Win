@@ -22,78 +22,14 @@
       "startingParticles": 15,
       "isOrbiting": false
     },
-    {
-      "id": "p_neutral_1",
-      "x": 1024,
-      "y": 200,
-      "faction": "neutral",
-      "upgradeLevel": 1,
-      "startingParticles": 5,
-      "isOrbiting": false
-    },
-    {
-      "id": "p_neutral_2",
-      "x": 1024,
-      "y": 1848,
-      "faction": "neutral",
-      "upgradeLevel": 1,
-      "startingParticles": 5,
-      "isOrbiting": false
-    },
-    {
-      "id": "p_neutral_3",
-      "x": 550,
-      "y": 400,
-      "faction": "neutral",
-      "upgradeLevel": 1,
-      "startingParticles": 4,
-      "isOrbiting": false
-    },
-    {
-      "id": "p_neutral_4",
-      "x": 1498,
-      "y": 400,
-      "faction": "neutral",
-      "upgradeLevel": 1,
-      "startingParticles": 4,
-      "isOrbiting": false
-    },
-    {
-      "id": "p_neutral_5",
-      "x": 550,
-      "y": 1648,
-      "faction": "neutral",
-      "upgradeLevel": 1,
-      "startingParticles": 4,
-      "isOrbiting": false
-    },
-    {
-      "id": "p_neutral_6",
-      "x": 1498,
-      "y": 1648,
-      "faction": "neutral",
-      "upgradeLevel": 1,
-      "startingParticles": 4,
-      "isOrbiting": false
-    },
-    {
-      "id": "p_neutral_7",
-      "x": 680,
-      "y": 1024,
-      "faction": "neutral",
-      "upgradeLevel": 1,
-      "startingParticles": 5,
-      "isOrbiting": false
-    },
-    {
-      "id": "p_neutral_8",
-      "x": 1368,
-      "y": 1024,
-      "faction": "neutral",
-      "upgradeLevel": 1,
-      "startingParticles": 5,
-      "isOrbiting": false
-    }
+    { "id": "p_neutral_1", "x": 1024, "y": 200,  "faction": "neutral", "upgradeLevel": 1, "startingParticles": 10, "isOrbiting": false },
+    { "id": "p_neutral_2", "x": 1024, "y": 1848, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 10, "isOrbiting": false },
+    { "id": "p_neutral_3", "x": 550,  "y": 400,  "faction": "neutral", "upgradeLevel": 1, "startingParticles": 8,  "isOrbiting": false },
+    { "id": "p_neutral_4", "x": 1498, "y": 400,  "faction": "neutral", "upgradeLevel": 1, "startingParticles": 8,  "isOrbiting": false },
+    { "id": "p_neutral_5", "x": 550,  "y": 1648, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 8,  "isOrbiting": false },
+    { "id": "p_neutral_6", "x": 1498, "y": 1648, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 8,  "isOrbiting": false },
+    { "id": "p_neutral_7", "x": 680,  "y": 1024, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 10, "isOrbiting": false },
+    { "id": "p_neutral_8", "x": 1368, "y": 1024, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 10, "isOrbiting": false }
   ],
   "blackHoles": [],
   "whiteHoles": [

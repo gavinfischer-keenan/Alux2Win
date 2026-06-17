@@ -25,10 +25,10 @@ const RESPAWN_DELAY = 5;
 const OOB_MARGIN = 150;
 
 /** Minimum speed of a spawned asteroid in px/s. */
-const SPEED_MIN = 150;
+const SPEED_MIN = 75;   // was 150 — halved for better pacing
 
 /** Additional random speed range added on top of SPEED_MIN. */
-const SPEED_RANGE = 100;
+const SPEED_RANGE = 50; // was 100
 
 /** Minimum asteroid radius in px. */
 const RADIUS_MIN = 14;
@@ -122,7 +122,7 @@ export class AsteroidSystem {
             planet.absorbedCount = 0;
             planet.bonusHealth   = 0;
             // Cap internal particles to the new level 1 capacity
-            planet.particles     = Math.min(planet.particles, 20); // PLANET_CAPACITY[1]
+            planet.particles     = Math.min(planet.particles, 40); // PLANET_CAPACITY[1]
           } else {
             // Reset planet to neutral level-1 state.
             planet.faction       = 'neutral';

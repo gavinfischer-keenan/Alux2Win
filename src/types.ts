@@ -266,20 +266,20 @@ export interface GameState {
 // ---- Upgrade thresholds ----
 export const UPGRADE_THRESHOLDS: Record<UpgradeLevel, number> = {
   1: 0,
-  2: 25,  // absorb 25 to reach level 2
-  3: 50,  // absorb 50 more to reach level 3
+  2: 50,   // absorb 50 to reach level 2  (was 25)
+  3: 100,  // absorb 100 more to reach level 3  (was 50)
 };
 
 export const PLANET_CAPACITY: Record<UpgradeLevel, number> = {
-  1: 20,
-  2: 40,
-  3: 75,
+  1: 40,   // was 20
+  2: 80,   // was 40
+  3: 150,  // was 75
 };
 
 export const PLANET_PRODUCTION: Record<UpgradeLevel, number> = {
-  1: 0.5,
-  2: 1.2,
-  3: 2.5,
+  1: 1.0,  // was 0.5
+  2: 2.4,  // was 1.2
+  3: 5.0,  // was 2.5
 };
 
 export const PLANET_RADIUS: Record<UpgradeLevel, number> = {
@@ -292,9 +292,10 @@ export const PLANET_RADIUS: Record<UpgradeLevel, number> = {
 // Enemy particles must deplete this before the particle count starts dropping.
 export const PLANET_BONUS_HEALTH: Record<UpgradeLevel, number> = {
   1: 0,
-  2: 25,   // proportionate to 25 absorbed particles to reach level 2
-  3: 75,   // cumulative (25+50) absorbed particles to reach level 3
+  2: 50,   // was 25
+  3: 150,  // was 75
 };
+
 
 export const FACTION_COLORS: Record<Faction, number> = {
   player:  0x4fc3f7,

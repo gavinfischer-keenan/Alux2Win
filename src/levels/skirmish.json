@@ -1,4 +1,4 @@
-﻿{
+{
   "version": 1,
   "name": "Skirmish",
   "worldWidth": 2048,
@@ -64,7 +64,7 @@
       "y": 900,
       "faction": "neutral",
       "upgradeLevel": 1,
-      "startingParticles": 5,
+      "startingParticles": 10,
       "isOrbiting": false
     },
     {
@@ -73,7 +73,7 @@
       "y": 1148,
       "faction": "neutral",
       "upgradeLevel": 1,
-      "startingParticles": 7,
+      "startingParticles": 14,
       "isOrbiting": false
     },
     {
@@ -82,7 +82,7 @@
       "y": 900,
       "faction": "neutral",
       "upgradeLevel": 1,
-      "startingParticles": 4,
+      "startingParticles": 8,
       "isOrbiting": false
     },
     {
@@ -91,7 +91,7 @@
       "y": 1148,
       "faction": "neutral",
       "upgradeLevel": 1,
-      "startingParticles": 3,
+      "startingParticles": 6,
       "isOrbiting": false
     },
     {
@@ -100,7 +100,7 @@
       "y": 1024,
       "faction": "neutral",
       "upgradeLevel": 1,
-      "startingParticles": 6,
+      "startingParticles": 12,
       "isOrbiting": true,
       "orbitCenterX": 1024,
       "orbitCenterY": 1024,
@@ -114,7 +114,7 @@
       "y": 1024,
       "faction": "neutral",
       "upgradeLevel": 1,
-      "startingParticles": 4,
+      "startingParticles": 8,
       "isOrbiting": true,
       "orbitCenterX": 1024,
       "orbitCenterY": 1024,

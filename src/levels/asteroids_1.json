@@ -22,33 +22,15 @@
       "startingParticles": 15,
       "isOrbiting": false
     },
-    {
-      "id": "n1", "x": 700, "y": 400, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 5, "isOrbiting": false
-    },
-    {
-      "id": "n2", "x": 700, "y": 1024, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 5, "isOrbiting": false
-    },
-    {
-      "id": "n3", "x": 700, "y": 1648, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 5, "isOrbiting": false
-    },
-    {
-      "id": "n4", "x": 1024, "y": 300, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 6, "isOrbiting": false
-    },
-    {
-      "id": "n5", "x": 1024, "y": 1024, "faction": "neutral", "upgradeLevel": 2, "startingParticles": 10, "isOrbiting": false
-    },
-    {
-      "id": "n6", "x": 1024, "y": 1748, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 6, "isOrbiting": false
-    },
-    {
-      "id": "n7", "x": 1348, "y": 400, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 5, "isOrbiting": false
-    },
-    {
-      "id": "n8", "x": 1348, "y": 1024, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 5, "isOrbiting": false
-    },
-    {
-      "id": "n9", "x": 1348, "y": 1648, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 5, "isOrbiting": false
-    }
+    { "id": "n1", "x": 700,  "y": 400,  "faction": "neutral", "upgradeLevel": 1, "startingParticles": 10, "isOrbiting": false },
+    { "id": "n2", "x": 700,  "y": 1024, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 10, "isOrbiting": false },
+    { "id": "n3", "x": 700,  "y": 1648, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 10, "isOrbiting": false },
+    { "id": "n4", "x": 1024, "y": 300,  "faction": "neutral", "upgradeLevel": 1, "startingParticles": 12, "isOrbiting": false },
+    { "id": "n5", "x": 1024, "y": 1024, "faction": "neutral", "upgradeLevel": 2, "startingParticles": 20, "isOrbiting": false },
+    { "id": "n6", "x": 1024, "y": 1748, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 12, "isOrbiting": false },
+    { "id": "n7", "x": 1348, "y": 400,  "faction": "neutral", "upgradeLevel": 1, "startingParticles": 10, "isOrbiting": false },
+    { "id": "n8", "x": 1348, "y": 1024, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 10, "isOrbiting": false },
+    { "id": "n9", "x": 1348, "y": 1648, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 10, "isOrbiting": false }
   ],
   "blackHoles": [],
   "asteroidConfig": { "enabled": true }
