@@ -29,6 +29,12 @@ const WARNING_SECS = 60;
 export class GammaRaySystem {
   // ── Public API ─────────────────────────────────────────────
 
+  /**
+   * Safe path selection only applies to the FIRST gamma ray shot.
+   * After that we revert to fully random — it should be a real hazard.
+   */
+  private _firstShotDone = false;
+
   update(dt: number, state: GameState): void {
     if (!state.gammaRay.enabled) return;
 
@@ -57,7 +63,9 @@ export class GammaRaySystem {
 
     // Generate the warning path once we enter the warning window.
     if (gr.timer <= WARNING_SECS && gr.path === null) {
-      gr.path = this._generateSafePath(state);
+      gr.path = this._firstShotDone
+        ? this._generatePathWithRetry(state)   // subsequent: plain random
+        : this._generateSafePath(state);        // first: 3-tier priority
     }
 
     // Begin firing when the countdown expires.
@@ -65,7 +73,9 @@ export class GammaRaySystem {
       // If somehow we still have no path (e.g. zero planets), generate one
       // last time — even an empty-target path is fine to fire.
       if (gr.path === null) {
-        gr.path = this._generateSafePath(state);
+        gr.path = this._firstShotDone
+          ? this._generatePathWithRetry(state)
+          : this._generateSafePath(state);
       }
       gr.firing       = true;
       gr.fireProgress = 0;
@@ -225,6 +235,9 @@ export class GammaRaySystem {
     const path = state.gammaRay.path;
     if (!path) return;
 
+    // Mark that the first shot has now fired — future paths will be random.
+    this._firstShotDone = true;
+
     for (const planetId of path.targetedPlanetIds) {
       const planet = state.planets.get(planetId);
       if (!planet) continue;
@@ -244,5 +257,21 @@ export class GammaRaySystem {
 
     // Purge dead particles from the global list.
     state.particles = state.particles.filter(p => p.alive);
+  }
+
+  /**
+   * Simple random path retry — used for all shots after the first.
+   * Tries up to MAX_PATH_RETRIES to find a path with at least one target;
+   * falls back to the last generated path on failure.
+   */
+  private _generatePathWithRetry(state: GameState): GammaRayPath | null {
+    let candidate: GammaRayPath | null = null;
+    for (let attempt = 0; attempt < MAX_PATH_RETRIES; attempt++) {
+      candidate = this._generatePath(state);
+      if (candidate !== null && candidate.targetedPlanetIds.length > 0) {
+        return candidate;
+      }
+    }
+    return candidate;
   }
 }

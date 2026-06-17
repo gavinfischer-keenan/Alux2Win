@@ -229,7 +229,7 @@ export class MainMenuScene {
     });
 
     const galaxies = [
-      { name: 'Tutorial',      image: '/assets/galaxies/tutorial.png',  locked: false, tutorialId: 'commander', levels: [
+      { name: 'Tutorial',      desc: 'Learn the basics of fleet command and cosmic hazards.', image: '/assets/galaxies/tutorial.png',  locked: false, tutorialId: 'commander', levels: [
           tutorialCommanderData as LevelData,
           tutorialNormalData as LevelData,
           tutorialPlasmaData as LevelData,
@@ -241,16 +241,16 @@ export class MainMenuScene {
           tutorialWhiteholesData as LevelData,
           tutorialMovementData as LevelData,
         ], isTutorial: true },
-      { name: 'Normal',        image: '/assets/galaxies/normal.png',    locked: false, tutorialId: 'normal',     levels: [tutorialNormalData as LevelData, skirmishData as LevelData, skirmishData2 as LevelData, ...(customGroups['Normal'] || [])], isTutorial: false },
-      { name: 'Plasma Storms', image: '/assets/galaxies/plasma.png',    locked: false, tutorialId: 'plasma',     levels: [tutorialPlasmaData as LevelData, plasmaStorm1Data as LevelData, ...(customGroups['Plasma Storms'] || [])], isTutorial: false },
-      { name: 'Asteroids',     image: '/assets/galaxies/asteroid.png',  locked: false, tutorialId: 'asteroids',  levels: [tutorialAsteroidsData as LevelData, asteroids1Data as LevelData, ...(customGroups['Asteroids'] || [])], isTutorial: false },
-      { name: 'Gamma Rays',    image: '/assets/galaxies/nebula.png',    locked: false, tutorialId: 'gamma',      levels: [tutorialGammaData as LevelData, gammaRays1Data as LevelData, ...(customGroups['Gamma Rays'] || [])], isTutorial: false },
-      { name: 'Speed Traps',   image: '/assets/galaxies/ice.png',       locked: false, tutorialId: 'speed',      levels: [tutorialSpeedData as LevelData, speedTraps1Data as LevelData, ...(customGroups['Speed Traps'] || [])], isTutorial: false },
-      { name: 'Portals',       image: '/assets/galaxies/lava.png',      locked: false, tutorialId: 'portals',    levels: [tutorialPortalsData as LevelData, portals1Data as LevelData, ...(customGroups['Portals'] || [])], isTutorial: false },
-      { name: 'Black Holes',   image: '/assets/galaxies/void.png',      locked: false, tutorialId: 'blackholes', levels: [tutorialBlackholesData as LevelData, blackholes1Data as LevelData, ...(customGroups['Black Holes'] || [])], isTutorial: false },
-      { name: 'White Holes',   image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: 'whiteholes', levels: [tutorialWhiteholesData as LevelData, whiteholes1Data as LevelData, ...(customGroups['White Holes'] || [])], isTutorial: false },
-      { name: 'Custom',        image: '/assets/galaxies/normal.png',    locked: false, tutorialId: '',           levels: customGroups['Custom'] || [], isTutorial: false },
-      { name: 'Random',        image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: '',           levels: [], isTutorial: false },
+      { name: 'Normal',        desc: 'Balanced systems with no extreme anomalies. A true test of strategic fundamentals.', image: '/assets/galaxies/normal.png',    locked: false, tutorialId: 'normal',     levels: [tutorialNormalData as LevelData, skirmishData as LevelData, skirmishData2 as LevelData, ...(customGroups['Normal'] || [])], isTutorial: false },
+      { name: 'Plasma Storms', desc: 'Beware the volatile plasma fields. Units that enter will gradually lose health.', image: '/assets/galaxies/plasma.png',    locked: false, tutorialId: 'plasma',     levels: [tutorialPlasmaData as LevelData, plasmaStorm1Data as LevelData, ...(customGroups['Plasma Storms'] || [])], isTutorial: false },
+      { name: 'Asteroids',     desc: 'Asteroids fly through space killing all they touch except the most developed planets.', image: '/assets/galaxies/asteroid.png',  locked: false, tutorialId: 'asteroids',  levels: [tutorialAsteroidsData as LevelData, asteroids1Data as LevelData, ...(customGroups['Asteroids'] || [])], isTutorial: false },
+      { name: 'Gamma Rays',    desc: 'Intense bursts of radiation that frequently sweep the system, destroying caught units.', image: '/assets/galaxies/nebula.png',    locked: false, tutorialId: 'gamma',      levels: [tutorialGammaData as LevelData, gammaRays1Data as LevelData, ...(customGroups['Gamma Rays'] || [])], isTutorial: false },
+      { name: 'Speed Traps',   desc: 'Areas of altered spacetime. Passing through these zones will drastically slow down units.', image: '/assets/galaxies/ice.png',       locked: false, tutorialId: 'speed',      levels: [tutorialSpeedData as LevelData, speedTraps1Data as LevelData, ...(customGroups['Speed Traps'] || [])], isTutorial: false },
+      { name: 'Portals',       desc: 'Instantaneous travel across the system. Send units into one portal to emerge at the exit.', image: '/assets/galaxies/lava.png',      locked: false, tutorialId: 'portals',    levels: [tutorialPortalsData as LevelData, portals1Data as LevelData, ...(customGroups['Portals'] || [])], isTutorial: false },
+      { name: 'Black Holes',   desc: 'Massive gravitational anomalies. They pull in and crush units that stray too close.', image: '/assets/galaxies/void.png',      locked: false, tutorialId: 'blackholes', levels: [tutorialBlackholesData as LevelData, blackholes1Data as LevelData, ...(customGroups['Black Holes'] || [])], isTutorial: false },
+      { name: 'White Holes',   desc: 'Repulsive celestial bodies. They push units away, making it difficult to approach.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: 'whiteholes', levels: [tutorialWhiteholesData as LevelData, whiteholes1Data as LevelData, ...(customGroups['White Holes'] || [])], isTutorial: false },
+      { name: 'Custom',        desc: 'Explore custom user-generated systems and experimental battlegrounds.', image: '/assets/galaxies/normal.png',    locked: false, tutorialId: '',           levels: customGroups['Custom'] || [], isTutorial: false },
+      { name: 'Random',        desc: 'An unpredictable, procedurally generated system. Every battle is unique.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: '',           levels: [], isTutorial: false },
     ];
 
     galaxies.forEach((g, idx) => {
@@ -271,16 +271,52 @@ export class MainMenuScene {
         opacity: ${g.locked ? '0.6' : '1'};
       `;
 
+      // Description Overlay (shown on hover)
+      const descOverlay = document.createElement('div');
+      descOverlay.style.cssText = `
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 5, 20, 0.85);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px 24px 70px 24px;
+        box-sizing: border-box;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 2;
+        pointer-events: none;
+      `;
+      const descText = document.createElement('div');
+      descText.textContent = g.desc;
+      descText.style.cssText = `
+        font-family: 'Rajdhani', sans-serif;
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: #e0f7fa;
+        text-align: center;
+        line-height: 1.4;
+        letter-spacing: 0.05em;
+        text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+      `;
+      descOverlay.appendChild(descText);
+
       if (!g.locked) {
         tile.addEventListener('mouseenter', () => {
           tile.style.transform = 'translateY(-6px)';
           tile.style.boxShadow = '0 12px 24px rgba(79, 195, 247, 0.2)';
           tile.style.borderColor = 'rgba(79, 195, 247, 0.5)';
+          descOverlay.style.opacity = '1';
         });
         tile.addEventListener('mouseleave', () => {
           tile.style.transform = 'translateY(0)';
           tile.style.boxShadow = 'none';
           tile.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+          descOverlay.style.opacity = '0';
         });
         tile.addEventListener('click', () => {
           audioManager.playClick();
@@ -306,6 +342,7 @@ export class MainMenuScene {
         z-index: 0;
       `;
       tile.appendChild(img);
+      tile.appendChild(descOverlay);
 
       // Bottom Label container (Absolute position to avoid clipping)
       const labelContainer = document.createElement('div');
@@ -318,7 +355,7 @@ export class MainMenuScene {
         justify-content: flex-end;
         align-items: center;
         background: linear-gradient(0deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 60%, transparent 100%);
-        z-index: 1;
+        z-index: 3;
       `;
       
       const titleLabel = document.createElement('div');

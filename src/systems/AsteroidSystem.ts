@@ -106,6 +106,12 @@ export class AsteroidSystem {
   private _nextId = 0;
 
   /**
+   * Safe targeting is used ONLY for the very first asteroid spawn.
+   * After that we revert to fully random — hazards should be real threats.
+   */
+  private _firstSpawnDone = false;
+
+  /**
    * Main update tick.  Call once per frame before rendering.
    *
    * @param dt    Elapsed time in seconds since last frame.
@@ -260,41 +266,38 @@ export class AsteroidSystem {
     const radius = RADIUS_MIN + Math.random() * RADIUS_RANGE;
     const speed  = SPEED_MIN  + Math.random() * SPEED_RANGE;
 
-    // ── Try multiple trajectories; keep the safest ────────────
-    let bestSpawnX   = 0;
-    let bestSpawnY   = 0;
-    let bestTargetX  = 0;
-    let bestTargetY  = 0;
-    let bestClearance = -Infinity;
+    let bestSpawnX: number;
+    let bestSpawnY: number;
+    let bestTargetX: number;
+    let bestTargetY: number;
 
-    for (let attempt = 0; attempt < MAX_SAFE_ATTEMPTS; attempt++) {
-      const edge = Math.floor(Math.random() * 4) as 0 | 1 | 2 | 3;
+    if (!this._firstSpawnDone) {
+      // ── First spawn: pick the safest available trajectory ────
+      let bestClearance = -Infinity;
+      bestSpawnX = bestSpawnY = bestTargetX = bestTargetY = 0;
 
-      let spawnX: number;
-      let spawnY: number;
-      switch (edge) {
-        case 0: spawnX = Math.random() * W; spawnY = -50;       break;
-        case 1: spawnX = W + 50;            spawnY = Math.random() * H; break;
-        case 2: spawnX = Math.random() * W; spawnY = H + 50;    break;
-        default: spawnX = -50;              spawnY = Math.random() * H; break;
+      for (let attempt = 0; attempt < MAX_SAFE_ATTEMPTS; attempt++) {
+        const { spawnX, spawnY } = this._randomSpawnPoint(W, H);
+        const targetX = W * 0.25 + Math.random() * (W * 0.5);
+        const targetY = H * 0.25 + Math.random() * (H * 0.5);
+
+        const clearance = minClearanceToOccupied(spawnX, spawnY, targetX, targetY, state);
+        if (clearance > bestClearance) {
+          bestClearance = clearance;
+          bestSpawnX = spawnX; bestSpawnY = spawnY;
+          bestTargetX = targetX; bestTargetY = targetY;
+        }
+        if (clearance >= OCCUPIED_CLEARANCE) break;
       }
 
-      // Random target inside the central 50 % of the world.
-      const targetX = W * 0.25 + Math.random() * (W * 0.5);
-      const targetY = H * 0.25 + Math.random() * (H * 0.5);
-
-      const clearance = minClearanceToOccupied(spawnX, spawnY, targetX, targetY, state);
-
-      if (clearance > bestClearance) {
-        bestClearance = clearance;
-        bestSpawnX  = spawnX;
-        bestSpawnY  = spawnY;
-        bestTargetX = targetX;
-        bestTargetY = targetY;
-      }
-
-      // Good enough — stop early.
-      if (clearance >= OCCUPIED_CLEARANCE) break;
+      this._firstSpawnDone = true;
+    } else {
+      // ── Subsequent spawns: fully random (real threat) ────────
+      const { spawnX, spawnY } = this._randomSpawnPoint(W, H);
+      bestSpawnX  = spawnX;
+      bestSpawnY  = spawnY;
+      bestTargetX = W * 0.25 + Math.random() * (W * 0.5);
+      bestTargetY = H * 0.25 + Math.random() * (H * 0.5);
     }
 
     // ── Build final velocity vector ───────────────────────────
@@ -315,5 +318,16 @@ export class AsteroidSystem {
     };
 
     state.asteroids.push(asteroid);
+  }
+
+  /** Returns a random spawn point 50 px outside a random world edge. */
+  private _randomSpawnPoint(W: number, H: number): { spawnX: number; spawnY: number } {
+    const edge = Math.floor(Math.random() * 4) as 0 | 1 | 2 | 3;
+    switch (edge) {
+      case 0: return { spawnX: Math.random() * W, spawnY: -50 };
+      case 1: return { spawnX: W + 50,            spawnY: Math.random() * H };
+      case 2: return { spawnX: Math.random() * W, spawnY: H + 50 };
+      default: return { spawnX: -50,              spawnY: Math.random() * H };
+    }
   }
 }
