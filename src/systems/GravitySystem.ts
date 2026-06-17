@@ -1,0 +1,55 @@
+// ============================================================
+// GravitySystem.ts — Black hole gravity and particle destruction
+// ============================================================
+
+import type { GameState } from '../types';
+import { clamp } from '../utils/MathUtils';
+
+/** Maximum gravitational acceleration applied per frame (px/s²). */
+const MAX_GRAV_ACCEL = 500;
+
+/**
+ * Applies gravitational pull from each black hole to all alive particles,
+ * and destroys any particle that enters the black hole's core radius.
+ */
+export class GravitySystem {
+  update(dt: number, state: GameState): void {
+    const blackHoles = Array.from(state.blackHoles.values());
+    if (blackHoles.length === 0) return;
+
+    let anyDied = false;
+
+    for (const particle of state.particles) {
+      if (!particle.alive) continue;
+
+      for (const bh of blackHoles) {
+        const dx = bh.x - particle.x;
+        const dy = bh.y - particle.y;
+        const distSq = dx * dx + dy * dy;
+        const dist   = Math.sqrt(distSq);
+
+        // Instant destruction inside event horizon.
+        if (dist < bh.radius) {
+          particle.alive = false;
+          anyDied = true;
+          break; // No need to check other black holes.
+        }
+
+        // Apply gravity within pull radius.
+        if (dist < bh.pullRadius && dist > 0) {
+          // Inverse-square acceleration, capped per frame to prevent tunnelling.
+          const rawAccel = bh.pullStrength / (distSq) * dt;
+          const accel    = clamp(rawAccel, 0, MAX_GRAV_ACCEL * dt);
+
+          particle.vx += (dx / dist) * accel;
+          particle.vy += (dy / dist) * accel;
+        }
+      }
+    }
+
+    // Prune dead particles once per update.
+    if (anyDied) {
+      state.particles = state.particles.filter((p) => p.alive);
+    }
+  }
+}

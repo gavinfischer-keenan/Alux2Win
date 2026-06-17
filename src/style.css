@@ -1,0 +1,244 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Alux2Win — Custom Styles
+   ============================================================ */
+
+/* ---- Canvas & Overlay Layout ---- */
+.game-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.ui-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.ui-overlay > * {
+  pointer-events: auto;
+}
+
+/* ---- Glassmorphism Panel ---- */
+.panel {
+  background: rgba(0, 0, 0, 0.60);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 0.75rem;
+}
+
+/* ---- Button Variants ---- */
+.btn-primary {
+  background: linear-gradient(135deg, #3b82f6, #22d3ee);
+  color: #fff;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.1s ease;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.7), 0 0 36px rgba(59, 130, 246, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.1s ease;
+}
+
+.btn-danger:hover {
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.7), 0 0 36px rgba(220, 38, 38, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-danger:active {
+  transform: translateY(0);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #fff;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.1s ease;
+}
+
+.btn-success:hover {
+  box-shadow: 0 0 18px rgba(34, 197, 94, 0.7);
+  transform: translateY(-1px);
+}
+
+/* ---- Faction Colors ---- */
+.faction-player  { color: #4fc3f7; }
+.faction-enemy_a { color: #ef5350; }
+.faction-enemy_b { color: #66bb6a; }
+.faction-neutral { color: #78909c; }
+
+/* ---- Keyframe Animations ---- */
+@keyframes pulse-ring {
+  0%   { transform: scale(1);    opacity: 1;   }
+  50%  { transform: scale(1.15); opacity: 0.5; }
+  100% { transform: scale(1);    opacity: 1;   }
+}
+
+@keyframes float {
+  0%   { transform: translateY(0);    }
+  50%  { transform: translateY(-8px); }
+  100% { transform: translateY(0);    }
+}
+
+@keyframes glow-pulse {
+  0%   { box-shadow: 0 0 8px rgba(79, 195, 247, 0.6),  0 0 20px rgba(79, 195, 247, 0.2);  }
+  50%  { box-shadow: 0 0 24px rgba(79, 195, 247, 0.9), 0 0 60px rgba(79, 195, 247, 0.45); }
+  100% { box-shadow: 0 0 8px rgba(79, 195, 247, 0.6),  0 0 20px rgba(79, 195, 247, 0.2);  }
+}
+
+@keyframes title-glow {
+  0%   { text-shadow: 0 0 10px rgba(79, 195, 247, 0.8), 0 0 30px rgba(79, 195, 247, 0.4),  0 0 60px rgba(34, 211, 238, 0.2);  }
+  50%  { text-shadow: 0 0 20px rgba(79, 195, 247, 1.0), 0 0 60px rgba(79, 195, 247, 0.6),  0 0 120px rgba(34, 211, 238, 0.4); }
+  100% { text-shadow: 0 0 10px rgba(79, 195, 247, 0.8), 0 0 30px rgba(79, 195, 247, 0.4),  0 0 60px rgba(34, 211, 238, 0.2);  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ---- Helper Classes ---- */
+.animate-pulse-ring { animation: pulse-ring 2s ease-in-out infinite; }
+.animate-float      { animation: float 3s ease-in-out infinite; }
+.animate-glow-pulse { animation: glow-pulse 2.5s ease-in-out infinite; }
+.animate-title-glow { animation: title-glow 3s ease-in-out infinite; }
+.animate-fade-in    { animation: fade-in 0.4s ease-out forwards; }
+
+/* ---- Orbitron / Rajdhani Font Utilities ---- */
+.font-orbitron  { font-family: 'Orbitron', sans-serif; }
+.font-rajdhani  { font-family: 'Rajdhani', sans-serif; }
+
+/* ---- Drag Selection Box ---- */
+.drag-select-box {
+  position: absolute;
+  border: 1.5px solid rgba(79, 195, 247, 0.85);
+  background: rgba(79, 195, 247, 0.08);
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* ---- Win/Lose Overlay ---- */
+.game-result-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  z-index: 50;
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+/* ---- Scrollbar Styling ---- */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.04); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: rgba(79, 195, 247, 0.35); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(79, 195, 247, 0.6); }
+
+/* ---- Range Input ---- */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.15);
+  outline: none;
+  cursor: pointer;
+  width: 100%;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #4fc3f7;
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(79, 195, 247, 0.6);
+}
+
+/* ---- Number Input ---- */
+input[type='number'] {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.375rem;
+  color: #e0e0e0;
+  padding: 4px 8px;
+  font-family: 'Rajdhani', sans-serif;
+  outline: none;
+  width: 100%;
+}
+
+input[type='number']:focus {
+  border-color: rgba(79, 195, 247, 0.6);
+  box-shadow: 0 0 0 2px rgba(79, 195, 247, 0.15);
+}
+
+/* ---- Select Input ---- */
+select {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.375rem;
+  color: #e0e0e0;
+  padding: 4px 8px;
+  font-family: 'Rajdhani', sans-serif;
+  outline: none;
+  width: 100%;
+  cursor: pointer;
+}
+
+select:focus { border-color: rgba(79, 195, 247, 0.6); }
+select option { background: #1a1a2e; }
+
+/* ---- Label Text ---- */
+.prop-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.45);
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  margin-bottom: 3px;
+}

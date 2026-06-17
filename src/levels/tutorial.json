@@ -1,0 +1,54 @@
+﻿{
+  "version": 1,
+  "name": "Tutorial",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "planets": [
+    {
+      "id": "p1",
+      "x": 600,
+      "y": 1024,
+      "faction": "player",
+      "upgradeLevel": 2,
+      "startingParticles": 15,
+      "isOrbiting": false
+    },
+    {
+      "id": "p2",
+      "x": 900,
+      "y": 800,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 5,
+      "isOrbiting": false
+    },
+    {
+      "id": "p3",
+      "x": 900,
+      "y": 1250,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 3,
+      "isOrbiting": false
+    },
+    {
+      "id": "p4",
+      "x": 1250,
+      "y": 1024,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 2,
+      "isOrbiting": false
+    },
+    {
+      "id": "p5",
+      "x": 1500,
+      "y": 1024,
+      "faction": "enemy_a",
+      "upgradeLevel": 1,
+      "startingParticles": 8,
+      "isOrbiting": false
+    }
+  ],
+  "blackHoles": []
+}
