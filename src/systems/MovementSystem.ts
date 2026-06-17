@@ -1,44 +1,29 @@
 // ============================================================
-// MovementSystem.ts — Boid flocking + orbit + seek movement
+// MovementSystem.ts — Boid flocking + orbit + seek + stationed movement
 // ============================================================
 
 import type { GameState, ParticleData, PlanetData } from '../types';
-import { PARTICLE_SPEED, PLANET_RADIUS } from '../types';
-import { clamp } from '../utils/MathUtils';
+import { PARTICLE_SPEED, PLANET_RADIUS, ARRIVE_THRESHOLD } from '../types';
 
-// ---- Boid tuning constants ----
-const BOID_RADIUS         = 60;    // px — neighbour search radius
+const BOID_RADIUS         = 60;
 const BOID_RADIUS_SQ      = BOID_RADIUS * BOID_RADIUS;
 const SEP_WEIGHT          = 1.5;
 const COH_WEIGHT          = 0.5;
 const ALI_WEIGHT          = 0.4;
 const SEEK_WEIGHT         = 2.5;
-const ORBIT_SPEED         = 1.2;   // rad/sec
-const COMBAT_PROXIMITY    = 20;    // px — switch to COMBAT mode at this range
-const COMBAT_SPEED_FACTOR = 0.8;   // fraction of PARTICLE_SPEED
+const ORBIT_SPEED         = 1.2;
+const COMBAT_PROXIMITY    = 20;
+const COMBAT_SPEED_FACTOR = 0.8;
 
-/**
- * Boid flocking + orbit + seek movement system.
- *
- * Modes:
- *   orbiting  — particle circles its home planet.
- *   traveling — boid flocking + seek toward target planet.
- *   combat    — direct seek toward target, no boids, slower speed.
- */
 export class MovementSystem {
   update(dt: number, state: GameState): void {
     const planets = state.planets;
 
-    // Build per-faction group of TRAVELING particles for boid calculations.
-    // Keyed by faction string.
-    const travelingByFaction: Map<string, ParticleData[]> = new Map();
+    const travelingByFaction = new Map<string, ParticleData[]>();
     for (const p of state.particles) {
       if (!p.alive || p.mode !== 'traveling') continue;
       let group = travelingByFaction.get(p.faction);
-      if (!group) {
-        group = [];
-        travelingByFaction.set(p.faction, group);
-      }
+      if (!group) { group = []; travelingByFaction.set(p.faction, group); }
       group.push(p);
     }
 
@@ -54,6 +39,11 @@ export class MovementSystem {
           break;
         case 'combat':
           this._updateCombat(particle, planets, dt);
+          break;
+        case 'stationed':
+          // Hold position — no movement
+          particle.vx = 0;
+          particle.vy = 0;
           break;
       }
     }
@@ -76,8 +66,6 @@ export class MovementSystem {
     const angle = p.orbitAngle;
     p.x = home.x + orbitRadius * Math.cos(angle);
     p.y = home.y + orbitRadius * Math.sin(angle);
-
-    // Tangent velocity for accurate rendering interpolation.
     p.vx = -Math.sin(angle) * orbitRadius * ORBIT_SPEED;
     p.vy =  Math.cos(angle) * orbitRadius * ORBIT_SPEED;
   }
@@ -90,12 +78,27 @@ export class MovementSystem {
     travelingByFaction: Map<string, ParticleData[]>,
     dt: number
   ): void {
-    const target = p.targetPlanetId ? planets.get(p.targetPlanetId) : null;
+    // Resolve target: planet (dynamic chase) or empty space coordinate
+    const targetPlanet = p.targetPlanetId ? planets.get(p.targetPlanetId) : null;
+    const destX = targetPlanet ? targetPlanet.x : (p.targetX ?? null);
+    const destY = targetPlanet ? targetPlanet.y : (p.targetY ?? null);
 
-    // ---- Boid forces ----
-    let sepX = 0, sepY = 0;  // Separation
-    let cohX = 0, cohY = 0;  // Cohesion
-    let aliX = 0, aliY = 0;  // Alignment
+    // ---- Check arrival at empty-space target → become stationed ----
+    if (!targetPlanet && destX !== null && destY !== null) {
+      const ax = destX - p.x;
+      const ay = destY - p.y;
+      if (Math.sqrt(ax * ax + ay * ay) <= ARRIVE_THRESHOLD) {
+        p.mode = 'stationed';
+        p.vx = 0;
+        p.vy = 0;
+        return;
+      }
+    }
+
+    // ---- Boid forces (only among same-faction traveling particles) ----
+    let sepX = 0, sepY = 0;
+    let cohX = 0, cohY = 0;
+    let aliX = 0, aliY = 0;
     let neighbours = 0;
 
     const factionGroup = travelingByFaction.get(p.faction);
@@ -110,17 +113,12 @@ export class MovementSystem {
         const dist = Math.sqrt(dSq);
         neighbours++;
 
-        // Separation: repel inversely to distance.
         if (dist > 0) {
           sepX += (dx / dist) / Math.max(dist, 1);
           sepY += (dy / dist) / Math.max(dist, 1);
         }
-
-        // Cohesion: average position.
         cohX += other.x;
         cohY += other.y;
-
-        // Alignment: average velocity.
         aliX += other.vx;
         aliY += other.vy;
       }
@@ -130,19 +128,16 @@ export class MovementSystem {
     let forceY = 0;
 
     if (neighbours > 0) {
-      // Cohesion: steer toward average position.
       cohX = cohX / neighbours - p.x;
       cohY = cohY / neighbours - p.y;
       const cohLen = Math.sqrt(cohX * cohX + cohY * cohY);
       if (cohLen > 0) { cohX /= cohLen; cohY /= cohLen; }
 
-      // Alignment: normalise average velocity.
       aliX /= neighbours;
       aliY /= neighbours;
       const aliLen = Math.sqrt(aliX * aliX + aliY * aliY);
       if (aliLen > 0) { aliX /= aliLen; aliY /= aliLen; }
 
-      // Separation: normalise.
       const sepLen = Math.sqrt(sepX * sepX + sepY * sepY);
       if (sepLen > 0) { sepX /= sepLen; sepY /= sepLen; }
 
@@ -150,20 +145,22 @@ export class MovementSystem {
       forceY = sepY * SEP_WEIGHT + cohY * COH_WEIGHT + aliY * ALI_WEIGHT;
     }
 
-    // ---- Seek force toward target planet ----
-    if (target) {
-      const dx = target.x - p.x;
-      const dy = target.y - p.y;
+    // ---- Seek force ----
+    if (destX !== null && destY !== null) {
+      const dx = destX - p.x;
+      const dy = destY - p.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist > 0) {
         forceX += (dx / dist) * SEEK_WEIGHT;
         forceY += (dy / dist) * SEEK_WEIGHT;
 
-        // Transition to COMBAT when close enough.
-        const targetRadius = PLANET_RADIUS[target.upgradeLevel];
-        if (dist < COMBAT_PROXIMITY + targetRadius) {
-          p.mode = 'combat';
+        // Transition to COMBAT when near a planet target
+        if (targetPlanet) {
+          const targetRadius = PLANET_RADIUS[targetPlanet.upgradeLevel];
+          if (dist < COMBAT_PROXIMITY + targetRadius) {
+            p.mode = 'combat';
+          }
         }
       }
     }
@@ -172,14 +169,12 @@ export class MovementSystem {
     p.vx += forceX * PARTICLE_SPEED * dt;
     p.vy += forceY * PARTICLE_SPEED * dt;
 
-    // Cap speed.
     const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
     if (speed > PARTICLE_SPEED) {
       p.vx = (p.vx / speed) * PARTICLE_SPEED;
       p.vy = (p.vy / speed) * PARTICLE_SPEED;
     }
 
-    // ---- Integrate position ----
     p.x += p.vx * dt;
     p.y += p.vy * dt;
   }

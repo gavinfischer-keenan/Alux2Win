@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // LevelSerializer.ts — JSON serialization / deserialization
 // Converts runtime GameState <-> LevelData JSON schema
 // ============================================================
@@ -14,6 +14,7 @@ import {
   PLANET_CAPACITY,
   PLANET_PRODUCTION,
   PLANET_RADIUS,
+  PLANET_BONUS_HEALTH,
   Faction,
 } from '../types';
 
@@ -159,6 +160,8 @@ export class LevelSerializer {
         capacity: PLANET_CAPACITY[def.upgradeLevel],
         productionRate: PLANET_PRODUCTION[def.upgradeLevel],
         absorbedCount: 0,
+        bonusHealth:    PLANET_BONUS_HEALTH[def.upgradeLevel],
+        maxBonusHealth: PLANET_BONUS_HEALTH[def.upgradeLevel],
         isOrbiting: def.isOrbiting,
       };
 

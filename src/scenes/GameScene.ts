@@ -18,6 +18,7 @@ import {
   PLANET_CAPACITY,
   PLANET_PRODUCTION,
   PLANET_RADIUS,
+  PLANET_BONUS_HEALTH,
   FACTION_COLORS_HEX,
   PARTICLE_SPEED,
 } from '../types';
@@ -266,6 +267,8 @@ export class GameScene {
         capacity,
         productionRate: PLANET_PRODUCTION[lvl],
         absorbedCount: 0,
+        bonusHealth:    PLANET_BONUS_HEALTH[lvl],
+        maxBonusHealth: PLANET_BONUS_HEALTH[lvl],
         isOrbiting: def.isOrbiting,
         orbitCenterX: def.orbitCenterX,
         orbitCenterY: def.orbitCenterY,
@@ -292,11 +295,12 @@ export class GameScene {
       planets,
       particles: [],
       blackHoles,
-      selectedPlanetIds: new Set(),
-      particleIdCounter: 0,
-      tick: 0,
-      running: false,
-      winner: null,
+      selectedPlanetIds:   new Set(),
+      selectedParticleIds: new Set(),
+      particleIdCounter:   0,
+      tick:                0,
+      running:             false,
+      winner:              null,
     };
   }
 
@@ -390,10 +394,12 @@ export class GameScene {
         const planet = this.state.planets.get(hit)!;
         if (planet.faction === 'player') {
           this.state.selectedPlanetIds.clear();
+          this.state.selectedParticleIds.clear();
           this.state.selectedPlanetIds.add(hit);
         }
       } else {
         this.state.selectedPlanetIds.clear();
+        this.state.selectedParticleIds.clear();
       }
     };
   }
@@ -426,8 +432,11 @@ export class GameScene {
 
   private handleDragSelect(x1: number, y1: number, x2: number, y2: number): void {
     this.state.selectedPlanetIds.clear();
+    this.state.selectedParticleIds.clear();
     const worldTL = this.renderer.screenToWorld(x1, y1);
     const worldBR = this.renderer.screenToWorld(x2, y2);
+
+    // Select player planets in box
     this.state.planets.forEach((planet, id) => {
       if (planet.faction !== 'player') return;
       if (
@@ -437,17 +446,74 @@ export class GameScene {
         this.state.selectedPlanetIds.add(id);
       }
     });
+
+    // Select stationed player particles in box
+    for (const p of this.state.particles) {
+      if (!p.alive || p.mode !== 'stationed' || p.faction !== 'player') continue;
+      if (
+        p.x >= worldTL.x && p.x <= worldBR.x &&
+        p.y >= worldTL.y && p.y <= worldBR.y
+      ) {
+        this.state.selectedParticleIds.add(p.id);
+      }
+    }
   }
 
   private handleRightClick(screenX: number, screenY: number): void {
-    if (this.state.selectedPlanetIds.size === 0) return;
-    const world = this.renderer.screenToWorld(screenX, screenY);
+    const hasSelection =
+      this.state.selectedPlanetIds.size > 0 ||
+      this.state.selectedParticleIds.size > 0;
+    if (!hasSelection) return;
+
+    const world       = this.renderer.screenToWorld(screenX, screenY);
     const hitPlanetId = this.getPlanetAtWorldPoint(world.x, world.y);
-    if (hitPlanetId) {
-      this.deployFromSelected(hitPlanetId, undefined, undefined);
-    } else {
-      this.deployFromSelected(undefined, world.x, world.y);
+
+    // Deploy from selected planets
+    if (this.state.selectedPlanetIds.size > 0) {
+      if (hitPlanetId) {
+        this.deployFromSelected(hitPlanetId, undefined, undefined);
+      } else {
+        this.deployFromSelected(undefined, world.x, world.y);
+      }
     }
+
+    // Redeploy stationed particles
+    if (this.state.selectedParticleIds.size > 0) {
+      this._redeployStationedParticles(
+        hitPlanetId ?? undefined,
+        hitPlanetId ? undefined : world.x,
+        hitPlanetId ? undefined : world.y
+      );
+    }
+  }
+
+  /** Move selected stationed particles to a new target. */
+  private _redeployStationedParticles(
+    targetPlanetId?: string,
+    targetX?: number,
+    targetY?: number
+  ): void {
+    for (const p of this.state.particles) {
+      if (!p.alive || !this.state.selectedParticleIds.has(p.id)) continue;
+      p.mode          = 'traveling';
+      p.targetPlanetId = targetPlanetId;
+      p.targetX        = targetX;
+      p.targetY        = targetY;
+      p.orbitTimer     = 0;
+      // Set initial velocity toward target
+      const destX = targetPlanetId
+        ? (this.state.planets.get(targetPlanetId)?.x ?? p.x)
+        : (targetX ?? p.x);
+      const destY = targetPlanetId
+        ? (this.state.planets.get(targetPlanetId)?.y ?? p.y)
+        : (targetY ?? p.y);
+      const dx = destX - p.x;
+      const dy = destY - p.y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      p.vx = (dx / len) * PARTICLE_SPEED;
+      p.vy = (dy / len) * PARTICLE_SPEED;
+    }
+    this.state.selectedParticleIds.clear();
   }
 
   private deployFromSelected(
@@ -494,16 +560,21 @@ export class GameScene {
         const len   = Math.sqrt(dx * dx + dy * dy) || 1;
 
         const particle: ParticleData = {
-          id: this.state.particleIdCounter++,
-          x: spawnX,
-          y: spawnY,
-          vx: (dx / len) * PARTICLE_SPEED,
-          vy: (dy / len) * PARTICLE_SPEED,
-          faction: src.faction,
-          mode: 'traveling',
-          homePlanetId: srcId,
+          id:             this.state.particleIdCounter++,
+          x:              spawnX,
+          y:              spawnY,
+          vx:             (dx / len) * PARTICLE_SPEED,
+          vy:             (dy / len) * PARTICLE_SPEED,
+          faction:        src.faction,
+          mode:           'traveling',
+          strength:       1,
+          orbitTimer:     0,
+          damage:         0,
+          homePlanetId:   srcId,
           targetPlanetId: targetPlanetId,
-          alive: true,
+          targetX:        targetX,
+          targetY:        targetY,
+          alive:          true,
         };
         this.state.particles.push(particle);
       }

@@ -18,6 +18,7 @@ import {
   PLANET_RADIUS,
   PLANET_CAPACITY,
   PLANET_PRODUCTION,
+  PLANET_BONUS_HEALTH,
   FACTION_COLORS,
   FACTION_COLORS_HEX,
 } from '../types';
@@ -38,6 +39,8 @@ function defaultPlanet(id: string, x: number, y: number): PlanetData {
     capacity: PLANET_CAPACITY[1],
     productionRate: PLANET_PRODUCTION[1],
     absorbedCount: 0,
+    bonusHealth:    PLANET_BONUS_HEALTH[1],
+    maxBonusHealth: PLANET_BONUS_HEALTH[1],
     isOrbiting: false,
   };
 }

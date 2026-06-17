@@ -11,17 +11,15 @@ export class Planet {
 
   private graphics:      Graphics;
   private glowGraphics:  Graphics;
+  private healthArc:     Graphics;
   private selectionRing: Graphics;
   private label:         Text;
 
-  /** Track last-drawn state to avoid redundant redraws. */
   private lastFaction:      Faction;
   private lastUpgradeLevel: UpgradeLevel;
   private lastParticles:    number;
   private lastSelected:     boolean;
-
-  /** Animated selection-ring pulse phase (0–2π). */
-  private ringPhase: number = 0;
+  private ringPhase:        number = 0;
 
   constructor(data: PlanetData, layer: Container) {
     this.data = data;
@@ -30,8 +28,8 @@ export class Planet {
     this.lastParticles    = data.particles;
     this.lastSelected     = false;
 
-    // ---- Create display objects ----
     this.glowGraphics  = new Graphics();
+    this.healthArc     = new Graphics();
     this.graphics      = new Graphics();
     this.selectionRing = new Graphics();
 
@@ -44,8 +42,9 @@ export class Planet {
     this.label = new Text({ text: '', style });
     this.label.anchor.set(0.5, 0.5);
 
-    // Stack: glow behind planet, label on top.
+    // Stacking order: glow → healthArc → planet body → selection ring → label
     layer.addChild(this.glowGraphics);
+    layer.addChild(this.healthArc);
     layer.addChild(this.graphics);
     layer.addChild(this.selectionRing);
     layer.addChild(this.label);
@@ -58,25 +57,16 @@ export class Planet {
     return this.data.id;
   }
 
-  /**
-   * Called by GameScene each render frame.
-   * Syncs the data reference (planet may have moved via OrbitSystem),
-   * then delegates to update().
-   */
   render(data: PlanetData, selected: boolean): void {
     this.data = data;
     this.updatePosition();
     this.update(selected);
   }
 
-  /**
-   * Called every frame.
-   * Redraws if faction/upgradeLevel changed; updates label and selection ring.
-   */
   update(selected: boolean): void {
     const d = this.data;
     const needRedraw =
-      d.faction      !== this.lastFaction      ||
+      d.faction      !== this.lastFaction ||
       d.upgradeLevel !== this.lastUpgradeLevel;
 
     if (needRedraw) {
@@ -85,13 +75,14 @@ export class Planet {
       this._redraw();
     }
 
-    // Update label text if particle count changed.
     if (d.particles !== this.lastParticles) {
       this.lastParticles = d.particles;
       this.label.text = String(Math.floor(d.particles));
     }
 
-    // Selection ring animation.
+    // Health arc — redraw every frame (cheap Graphics op)
+    this._drawHealthArc();
+
     if (selected !== this.lastSelected) {
       this.lastSelected = selected;
       if (!selected) {
@@ -108,11 +99,12 @@ export class Planet {
     }
   }
 
-  /** Synchronise graphics positions with data coordinates. */
   updatePosition(): void {
     const { x, y } = this.data;
     this.glowGraphics.x  = x;
     this.glowGraphics.y  = y;
+    this.healthArc.x     = x;
+    this.healthArc.y     = y;
     this.graphics.x      = x;
     this.graphics.y      = y;
     this.selectionRing.x = x;
@@ -123,6 +115,7 @@ export class Planet {
 
   destroy(): void {
     this.glowGraphics.destroy();
+    this.healthArc.destroy();
     this.graphics.destroy();
     this.selectionRing.destroy();
     this.label.destroy();
@@ -130,59 +123,51 @@ export class Planet {
 
   // ---- Private drawing helpers ----
 
+  private _drawHealthArc(): void {
+    this.healthArc.clear();
+    const d = this.data;
+    if (d.maxBonusHealth === 0) return;
+
+    const ratio = Math.max(0, Math.min(1, d.bonusHealth / d.maxBonusHealth));
+    if (ratio <= 0) return;
+
+    const radius     = PLANET_RADIUS[d.upgradeLevel] + 6;
+    const startAngle = -Math.PI / 2;                          // 12 o'clock
+    const endAngle   = startAngle + ratio * Math.PI * 2;      // clockwise
+    const color      = ratio < 0.25 ? 0xff8f00 : FACTION_COLORS[d.faction];
+
+    this.healthArc
+      .arc(0, 0, radius, startAngle, endAngle)
+      .stroke({ color, alpha: 0.85, width: 3 });
+
+    // Subtle track ring (full circle, faint)
+    this.healthArc
+      .arc(0, 0, radius, 0, Math.PI * 2)
+      .stroke({ color: 0xffffff, alpha: 0.08, width: 1 });
+  }
+
   private _redraw(): void {
     const radius = PLANET_RADIUS[this.data.upgradeLevel];
     const color  = FACTION_COLORS[this.data.faction];
 
-    // ---- Glow (soft outer halo) ----
     this.glowGraphics.clear();
-    const glowRadius = radius * 2.2;
-    this.glowGraphics
-      .circle(0, 0, glowRadius)
-      .fill({ color, alpha: 0.12 });
+    this.glowGraphics.circle(0, 0, radius * 2.2).fill({ color, alpha: 0.12 });
+    this.glowGraphics.circle(0, 0, radius * 1.5).fill({ color, alpha: 0.08 });
 
-    const midGlowRadius = radius * 1.5;
-    this.glowGraphics
-      .circle(0, 0, midGlowRadius)
-      .fill({ color, alpha: 0.08 });
-
-    // ---- Planet body ----
     this.graphics.clear();
+    this.graphics.circle(0, 0, radius).fill({ color: 0xffffff, alpha: 0.12 });
+    this.graphics.circle(0, 0, radius).fill({ color });
+    this.graphics.circle(-radius * 0.25, -radius * 0.25, radius * 0.3).fill({ color: 0xffffff, alpha: 0.25 });
 
-    // Slightly lighter rim for depth.
-    this.graphics
-      .circle(0, 0, radius)
-      .fill({ color: 0xffffff, alpha: 0.12 });
-
-    // Main fill.
-    this.graphics
-      .circle(0, 0, radius)
-      .fill({ color });
-
-    // Specular highlight — small bright circle offset toward top-left.
-    const hlRadius = radius * 0.3;
-    const hlOffset = radius * 0.25;
-    this.graphics
-      .circle(-hlOffset, -hlOffset, hlRadius)
-      .fill({ color: 0xffffff, alpha: 0.25 });
-
-    // ---- Label ----
     this.label.text = String(Math.floor(this.data.particles));
   }
 
   private _drawSelectionRing(): void {
-    const radius = PLANET_RADIUS[this.data.upgradeLevel];
+    const radius     = PLANET_RADIUS[this.data.upgradeLevel];
     const ringRadius = radius + 8 + Math.sin(this.ringPhase) * 2;
 
     this.selectionRing.clear();
-    this.selectionRing
-      .circle(0, 0, ringRadius)
-      .stroke({ color: 0xffffff, alpha: 0.85, width: 1.5 });
-
-    // Outer pulse ring.
-    const outerRadius = ringRadius + 4;
-    this.selectionRing
-      .circle(0, 0, outerRadius)
-      .stroke({ color: 0xffffff, alpha: 0.25, width: 1 });
+    this.selectionRing.circle(0, 0, ringRadius).stroke({ color: 0xffffff, alpha: 0.85, width: 1.5 });
+    this.selectionRing.circle(0, 0, ringRadius + 4).stroke({ color: 0xffffff, alpha: 0.25, width: 1 });
   }
 }

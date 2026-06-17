@@ -4,16 +4,14 @@
 
 import { Container, Graphics } from 'pixi.js';
 import { FACTION_COLORS } from '../types';
-import type { ParticleData, Faction } from '../types';
+import type { ParticleData } from '../types';
 
-const PARTICLE_DRAW_RADIUS = 3;
-const PARTICLE_GLOW_RADIUS = 6;
-const PARTICLE_GLOW_ALPHA  = 0.3;
+const PARTICLE_1X_RADIUS  = 3;
+const PARTICLE_5X_RADIUS  = 7;   // larger — represents 5 combined units
+const PARTICLE_GLOW_ALPHA = 0.3;
+const PARTICLE_5X_GLOW_R  = 12;  // 5X glow ring radius
+const PARTICLE_1X_GLOW_R  = 6;
 
-/**
- * Renders all game particles in a single Graphics object each frame.
- * Sorted by faction to batch fill-color changes and reduce state switching.
- */
 export class ParticleRenderer {
   private readonly graphics: Graphics;
   private _destroyed = false;
@@ -23,57 +21,58 @@ export class ParticleRenderer {
     layer.addChild(this.graphics);
   }
 
-  /**
-   * Clear and redraw every alive particle.
-   * Call once per render frame.
-   */
   render(particles: ParticleData[]): void {
     if (this._destroyed) return;
-
     this.graphics.clear();
-
     if (particles.length === 0) return;
 
-    // ---- Sort by faction to batch draw calls ----
+    const time = Date.now() / 1000;
+
+    // Sort: faction first, then 1X before 5X so 5X draws on top
     const sorted = particles
-      .filter((p) => p.alive)
+      .filter(p => p.alive)
       .sort((a, b) => {
-        // Stable ordering: faction string comparison is fine.
         if (a.faction < b.faction) return -1;
-        if (a.faction > b.faction) return 1;
-        return 0;
+        if (a.faction > b.faction) return  1;
+        return a.strength - b.strength; // 1 before 5
       });
 
-    // ---- Draw glow pass (drawn first so core is on top) ----
-    let lastGlowFaction: Faction | null = null;
-
+    // ---- Glow pass (behind cores) ----
     for (const p of sorted) {
-      if (p.mode === 'orbiting') continue; // Orbiting particles skip glow.
+      if (p.mode === 'orbiting' || p.mode === 'stationed') continue;
 
-      const color = FACTION_COLORS[p.faction];
+      const color    = FACTION_COLORS[p.faction];
+      const is5X     = p.strength === 5;
+      const glowR    = is5X ? PARTICLE_5X_GLOW_R : PARTICLE_1X_GLOW_R;
+      const glowAlpha = is5X
+        ? PARTICLE_GLOW_ALPHA * (0.7 + 0.3 * Math.sin(time * 3 + p.id))
+        : PARTICLE_GLOW_ALPHA;
 
-      if (p.faction !== lastGlowFaction) {
-        lastGlowFaction = p.faction;
-      }
-
-      this.graphics
-        .circle(p.x, p.y, PARTICLE_GLOW_RADIUS)
-        .fill({ color, alpha: PARTICLE_GLOW_ALPHA });
+      this.graphics.circle(p.x, p.y, glowR).fill({ color, alpha: glowAlpha });
     }
 
-    // ---- Draw core pass ----
-    let lastFaction: Faction | null = null;
-
+    // ---- Core pass ----
     for (const p of sorted) {
       const color = FACTION_COLORS[p.faction];
+      const is5X  = p.strength === 5;
 
-      if (p.faction !== lastFaction) {
-        lastFaction = p.faction;
+      if (is5X) {
+        // 5X: larger filled circle
+        const pulse = 0.92 + 0.08 * Math.sin(time * 2.5 + p.id * 0.7);
+        const r = PARTICLE_5X_RADIUS * pulse;
+        this.graphics.circle(p.x, p.y, r).fill({ color, alpha: 1 });
+
+        // Dark center dot to distinguish from planet
+        this.graphics.circle(p.x, p.y, 2).fill({ color: 0x000000, alpha: 0.5 });
+
+        // Thin outer ring
+        this.graphics
+          .circle(p.x, p.y, r + 2.5)
+          .stroke({ color, alpha: 0.45, width: 1.2 });
+      } else {
+        // 1X: standard small circle
+        this.graphics.circle(p.x, p.y, PARTICLE_1X_RADIUS).fill({ color, alpha: 1 });
       }
-
-      this.graphics
-        .circle(p.x, p.y, PARTICLE_DRAW_RADIUS)
-        .fill({ color, alpha: 1 });
     }
   }
 
