@@ -1,6 +1,7 @@
 // ============================================================
 // EditorScene.ts — Visual Level Editor scene for Alux2Win
-// Allows placing/moving planets and black holes, editing
+// Allows placing/moving planets, black holes, speed zones,
+// portals, trapping black holes, and white holes; editing
 // properties, and exporting/testing levels.
 // ============================================================
 
@@ -13,6 +14,10 @@ import type {
   LevelData,
   Faction,
   UpgradeLevel,
+  SpeedZoneDef, SpeedZoneData, SpeedZoneType,
+  PortalDef, PortalData,
+  TrappingBlackHoleDef, TrappingBlackHoleData,
+  WhiteHoleDef, WhiteHoleData,
 } from '../types';
 import {
   PLANET_RADIUS,
@@ -51,16 +56,42 @@ function defaultBlackHole(id: string, x: number, y: number): BlackHoleData {
   return { id, x, y, radius: 30, pullRadius: 140, pullStrength: 1.0 };
 }
 
+function defaultSpeedZone(id: string, x: number, y: number): SpeedZoneData {
+  return { id, x, y, radius: 150, type: 'speedup', pulseAngle: 0 };
+}
+
+function defaultPortal(id: string, x: number, y: number, pairId: string, color: number): PortalData {
+  return { id, x, y, pairId, color, pulseAngle: 0 };
+}
+
+function defaultTrappingBH(id: string, x: number, y: number): TrappingBlackHoleData {
+  return { id, x, y, pullRadius: 300, pulseAngle: 0 };
+}
+
+function defaultWhiteHole(id: string, x: number, y: number): WhiteHoleData {
+  return { id, x, y, ownerFaction: null, progress: 0, exploded: false, pulseAngle: 0 };
+}
+
 interface EditState {
-  planets:         Map<string, PlanetData>;
-  blackHoles:      Map<string, BlackHoleData>;
-  selectedEntityId: string | null;
-  tool:            EditorTool;
-  nextPlanetId:    number;
-  nextBhId:        number;
-  levelName:       string;
-  worldWidth:      number;
-  worldHeight:     number;
+  planets:             Map<string, PlanetData>;
+  blackHoles:          Map<string, BlackHoleData>;
+  speedZones:          Map<string, SpeedZoneData>;
+  portals:             Map<string, PortalData>;
+  trappingBlackHoles:  Map<string, TrappingBlackHoleData>;
+  whiteHoles:          Map<string, WhiteHoleData>;
+  selectedEntityId:    string | null;
+  tool:                EditorTool;
+  nextPlanetId:        number;
+  nextBhId:            number;
+  nextSpeedZoneId:     number;
+  nextPortalId:        number;
+  nextTBHId:           number;
+  nextWhiteHoleId:     number;
+  nextPortalPairId:    number;
+  pendingPortalPairId: string | null;
+  levelName:           string;
+  worldWidth:          number;
+  worldHeight:         number;
 }
 
 export class EditorScene {
@@ -70,15 +101,25 @@ export class EditorScene {
   private propertiesPanel!: PropertiesPanel;
 
   private editState: EditState = {
-    planets:         new Map(),
-    blackHoles:      new Map(),
-    selectedEntityId: null,
-    tool:            'select',
-    nextPlanetId:    1,
-    nextBhId:        1,
-    levelName:       'Untitled',
-    worldWidth:      2048,
-    worldHeight:     2048,
+    planets:             new Map(),
+    blackHoles:          new Map(),
+    speedZones:          new Map(),
+    portals:             new Map(),
+    trappingBlackHoles:  new Map(),
+    whiteHoles:          new Map(),
+    selectedEntityId:    null,
+    tool:                'select',
+    nextPlanetId:        1,
+    nextBhId:            1,
+    nextSpeedZoneId:     1,
+    nextPortalId:        1,
+    nextTBHId:           1,
+    nextWhiteHoleId:     1,
+    nextPortalPairId:    1,
+    pendingPortalPairId: null,
+    levelName:           'Untitled',
+    worldWidth:          2048,
+    worldHeight:         2048,
   };
 
   private editorGfx!: Graphics;
@@ -122,7 +163,7 @@ export class EditorScene {
 
     // Sidebar
     this.sidebar = new EditorSidebar(container);
-    this.sidebar.onToolChange = (tool) => { this.editState.tool = tool; };
+    this.sidebar.onToolChange = (tool) => { this.editState.tool = tool; this.updateCursor(); };
     this.sidebar.onBack       = () => this.onBack();
     this.sidebar.onSaveLevel  = () => this.exportLevel();
     this.sidebar.onTestLevel  = () => this.testLevel();
@@ -130,15 +171,18 @@ export class EditorScene {
 
     // Properties panel
     this.propertiesPanel = new PropertiesPanel(container);
-    this.propertiesPanel.onPlanetChange   = (id, changes) => this.updatePlanetProperty(id, changes);
+    this.propertiesPanel.onPlanetChange    = (id, changes) => this.updatePlanetProperty(id, changes);
     this.propertiesPanel.onBlackHoleChange = (id, changes) => this.updateBlackHoleProperty(id, changes);
-    this.propertiesPanel.onDeleteEntity   = (id) => {
+    this.propertiesPanel.onSpeedZoneChange  = (id, changes) => this.updateSpeedZoneProperty(id, changes);
+    this.propertiesPanel.onPortalChange     = (id, changes) => this.updatePortalProperty(id, changes);
+    this.propertiesPanel.onTrappingBHChange = (id, changes) => this.updateTrappingBHProperty(id, changes);
+    this.propertiesPanel.onDeleteEntity    = (id) => {
       this.deleteEntity(id);
       this.propertiesPanel.hide();
     };
 
-    // Cursor style container
-    this.renderer.canvas.style.cursor = 'crosshair';
+    // Cursor style
+    this.updateCursor();
 
     // Bind mouse events to canvas
     this.bindCanvasEvents();
@@ -187,6 +231,26 @@ export class EditorScene {
     // ── Planets ───────────────────────────────────────────
     this.editState.planets.forEach(planet => {
       this.drawPlanet(gfx, planet);
+    });
+
+    // ── Speed Zones ───────────────────────────────────────
+    this.editState.speedZones.forEach(sz => {
+      this.drawSpeedZone(gfx, sz);
+    });
+
+    // ── Portals ───────────────────────────────────────────
+    this.editState.portals.forEach(portal => {
+      this.drawPortal(gfx, portal);
+    });
+
+    // ── Trapping Black Holes ──────────────────────────────
+    this.editState.trappingBlackHoles.forEach(tbh => {
+      this.drawTrappingBH(gfx, tbh);
+    });
+
+    // ── White Holes ───────────────────────────────────────
+    this.editState.whiteHoles.forEach(wh => {
+      this.drawWhiteHole(gfx, wh);
     });
 
     // ── Labels ────────────────────────────────────────────
@@ -269,6 +333,93 @@ export class EditorScene {
     }
   }
 
+  private drawSpeedZone(gfx: Graphics, sz: SpeedZoneData): void {
+    const isSelected = sz.id === this.editState.selectedEntityId;
+    const color = sz.type === 'speedup' ? 0x22c55e : 0xef4444;
+
+    // Zone circle fill
+    gfx.circle(sz.x, sz.y, sz.radius);
+    gfx.fill({ color, alpha: 0.06 });
+    // Zone circle stroke
+    gfx.circle(sz.x, sz.y, sz.radius);
+    gfx.stroke({ color, alpha: 0.5, width: isSelected ? 2.5 : 1.5 });
+
+    // Center marker
+    gfx.circle(sz.x, sz.y, 8);
+    gfx.fill({ color, alpha: 0.7 });
+
+    // Selection ring
+    if (isSelected) {
+      gfx.circle(sz.x, sz.y, sz.radius + 8);
+      gfx.stroke({ color: 0xffee00, alpha: 0.9, width: 2 });
+    }
+  }
+
+  private drawPortal(gfx: Graphics, portal: PortalData): void {
+    const isSelected = portal.id === this.editState.selectedEntityId;
+    const color = portal.color;
+
+    // Outer glow
+    gfx.circle(portal.x, portal.y, 40);
+    gfx.fill({ color, alpha: 0.1 });
+    // Main ring
+    gfx.circle(portal.x, portal.y, 32);
+    gfx.fill({ color, alpha: 0.2 });
+    // Core
+    gfx.circle(portal.x, portal.y, 18);
+    gfx.fill({ color: 0xffffff, alpha: 0.5 });
+    // Stroke
+    gfx.circle(portal.x, portal.y, 40);
+    gfx.stroke({ color, alpha: 0.9, width: isSelected ? 3 : 2 });
+
+    if (isSelected) {
+      gfx.circle(portal.x, portal.y, 52);
+      gfx.stroke({ color: 0xffee00, alpha: 0.9, width: 2 });
+    }
+  }
+
+  private drawTrappingBH(gfx: Graphics, tbh: TrappingBlackHoleData): void {
+    const isSelected = tbh.id === this.editState.selectedEntityId;
+
+    // Pull radius zone fill
+    gfx.circle(tbh.x, tbh.y, tbh.pullRadius);
+    gfx.fill({ color: 0x000000, alpha: 0.12 });
+    // Pull radius zone stroke
+    gfx.circle(tbh.x, tbh.y, tbh.pullRadius);
+    gfx.stroke({ color: 0x6600cc, alpha: 0.4, width: 1 });
+
+    // Core fill
+    gfx.circle(tbh.x, tbh.y, 28);
+    gfx.fill({ color: 0x0d0d1a, alpha: 1 });
+    // Core stroke
+    gfx.circle(tbh.x, tbh.y, 28);
+    gfx.stroke({ color: 0x9933ff, alpha: 0.8, width: 2 });
+
+    if (isSelected) {
+      gfx.circle(tbh.x, tbh.y, 44);
+      gfx.stroke({ color: 0xffee00, alpha: 0.9, width: 2 });
+    }
+  }
+
+  private drawWhiteHole(gfx: Graphics, wh: WhiteHoleData): void {
+    const isSelected = wh.id === this.editState.selectedEntityId;
+
+    // Corona glow
+    gfx.circle(wh.x, wh.y, 36);
+    gfx.fill({ color: 0xfffde7, alpha: 0.12 });
+    // Core star
+    gfx.circle(wh.x, wh.y, 22);
+    gfx.fill({ color: 0xffffff, alpha: 0.9 });
+    // Core stroke
+    gfx.circle(wh.x, wh.y, 22);
+    gfx.stroke({ color: 0xfff9e0, alpha: 0.6, width: 2 });
+
+    if (isSelected) {
+      gfx.circle(wh.x, wh.y, 38);
+      gfx.stroke({ color: 0xffee00, alpha: 0.9, width: 2 });
+    }
+  }
+
   private drawDashedCircle(
     gfx: Graphics,
     cx: number, cy: number, radius: number,
@@ -290,6 +441,7 @@ export class EditorScene {
     // Remove old labels
     this.labelContainer.removeChildren();
 
+    // Planet labels
     this.editState.planets.forEach(planet => {
       const colorHex = FACTION_COLORS_HEX[planet.faction];
       const label = new Text({
@@ -304,6 +456,75 @@ export class EditorScene {
       label.anchor.set(0.5, 0.5);
       label.x = planet.x;
       label.y = planet.y + PLANET_RADIUS[planet.upgradeLevel] + 12;
+      this.labelContainer.addChild(label);
+    });
+
+    // Speed Zone labels
+    this.editState.speedZones.forEach(sz => {
+      const label = new Text({
+        text: sz.type === 'speedup' ? '⚡+' : '🐌-',
+        style: {
+          fontFamily: 'sans-serif',
+          fontSize: 11,
+          fill: sz.type === 'speedup' ? '#22c55e' : '#ef4444',
+          align: 'center',
+        },
+      });
+      label.anchor.set(0.5, 0.5);
+      label.x = sz.x;
+      label.y = sz.y;
+      this.labelContainer.addChild(label);
+    });
+
+    // Portal labels (show pairId)
+    this.editState.portals.forEach(portal => {
+      const colorHex = '#' + portal.color.toString(16).padStart(6, '0');
+      const label = new Text({
+        text: portal.pairId,
+        style: {
+          fontFamily: 'monospace',
+          fontSize: 9,
+          fill: colorHex,
+          align: 'center',
+        },
+      });
+      label.anchor.set(0.5, 0.5);
+      label.x = portal.x;
+      label.y = portal.y + 52;
+      this.labelContainer.addChild(label);
+    });
+
+    // Trapping BH labels
+    this.editState.trappingBlackHoles.forEach(tbh => {
+      const label = new Text({
+        text: 'TBH',
+        style: {
+          fontFamily: 'monospace',
+          fontSize: 9,
+          fill: '#9933ff',
+          align: 'center',
+        },
+      });
+      label.anchor.set(0.5, 0.5);
+      label.x = tbh.x;
+      label.y = tbh.y;
+      this.labelContainer.addChild(label);
+    });
+
+    // White Hole labels
+    this.editState.whiteHoles.forEach(wh => {
+      const label = new Text({
+        text: 'WH',
+        style: {
+          fontFamily: 'monospace',
+          fontSize: 9,
+          fill: '#fffde7',
+          align: 'center',
+        },
+      });
+      label.anchor.set(0.5, 0.5);
+      label.x = wh.x;
+      label.y = wh.y + 30;
       this.labelContainer.addChild(label);
     });
   }
@@ -363,10 +584,14 @@ export class EditorScene {
 
   private updateCursor(): void {
     const cursors: Record<EditorTool, string> = {
-      select:         'default',
-      place_planet:   'crosshair',
-      place_blackhole: 'crosshair',
-      delete:         'not-allowed',
+      select:           'default',
+      place_planet:     'crosshair',
+      place_blackhole:  'crosshair',
+      place_speedzone:  'crosshair',
+      place_portal:     'crosshair',
+      place_trappingbh: 'crosshair',
+      place_whitehole:  'crosshair',
+      delete:           'not-allowed',
     };
     this.renderer.canvas.style.cursor = cursors[this.editState.tool];
   }
@@ -376,15 +601,12 @@ export class EditorScene {
   private handleCanvasClick(wx: number, wy: number, _shift: boolean): void {
     const tool = this.editState.tool;
 
-    if (tool === 'place_planet') {
-      this.placePlanet(wx, wy);
-      return;
-    }
-
-    if (tool === 'place_blackhole') {
-      this.placeBlackHole(wx, wy);
-      return;
-    }
+    if (tool === 'place_planet')     { this.placePlanet(wx, wy);     return; }
+    if (tool === 'place_blackhole')  { this.placeBlackHole(wx, wy);  return; }
+    if (tool === 'place_speedzone')  { this.placeSpeedZone(wx, wy);  return; }
+    if (tool === 'place_portal')     { this.placePortal(wx, wy);     return; }
+    if (tool === 'place_trappingbh') { this.placeTrappingBH(wx, wy); return; }
+    if (tool === 'place_whitehole')  { this.placeWhiteHole(wx, wy);  return; }
 
     if (tool === 'delete') {
       const hit = this.hitTestEntity(wx, wy);
@@ -398,11 +620,9 @@ export class EditorScene {
       this.selectEntity(hit);
     }
     if (hit) {
-      // Begin drag
-      const planet = this.editState.planets.get(hit);
-      const bh     = this.editState.blackHoles.get(hit);
-      const ex = planet ? planet.x : bh!.x;
-      const ey = planet ? planet.y : bh!.y;
+      // Begin drag — find entity position
+      const ex = this.getEntityX(hit);
+      const ey = this.getEntityY(hit);
       this.dragEntity   = hit;
       this.dragOffsetX  = wx - ex;
       this.dragOffsetY  = wy - ey;
@@ -419,6 +639,28 @@ export class EditorScene {
     }
   }
 
+  /** Get x position of any entity by id */
+  private getEntityX(id: string): number {
+    return this.editState.planets.get(id)?.x
+      ?? this.editState.blackHoles.get(id)?.x
+      ?? this.editState.speedZones.get(id)?.x
+      ?? this.editState.portals.get(id)?.x
+      ?? this.editState.trappingBlackHoles.get(id)?.x
+      ?? this.editState.whiteHoles.get(id)?.x
+      ?? 0;
+  }
+
+  /** Get y position of any entity by id */
+  private getEntityY(id: string): number {
+    return this.editState.planets.get(id)?.y
+      ?? this.editState.blackHoles.get(id)?.y
+      ?? this.editState.speedZones.get(id)?.y
+      ?? this.editState.portals.get(id)?.y
+      ?? this.editState.trappingBlackHoles.get(id)?.y
+      ?? this.editState.whiteHoles.get(id)?.y
+      ?? 0;
+  }
+
   // ── Entity Operations ─────────────────────────────────────
 
   private selectEntity(id: string | null): void {
@@ -427,7 +669,15 @@ export class EditorScene {
     const planet = this.editState.planets.get(id);
     if (planet) { this.propertiesPanel.showPlanet(planet); return; }
     const bh = this.editState.blackHoles.get(id);
-    if (bh) { this.propertiesPanel.showBlackHole(bh); }
+    if (bh) { this.propertiesPanel.showBlackHole(bh); return; }
+    const sz = this.editState.speedZones.get(id);
+    if (sz) { this.propertiesPanel.showSpeedZone(sz); return; }
+    const portal = this.editState.portals.get(id);
+    if (portal) { this.propertiesPanel.showPortal(portal); return; }
+    const tbh = this.editState.trappingBlackHoles.get(id);
+    if (tbh) { this.propertiesPanel.showTrappingBH(tbh); return; }
+    const wh = this.editState.whiteHoles.get(id);
+    if (wh) { this.propertiesPanel.showWhiteHole(wh); return; }
   }
 
   private placePlanet(wx: number, wy: number): void {
@@ -444,9 +694,63 @@ export class EditorScene {
     this.selectEntity(id);
   }
 
+  private placeSpeedZone(wx: number, wy: number): void {
+    const id = `sz${this.editState.nextSpeedZoneId++}`;
+    const sz = defaultSpeedZone(id, Math.round(wx), Math.round(wy));
+    this.editState.speedZones.set(id, sz);
+    this.selectEntity(id);
+  }
+
+  private placePortal(wx: number, wy: number): void {
+    // Portals come in pairs. First click creates pair id, second click completes pair.
+    const pairId = this.editState.pendingPortalPairId
+      ?? `pair_${this.editState.nextPortalPairId++}`;
+
+    const PORTAL_COLORS = [0x00ff88, 0xff8800, 0xff00ff, 0x00ffff, 0xffff00, 0xff4444];
+    let color = PORTAL_COLORS[(this.editState.nextPortalPairId - 1) % PORTAL_COLORS.length];
+
+    // If this is the second portal of the pair, inherit the color from the first
+    if (this.editState.pendingPortalPairId !== null) {
+      for (const p of this.editState.portals.values()) {
+        if (p.pairId === pairId) { color = p.color; break; }
+      }
+    }
+
+    const id = `portal${this.editState.nextPortalId++}`;
+    const portal = defaultPortal(id, Math.round(wx), Math.round(wy), pairId, color);
+    this.editState.portals.set(id, portal);
+
+    // Toggle pending pair state
+    if (this.editState.pendingPortalPairId === null) {
+      this.editState.pendingPortalPairId = pairId; // wait for second click
+    } else {
+      this.editState.pendingPortalPairId = null; // pair complete
+    }
+
+    this.selectEntity(id);
+  }
+
+  private placeTrappingBH(wx: number, wy: number): void {
+    const id = `tbh${this.editState.nextTBHId++}`;
+    const tbh = defaultTrappingBH(id, Math.round(wx), Math.round(wy));
+    this.editState.trappingBlackHoles.set(id, tbh);
+    this.selectEntity(id);
+  }
+
+  private placeWhiteHole(wx: number, wy: number): void {
+    const id = `wh${this.editState.nextWhiteHoleId++}`;
+    const wh = defaultWhiteHole(id, Math.round(wx), Math.round(wy));
+    this.editState.whiteHoles.set(id, wh);
+    this.selectEntity(id);
+  }
+
   private deleteEntity(id: string): void {
     this.editState.planets.delete(id);
     this.editState.blackHoles.delete(id);
+    this.editState.speedZones.delete(id);
+    this.editState.portals.delete(id);
+    this.editState.trappingBlackHoles.delete(id);
+    this.editState.whiteHoles.delete(id);
     if (this.editState.selectedEntityId === id) {
       this.editState.selectedEntityId = null;
       this.propertiesPanel.hide();
@@ -464,7 +768,6 @@ export class EditorScene {
     if (planet) {
       planet.x = Math.round(nx);
       planet.y = Math.round(ny);
-      // Refresh properties panel if open
       if (this.editState.selectedEntityId === id) {
         this.propertiesPanel.showPlanet({ ...planet });
       }
@@ -476,6 +779,42 @@ export class EditorScene {
       bh.y = Math.round(ny);
       if (this.editState.selectedEntityId === id) {
         this.propertiesPanel.showBlackHole({ ...bh });
+      }
+      return;
+    }
+    const sz = this.editState.speedZones.get(id);
+    if (sz) {
+      sz.x = Math.round(nx);
+      sz.y = Math.round(ny);
+      if (this.editState.selectedEntityId === id) {
+        this.propertiesPanel.showSpeedZone({ ...sz });
+      }
+      return;
+    }
+    const portal = this.editState.portals.get(id);
+    if (portal) {
+      portal.x = Math.round(nx);
+      portal.y = Math.round(ny);
+      if (this.editState.selectedEntityId === id) {
+        this.propertiesPanel.showPortal({ ...portal });
+      }
+      return;
+    }
+    const tbh = this.editState.trappingBlackHoles.get(id);
+    if (tbh) {
+      tbh.x = Math.round(nx);
+      tbh.y = Math.round(ny);
+      if (this.editState.selectedEntityId === id) {
+        this.propertiesPanel.showTrappingBH({ ...tbh });
+      }
+      return;
+    }
+    const wh = this.editState.whiteHoles.get(id);
+    if (wh) {
+      wh.x = Math.round(nx);
+      wh.y = Math.round(ny);
+      if (this.editState.selectedEntityId === id) {
+        this.propertiesPanel.showWhiteHole({ ...wh });
       }
     }
   }
@@ -504,12 +843,33 @@ export class EditorScene {
     Object.assign(bh, changes);
   }
 
+  private updateSpeedZoneProperty(id: string, changes: Partial<SpeedZoneDef>): void {
+    const sz = this.editState.speedZones.get(id);
+    if (!sz) return;
+    if (changes.radius !== undefined) sz.radius = changes.radius;
+    if (changes.type   !== undefined) sz.type   = changes.type as SpeedZoneType;
+  }
+
+  private updatePortalProperty(id: string, changes: Partial<PortalDef>): void {
+    const p = this.editState.portals.get(id);
+    if (!p) return;
+    if (changes.pairId !== undefined) p.pairId = changes.pairId;
+    if (changes.color  !== undefined) p.color  = changes.color;
+  }
+
+  private updateTrappingBHProperty(id: string, changes: Partial<TrappingBlackHoleDef>): void {
+    const tbh = this.editState.trappingBlackHoles.get(id);
+    if (!tbh) return;
+    if (changes.pullRadius !== undefined) tbh.pullRadius = changes.pullRadius;
+  }
+
   // ── Hit Testing ───────────────────────────────────────────
 
   private hitTestEntity(wx: number, wy: number): string | null {
-    // Test planets
     let best: string | null = null;
     let bestDist = Infinity;
+
+    // Test planets
     this.editState.planets.forEach((planet, id) => {
       const r  = PLANET_RADIUS[planet.upgradeLevel] + 10;
       const dx = planet.x - wx;
@@ -517,7 +877,6 @@ export class EditorScene {
       const d  = Math.sqrt(dx * dx + dy * dy);
       if (d <= r && d < bestDist) { bestDist = d; best = id; }
     });
-    if (best) return best;
 
     // Test black holes
     this.editState.blackHoles.forEach((bh, id) => {
@@ -526,6 +885,38 @@ export class EditorScene {
       const dy = bh.y - wy;
       const d  = Math.sqrt(dx * dx + dy * dy);
       if (d <= r && d < bestDist) { bestDist = d; best = id; }
+    });
+
+    // Test speed zones — click within radius
+    this.editState.speedZones.forEach((sz, id) => {
+      const dx = sz.x - wx;
+      const dy = sz.y - wy;
+      const d  = Math.sqrt(dx * dx + dy * dy);
+      if (d <= sz.radius && d < bestDist) { bestDist = d; best = id; }
+    });
+
+    // Test portals — click within 45px
+    this.editState.portals.forEach((p, id) => {
+      const dx = p.x - wx;
+      const dy = p.y - wy;
+      const d  = Math.sqrt(dx * dx + dy * dy);
+      if (d <= 45 && d < bestDist) { bestDist = d; best = id; }
+    });
+
+    // Test trapping black holes — 60px grab radius
+    this.editState.trappingBlackHoles.forEach((tbh, id) => {
+      const dx = tbh.x - wx;
+      const dy = tbh.y - wy;
+      const d  = Math.sqrt(dx * dx + dy * dy);
+      if (d <= 60 && d < bestDist) { bestDist = d; best = id; }
+    });
+
+    // Test white holes — click within 35px
+    this.editState.whiteHoles.forEach((wh, id) => {
+      const dx = wh.x - wx;
+      const dy = wh.y - wy;
+      const d  = Math.sqrt(dx * dx + dy * dy);
+      if (d <= 35 && d < bestDist) { bestDist = d; best = id; }
     });
 
     return best;
@@ -582,6 +973,26 @@ export class EditorScene {
       });
     });
 
+    const speedZones: SpeedZoneDef[] = [];
+    this.editState.speedZones.forEach(sz => {
+      speedZones.push({ id: sz.id, x: sz.x, y: sz.y, radius: sz.radius, type: sz.type });
+    });
+
+    const portals: PortalDef[] = [];
+    this.editState.portals.forEach(p => {
+      portals.push({ id: p.id, x: p.x, y: p.y, pairId: p.pairId, color: p.color });
+    });
+
+    const trappingBlackHoles: TrappingBlackHoleDef[] = [];
+    this.editState.trappingBlackHoles.forEach(tbh => {
+      trappingBlackHoles.push({ id: tbh.id, x: tbh.x, y: tbh.y, pullRadius: tbh.pullRadius });
+    });
+
+    const whiteHoles: WhiteHoleDef[] = [];
+    this.editState.whiteHoles.forEach(wh => {
+      whiteHoles.push({ id: wh.id, x: wh.x, y: wh.y });
+    });
+
     return {
       version:     1,
       name:        this.editState.levelName || 'Untitled',
@@ -589,10 +1000,10 @@ export class EditorScene {
       worldHeight: this.editState.worldHeight,
       planets,
       blackHoles,
+      speedZones:          speedZones.length > 0          ? speedZones          : undefined,
+      portals:             portals.length > 0             ? portals             : undefined,
+      trappingBlackHoles:  trappingBlackHoles.length > 0  ? trappingBlackHoles  : undefined,
+      whiteHoles:          whiteHoles.length > 0          ? whiteHoles          : undefined,
     };
   }
 }
-
-
-
-

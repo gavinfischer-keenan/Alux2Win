@@ -3,17 +3,33 @@
 // Shows editable properties for the currently selected entity.
 // ============================================================
 
-import type { PlanetData, BlackHoleData, PlanetDef, Faction, UpgradeLevel } from '../types';
+import type {
+  PlanetData, BlackHoleData, PlanetDef, Faction, UpgradeLevel,
+  SpeedZoneDef, SpeedZoneData,
+  PortalDef, PortalData,
+  TrappingBlackHoleDef, TrappingBlackHoleData,
+  WhiteHoleData,
+} from '../types';
 import { FACTION_COLORS_HEX } from '../types';
 
 export class PropertiesPanel {
   private element: HTMLElement;
-  onPlanetChange: (planetId: string, changes: Partial<PlanetDef>) => void = () => {};
-  onBlackHoleChange: (bhId: string, changes: Partial<BlackHoleData>) => void = () => {};
-  onDeleteEntity: (id: string) => void = () => {};
 
-  private currentPlanetId: string | null = null;
-  private currentBhId: string | null = null;
+  // Callbacks
+  onPlanetChange:     (planetId: string, changes: Partial<PlanetDef>)            => void = () => {};
+  onBlackHoleChange:  (bhId: string, changes: Partial<BlackHoleData>)            => void = () => {};
+  onSpeedZoneChange:  (id: string, changes: Partial<SpeedZoneDef>)               => void = () => {};
+  onPortalChange:     (id: string, changes: Partial<PortalDef>)                  => void = () => {};
+  onTrappingBHChange: (id: string, changes: Partial<TrappingBlackHoleDef>)       => void = () => {};
+  onDeleteEntity:     (id: string)                                                => void = () => {};
+
+  // Current selection tracking
+  private currentPlanetId:    string | null = null;
+  private currentBhId:        string | null = null;
+  private currentSpeedZoneId: string | null = null;
+  private currentPortalId:    string | null = null;
+  private currentTBHId:       string | null = null;
+  private currentWhiteHoleId: string | null = null;
 
   constructor(container: HTMLElement) {
     this.element = this.createElement();
@@ -46,9 +62,17 @@ export class PropertiesPanel {
 
   // ── Public API ──────────────────────────────────────────────────
 
+  private clearCurrentIds(): void {
+    this.currentPlanetId    = null;
+    this.currentBhId        = null;
+    this.currentSpeedZoneId = null;
+    this.currentPortalId    = null;
+    this.currentTBHId       = null;
+    this.currentWhiteHoleId = null;
+  }
+
   showPlanet(planet: PlanetData | null): void {
-    this.currentPlanetId = null;
-    this.currentBhId = null;
+    this.clearCurrentIds();
 
     if (!planet) {
       this.hide();
@@ -109,12 +133,11 @@ export class PropertiesPanel {
     this.element.appendChild(spacer);
 
     // Delete button
-    this.element.appendChild(this.buildDeleteBtn());
+    this.element.appendChild(this.buildDeleteBtn(() => this.currentPlanetId));
   }
 
   showBlackHole(bh: BlackHoleData | null): void {
-    this.currentPlanetId = null;
-    this.currentBhId = null;
+    this.clearCurrentIds();
 
     if (!bh) {
       this.hide();
@@ -132,13 +155,13 @@ export class PropertiesPanel {
     this.element.appendChild(this.buildLabel('Pull Radius'));
     const pullRadiusWrapper = document.createElement('div');
     pullRadiusWrapper.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
+    const pullRadiusVal = document.createElement('span');
+    pullRadiusVal.style.cssText = 'font-size:11px; color: rgba(255,255,255,0.5); text-align:right;';
+    pullRadiusVal.textContent = String(bh.pullRadius);
     const pullRadiusSlider = this.buildSlider(bh.pullRadius, 50, 400, (v) => {
       pullRadiusVal.textContent = String(v);
       if (this.currentBhId) this.onBlackHoleChange(this.currentBhId, { pullRadius: v });
     });
-    const pullRadiusVal = document.createElement('span');
-    pullRadiusVal.style.cssText = 'font-size:11px; color: rgba(255,255,255,0.5); text-align:right;';
-    pullRadiusVal.textContent = String(bh.pullRadius);
     pullRadiusWrapper.appendChild(pullRadiusSlider);
     pullRadiusWrapper.appendChild(pullRadiusVal);
     this.element.appendChild(pullRadiusWrapper);
@@ -147,13 +170,13 @@ export class PropertiesPanel {
     this.element.appendChild(this.buildLabel('Destruction Radius'));
     const destroyWrapper = document.createElement('div');
     destroyWrapper.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
+    const destroyVal = document.createElement('span');
+    destroyVal.style.cssText = 'font-size:11px; color: rgba(255,255,255,0.5); text-align:right;';
+    destroyVal.textContent = String(bh.radius);
     const destroySlider = this.buildSlider(bh.radius, 10, 120, (v) => {
       destroyVal.textContent = String(v);
       if (this.currentBhId) this.onBlackHoleChange(this.currentBhId, { radius: v });
     });
-    const destroyVal = document.createElement('span');
-    destroyVal.style.cssText = 'font-size:11px; color: rgba(255,255,255,0.5); text-align:right;';
-    destroyVal.textContent = String(bh.radius);
     destroyWrapper.appendChild(destroySlider);
     destroyWrapper.appendChild(destroyVal);
     this.element.appendChild(destroyWrapper);
@@ -162,13 +185,13 @@ export class PropertiesPanel {
     this.element.appendChild(this.buildLabel('Pull Strength'));
     const strengthWrapper = document.createElement('div');
     strengthWrapper.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
+    const strengthVal = document.createElement('span');
+    strengthVal.style.cssText = 'font-size:11px; color: rgba(255,255,255,0.5); text-align:right;';
+    strengthVal.textContent = String(bh.pullStrength.toFixed(2));
     const strengthSlider = this.buildSlider(bh.pullStrength * 100, 10, 300, (v) => {
       strengthVal.textContent = (v / 100).toFixed(2);
       if (this.currentBhId) this.onBlackHoleChange(this.currentBhId, { pullStrength: v / 100 });
     });
-    const strengthVal = document.createElement('span');
-    strengthVal.style.cssText = 'font-size:11px; color: rgba(255,255,255,0.5); text-align:right;';
-    strengthVal.textContent = String(bh.pullStrength.toFixed(2));
     strengthWrapper.appendChild(strengthSlider);
     strengthWrapper.appendChild(strengthVal);
     this.element.appendChild(strengthWrapper);
@@ -179,12 +202,220 @@ export class PropertiesPanel {
     this.element.appendChild(spacer);
 
     // Delete
-    this.element.appendChild(this.buildDeleteBtn());
+    this.element.appendChild(this.buildDeleteBtn(() => this.currentBhId));
+  }
+
+  showSpeedZone(sz: SpeedZoneData): void {
+    this.clearCurrentIds();
+    this.currentSpeedZoneId = sz.id;
+    this.element.innerHTML = '';
+    this.element.style.display = 'flex';
+
+    // Header
+    this.element.appendChild(this.buildHeader('💨 Speed Zone', sz.id));
+
+    // Type toggle
+    this.element.appendChild(this.buildLabel('Type'));
+    const typeRow = document.createElement('div');
+    typeRow.style.cssText = 'display:flex; gap:6px;';
+
+    const makeTypeBtn = (label: string, value: 'speedup' | 'slowdown', color: string) => {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      const isActive = sz.type === value;
+      btn.style.cssText = `
+        flex: 1;
+        padding: 5px 0;
+        border-radius: 5px;
+        border: 1px solid ${color}55;
+        background: ${isActive ? color + '33' : 'rgba(255,255,255,0.05)'};
+        color: ${isActive ? color : 'rgba(255,255,255,0.5)'};
+        font-family: 'Rajdhani', sans-serif;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.15s;
+      `;
+      btn.addEventListener('click', () => {
+        if (this.currentSpeedZoneId) {
+          this.onSpeedZoneChange(this.currentSpeedZoneId, { type: value });
+          // Re-render panel with updated state
+          this.showSpeedZone({ ...sz, type: value });
+        }
+      });
+      return btn;
+    };
+
+    typeRow.appendChild(makeTypeBtn('⚡ Speed Up', 'speedup', '#22c55e'));
+    typeRow.appendChild(makeTypeBtn('🐌 Slow Down', 'slowdown', '#ef4444'));
+    this.element.appendChild(typeRow);
+
+    // Radius slider
+    this.element.appendChild(this.buildLabel('Radius'));
+    const radiusWrapper = document.createElement('div');
+    radiusWrapper.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
+    const radiusVal = document.createElement('span');
+    radiusVal.style.cssText = 'font-size:11px; color: rgba(255,255,255,0.5); text-align:right;';
+    radiusVal.textContent = String(sz.radius);
+    const radiusSlider = this.buildSlider(sz.radius, 50, 400, (v) => {
+      radiusVal.textContent = String(v);
+      if (this.currentSpeedZoneId) this.onSpeedZoneChange(this.currentSpeedZoneId, { radius: v });
+    });
+    radiusWrapper.appendChild(radiusSlider);
+    radiusWrapper.appendChild(radiusVal);
+    this.element.appendChild(radiusWrapper);
+
+    // Spacer
+    const spacer = document.createElement('div');
+    spacer.style.flex = '1';
+    this.element.appendChild(spacer);
+
+    // Delete button
+    this.element.appendChild(this.buildDeleteBtn(() => this.currentSpeedZoneId));
+  }
+
+  showPortal(portal: PortalData): void {
+    this.clearCurrentIds();
+    this.currentPortalId = portal.id;
+    this.element.innerHTML = '';
+    this.element.style.display = 'flex';
+
+    // Header
+    this.element.appendChild(this.buildHeader('🌀 Portal', portal.id));
+
+    // Pair ID
+    this.element.appendChild(this.buildLabel('Pair ID'));
+    const pairInput = document.createElement('input');
+    pairInput.type = 'text';
+    pairInput.value = portal.pairId;
+    pairInput.style.cssText = `
+      width: 100%;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 4px;
+      color: #e0e0e0;
+      font-size: 11px;
+      font-family: 'monospace';
+      padding: 4px 6px;
+      outline: none;
+      box-sizing: border-box;
+    `;
+    pairInput.addEventListener('change', () => {
+      if (this.currentPortalId) {
+        this.onPortalChange(this.currentPortalId, { pairId: pairInput.value.trim() });
+      }
+    });
+    this.element.appendChild(pairInput);
+
+    // Color presets
+    this.element.appendChild(this.buildLabel('Color'));
+    const PORTAL_COLORS: Array<{ hex: number; label: string }> = [
+      { hex: 0x00ff88, label: 'Green'  },
+      { hex: 0xff8800, label: 'Orange' },
+      { hex: 0xff00ff, label: 'Pink'   },
+      { hex: 0x00ffff, label: 'Cyan'   },
+      { hex: 0xffff00, label: 'Yellow' },
+      { hex: 0xff4444, label: 'Red'    },
+    ];
+    const swatchRow = document.createElement('div');
+    swatchRow.style.cssText = 'display:flex; gap:5px; flex-wrap:wrap;';
+    PORTAL_COLORS.forEach(({ hex, label }) => {
+      const hexStr = '#' + hex.toString(16).padStart(6, '0');
+      const swatch = document.createElement('button');
+      swatch.title = label;
+      swatch.style.cssText = `
+        width: 24px; height: 24px;
+        border-radius: 4px;
+        border: 2px solid ${portal.color === hex ? '#fff' : 'transparent'};
+        background: ${hexStr};
+        cursor: pointer;
+        transition: border-color 0.15s, transform 0.1s;
+      `;
+      swatch.addEventListener('mouseenter', () => { swatch.style.transform = 'scale(1.15)'; });
+      swatch.addEventListener('mouseleave', () => { swatch.style.transform = 'scale(1)'; });
+      swatch.addEventListener('click', () => {
+        if (this.currentPortalId) {
+          this.onPortalChange(this.currentPortalId, { color: hex });
+          this.showPortal({ ...portal, color: hex });
+        }
+      });
+      swatchRow.appendChild(swatch);
+    });
+    this.element.appendChild(swatchRow);
+
+    // Info text
+    const info = this.buildInfoText('Portals with matching Pair ID are linked');
+    this.element.appendChild(info);
+
+    // Spacer
+    const spacer = document.createElement('div');
+    spacer.style.flex = '1';
+    this.element.appendChild(spacer);
+
+    // Delete button
+    this.element.appendChild(this.buildDeleteBtn(() => this.currentPortalId));
+  }
+
+  showTrappingBH(tbh: TrappingBlackHoleData): void {
+    this.clearCurrentIds();
+    this.currentTBHId = tbh.id;
+    this.element.innerHTML = '';
+    this.element.style.display = 'flex';
+
+    // Header
+    this.element.appendChild(this.buildHeader('🕳️ Trapping Black Hole', tbh.id));
+
+    // Pull Radius slider
+    this.element.appendChild(this.buildLabel('Pull Radius'));
+    const pullWrapper = document.createElement('div');
+    pullWrapper.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
+    const pullVal = document.createElement('span');
+    pullVal.style.cssText = 'font-size:11px; color: rgba(255,255,255,0.5); text-align:right;';
+    pullVal.textContent = String(tbh.pullRadius);
+    const pullSlider = this.buildSlider(tbh.pullRadius, 100, 600, (v) => {
+      pullVal.textContent = String(v);
+      if (this.currentTBHId) this.onTrappingBHChange(this.currentTBHId, { pullRadius: v });
+    });
+    pullWrapper.appendChild(pullSlider);
+    pullWrapper.appendChild(pullVal);
+    this.element.appendChild(pullWrapper);
+
+    // Info text
+    this.element.appendChild(this.buildInfoText('Particles entering pull radius are drawn to center'));
+
+    // Spacer
+    const spacer = document.createElement('div');
+    spacer.style.flex = '1';
+    this.element.appendChild(spacer);
+
+    // Delete button
+    this.element.appendChild(this.buildDeleteBtn(() => this.currentTBHId));
+  }
+
+  showWhiteHole(wh: WhiteHoleData): void {
+    this.clearCurrentIds();
+    this.currentWhiteHoleId = wh.id;
+    this.element.innerHTML = '';
+    this.element.style.display = 'flex';
+
+    // Header
+    this.element.appendChild(this.buildHeader('⭐ White Hole', wh.id));
+
+    // Info texts
+    this.element.appendChild(this.buildInfoText('20 particles → 100 particle explosion'));
+    this.element.appendChild(this.buildInfoText('Contested by multiple factions → resets'));
+
+    // Spacer
+    const spacer = document.createElement('div');
+    spacer.style.flex = '1';
+    this.element.appendChild(spacer);
+
+    // Delete button
+    this.element.appendChild(this.buildDeleteBtn(() => this.currentWhiteHoleId));
   }
 
   hide(): void {
-    this.currentPlanetId = null;
-    this.currentBhId = null;
+    this.clearCurrentIds();
     this.element.style.display = 'none';
   }
 
@@ -223,6 +454,23 @@ export class PropertiesPanel {
     label.className = 'prop-label';
     label.textContent = text;
     return label;
+  }
+
+  private buildInfoText(text: string): HTMLElement {
+    const el = document.createElement('div');
+    el.style.cssText = `
+      font-size: 10px;
+      color: rgba(255,255,255,0.38);
+      font-family: 'Rajdhani', sans-serif;
+      font-style: italic;
+      line-height: 1.4;
+      padding: 4px 6px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 4px;
+      border-left: 2px solid rgba(255,255,255,0.12);
+    `;
+    el.textContent = text;
+    return el;
   }
 
   private buildFactionSelect(
@@ -399,7 +647,7 @@ export class PropertiesPanel {
     return slider;
   }
 
-  private buildDeleteBtn(): HTMLElement {
+  private buildDeleteBtn(getId: () => string | null): HTMLElement {
     const btn = document.createElement('button');
     btn.textContent = '🗑  Delete Entity';
     btn.style.cssText = `
@@ -424,7 +672,7 @@ export class PropertiesPanel {
       btn.style.boxShadow = 'none';
     });
     btn.addEventListener('click', () => {
-      const id = this.currentPlanetId ?? this.currentBhId;
+      const id = getId();
       if (id) this.onDeleteEntity(id);
     });
     return btn;

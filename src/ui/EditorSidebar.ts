@@ -2,7 +2,15 @@
 // EditorSidebar.ts — Level editor left tool palette
 // ============================================================
 
-export type EditorTool = 'select' | 'place_planet' | 'place_blackhole' | 'delete';
+export type EditorTool =
+  | 'select'
+  | 'place_planet'
+  | 'place_blackhole'
+  | 'place_speedzone'
+  | 'place_portal'
+  | 'place_trappingbh'
+  | 'place_whitehole'
+  | 'delete';
 
 interface ToolDef {
   id: EditorTool;
@@ -12,10 +20,14 @@ interface ToolDef {
 }
 
 const TOOLS: ToolDef[] = [
-  { id: 'select',        icon: '↖',  label: 'SEL',    title: 'Select / Move (S)'   },
-  { id: 'place_planet',  icon: '🪐', label: 'PLT',    title: 'Place Planet (P)'    },
-  { id: 'place_blackhole', icon: '⚫', label: 'BH',   title: 'Place Black Hole (B)' },
-  { id: 'delete',        icon: '🗑️', label: 'DEL',   title: 'Delete Entity (X)'   },
+  { id: 'select',           icon: '↖',  label: 'SEL',  title: 'Select / Move (S)' },
+  { id: 'place_planet',     icon: '🪐', label: 'PLT',  title: 'Place Planet (P)' },
+  { id: 'place_blackhole',  icon: '⚫', label: 'BH',   title: 'Place Black Hole (B)' },
+  { id: 'place_speedzone',  icon: '💨', label: 'SPD',  title: 'Place Speed Zone (Z)' },
+  { id: 'place_portal',     icon: '🌀', label: 'PRT',  title: 'Place Portal (O)' },
+  { id: 'place_trappingbh', icon: '🕳️', label: 'TBH',  title: 'Place Trapping Black Hole (T)' },
+  { id: 'place_whitehole',  icon: '⭐', label: 'WH',   title: 'Place White Hole (H)' },
+  { id: 'delete',           icon: '🗑️', label: 'DEL',  title: 'Delete Entity (X)' },
 ];
 
 export class EditorSidebar {
@@ -242,9 +254,13 @@ export class EditorSidebar {
     this._keyHandler = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).tagName === 'INPUT') return;
       switch (e.key.toLowerCase()) {
-        case 's': this.setActiveTool('select');         break;
-        case 'p': this.setActiveTool('place_planet');   break;
-        case 'b': this.setActiveTool('place_blackhole'); break;
+        case 's': this.setActiveTool('select');           break;
+        case 'p': this.setActiveTool('place_planet');     break;
+        case 'b': this.setActiveTool('place_blackhole');  break;
+        case 'z': this.setActiveTool('place_speedzone');  break;
+        case 'o': this.setActiveTool('place_portal');     break;
+        case 't': this.setActiveTool('place_trappingbh'); break;
+        case 'h': this.setActiveTool('place_whitehole');  break;
         case 'x': case 'delete': this.setActiveTool('delete'); break;
       }
     };
