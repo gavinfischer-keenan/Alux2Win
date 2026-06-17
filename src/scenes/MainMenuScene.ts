@@ -66,93 +66,81 @@ export class MainMenuScene {
       pointer-events: auto;
       user-select: none;
       overflow: hidden;
+      padding: 20px;
     `;
 
-    // ── Inner card ─────────────────────────────────────────
+    // ── Inner card (Container) ──────────────────────────────
     const card = document.createElement('div');
     card.style.cssText = `
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      padding: 48px 56px 36px;
+      gap: 20px;
+      padding: 40px;
       background: rgba(0, 0, 10, 0.65);
       backdrop-filter: blur(18px);
       -webkit-backdrop-filter: blur(18px);
       border: 1px solid rgba(79, 195, 247, 0.15);
-      border-radius: 20px;
+      border-radius: 24px;
       box-shadow: 0 0 60px rgba(79, 195, 247, 0.08), 0 8px 40px rgba(0,0,0,0.6);
-      min-width: 320px;
+      width: 100%;
+      max-width: 1200px;
       transition: opacity 0.3s ease, transform 0.3s ease;
     `;
     this._mainCard = card;
     overlay.appendChild(card);
 
-    // ── Title ──────────────────────────────────────────────
+    // ── Header (Title & Aux Buttons) ────────────────────────
+    const header = document.createElement('div');
+    header.style.cssText = `
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      gap: 20px;
+    `;
+    
     const titleWrapper = document.createElement('div');
     titleWrapper.className = 'menu-anim-child';
-    titleWrapper.style.cssText = 'text-align: center; margin-bottom: 8px;';
 
     const title = document.createElement('h1');
-    title.textContent = 'ALUX2WIN';
+    title.textContent = 'LUX';
     title.style.cssText = `
       font-family: 'Orbitron', sans-serif;
-      font-size: clamp(2.4rem, 5vw, 3.8rem);
+      font-size: clamp(3rem, 6vw, 4.5rem);
       font-weight: 900;
       color: #4fc3f7;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.15em;
       line-height: 1;
       animation: title-glow 3s ease-in-out infinite;
       margin: 0;
     `;
 
     const subtitle = document.createElement('div');
-    subtitle.textContent = 'Constellations';
+    subtitle.textContent = 'Choose your Galaxy';
     subtitle.style.cssText = `
       font-family: 'Rajdhani', sans-serif;
-      font-size: 1.05rem;
+      font-size: 1.1rem;
       color: rgba(79, 195, 247, 0.55);
-      letter-spacing: 0.32em;
+      letter-spacing: 0.25em;
       text-transform: uppercase;
       margin-top: 6px;
     `;
 
     titleWrapper.appendChild(title);
     titleWrapper.appendChild(subtitle);
-    card.appendChild(titleWrapper);
+    header.appendChild(titleWrapper);
 
-    // ── Decorative separator ───────────────────────────────
-    const sep = document.createElement('div');
-    sep.className = 'menu-anim-child';
-    sep.style.cssText = `
-      width: 180px;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(79,195,247,0.45), transparent);
-      margin: 8px 0 16px;
+    // ── Aux Buttons (Settings, Editor, Import) ──────────────
+    const auxContainer = document.createElement('div');
+    auxContainer.className = 'menu-anim-child';
+    auxContainer.style.cssText = `
+      display: flex;
+      gap: 12px;
+      align-items: center;
     `;
-    card.appendChild(sep);
 
-    // ── Play Tutorial button ───────────────────────────────
-    const tutorialBtn = this.createMenuButton('▶ PLAY TUTORIAL', '#4fc3f7', '#22d3ee');
-    tutorialBtn.className += ' menu-anim-child';
-    tutorialBtn.addEventListener('click', () => {
-      this.onPlay(tutorialData as LevelData);
-    });
-    card.appendChild(tutorialBtn);
-
-    // ── Play Skirmish button ───────────────────────────────
-    const skirmishBtn = this.createMenuButton('⚔ PLAY SKIRMISH', '#66bb6a', '#4ade80');
-    skirmishBtn.className += ' menu-anim-child';
-    skirmishBtn.addEventListener('click', () => {
-      this.onPlay(skirmishData as LevelData);
-    });
-    card.appendChild(skirmishBtn);
-
-    // ── Import Level button + hidden input ─────────────────
-    const importWrapper = document.createElement('div');
-    importWrapper.className = 'menu-anim-child';
-    importWrapper.style.cssText = 'width: 100%;';
-
+    // Import file input
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = '.json';
@@ -171,39 +159,141 @@ export class MainMenuScene {
         }
       };
       reader.readAsText(file);
-      // Reset so same file can be re-imported
       fileInput.value = '';
     });
+    auxContainer.appendChild(fileInput);
 
-    const importBtn = this.createMenuButton('📂 IMPORT LEVEL', '#b0bec5', '#cfd8dc');
-    importBtn.addEventListener('click', () => fileInput.click());
+    const importBtn = this.createAuxButton('📂 IMPORT', '#b0bec5', () => fileInput.click());
+    const editorBtn = this.createAuxButton('🛠 EDITOR', '#f59e0b', () => this.onOpenEditor());
+    const settingsBtn = this.createAuxButton('⚙ SETTINGS', '#9575cd', () => this.openSettings());
 
-    importWrapper.appendChild(fileInput);
-    importWrapper.appendChild(importBtn);
-    card.appendChild(importWrapper);
+    auxContainer.appendChild(importBtn);
+    auxContainer.appendChild(editorBtn);
+    auxContainer.appendChild(settingsBtn);
 
-    // ── Level Editor button ────────────────────────────────
-    const editorBtn = this.createMenuButton('🛠 LEVEL EDITOR', '#f59e0b', '#fbbf24');
-    editorBtn.className += ' menu-anim-child';
-    editorBtn.addEventListener('click', () => this.onOpenEditor());
-    card.appendChild(editorBtn);
+    header.appendChild(auxContainer);
+    card.appendChild(header);
 
-    // ── Settings button ────────────────────────────────────
-    const settingsBtn = this.createMenuButton('⚙ SETTINGS', '#9575cd', '#b39ddb');
-    settingsBtn.className += ' menu-anim-child';
-    settingsBtn.addEventListener('click', () => this.openSettings());
-    card.appendChild(settingsBtn);
+    // ── Horizontal Galaxy Scroll View ───────────────────────
+    const scrollContainer = document.createElement('div');
+    scrollContainer.style.cssText = `
+      display: flex;
+      gap: 24px;
+      overflow-x: auto;
+      padding: 10px 10px 20px 10px;
+      scroll-behavior: smooth;
+    `;
+
+    const galaxies = [
+      { name: 'Tutorial', image: '/assets/galaxies/tutorial.png', locked: false, onClick: () => this.onPlay(tutorialData as LevelData) },
+      { name: 'Normal', image: '/assets/galaxies/normal.png', locked: false, onClick: () => this.onPlay(skirmishData as LevelData) },
+      { name: 'Plasma Storms', image: '/assets/galaxies/plasma.png', locked: true },
+      { name: 'Asteroids', image: '/assets/galaxies/asteroid.png', locked: true },
+      { name: 'Nebula Fog', image: '/assets/galaxies/nebula.png', locked: true },
+      { name: 'Ice World', image: '/assets/galaxies/ice.png', locked: true },
+      { name: 'Lava Core', image: '/assets/galaxies/lava.png', locked: true },
+      { name: 'Void Sector', image: '/assets/galaxies/void.png', locked: true },
+      { name: 'Quantum Rift', image: '/assets/galaxies/quantum.png', locked: true }
+    ];
+
+    galaxies.forEach((g, idx) => {
+      const tile = document.createElement('div');
+      tile.className = 'menu-anim-child';
+      
+      tile.style.cssText = `
+        flex: 0 0 280px;
+        height: 380px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        cursor: ${g.locked ? 'not-allowed' : 'pointer'};
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        position: relative;
+        opacity: ${g.locked ? '0.6' : '1'};
+      `;
+
+      if (!g.locked && g.onClick) {
+        tile.addEventListener('mouseenter', () => {
+          tile.style.transform = 'translateY(-6px)';
+          tile.style.boxShadow = '0 12px 24px rgba(79, 195, 247, 0.2)';
+          tile.style.borderColor = 'rgba(79, 195, 247, 0.5)';
+        });
+        tile.addEventListener('mouseleave', () => {
+          tile.style.transform = 'translateY(0)';
+          tile.style.boxShadow = 'none';
+          tile.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+        });
+        tile.addEventListener('click', g.onClick);
+      }
+
+      // Thumbnail Image
+      const img = document.createElement('img');
+      img.src = g.image;
+      img.style.cssText = `
+        width: 100%;
+        height: 280px;
+        object-fit: cover;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        filter: ${g.locked ? 'grayscale(80%)' : 'none'};
+      `;
+      tile.appendChild(img);
+
+      // Bottom Label
+      const labelContainer = document.createElement('div');
+      labelContainer.style.cssText = `
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: linear-gradient(0deg, rgba(0,0,0,0.4), transparent);
+      `;
+      
+      const titleLabel = document.createElement('div');
+      titleLabel.textContent = g.name;
+      titleLabel.style.cssText = `
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: ${g.locked ? 'rgba(255,255,255,0.5)' : '#4fc3f7'};
+        letter-spacing: 0.1em;
+      `;
+      labelContainer.appendChild(titleLabel);
+
+      if (g.locked) {
+        const soonLabel = document.createElement('div');
+        soonLabel.textContent = 'Coming Soon';
+        soonLabel.style.cssText = `
+          font-family: 'Rajdhani', sans-serif;
+          font-size: 0.85rem;
+          color: rgba(255,200,100,0.8);
+          letter-spacing: 0.15em;
+          margin-top: 4px;
+        `;
+        labelContainer.appendChild(soonLabel);
+      }
+
+      tile.appendChild(labelContainer);
+      scrollContainer.appendChild(tile);
+    });
+
+    card.appendChild(scrollContainer);
 
     // ── Version text ───────────────────────────────────────
     const version = document.createElement('div');
     version.className = 'menu-anim-child';
-    version.textContent = 'v0.1.0';
+    version.textContent = 'v0.2.0';
     version.style.cssText = `
       font-family: 'Rajdhani', sans-serif;
-      font-size: 11px;
+      font-size: 12px;
       color: rgba(255,255,255,0.2);
       letter-spacing: 0.1em;
-      margin-top: 16px;
+      margin-top: 10px;
+      text-align: right;
+      width: 100%;
     `;
     card.appendChild(version);
 
@@ -632,46 +722,33 @@ export class MainMenuScene {
     return lbl;
   }
 
-  private createMenuButton(
-    text: string,
-    colorFrom: string,
-    colorTo: string
-  ): HTMLButtonElement {
+  private createAuxButton(text: string, color: string, onClick: () => void): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.textContent = text;
     btn.style.cssText = `
-      width: 100%;
-      padding: 13px 20px;
-      background: linear-gradient(135deg, ${colorFrom}22, ${colorTo}11);
-      border: 1px solid ${colorFrom}55;
+      padding: 8px 16px;
+      background: transparent;
+      border: 1px solid ${color}55;
       border-radius: 8px;
-      color: ${colorFrom};
+      color: ${color};
       font-family: 'Orbitron', sans-serif;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.08em;
       cursor: pointer;
-      transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
-      text-align: left;
+      transition: all 0.2s ease;
     `;
     btn.addEventListener('mouseenter', () => {
-      btn.style.background = `linear-gradient(135deg, ${colorFrom}44, ${colorTo}22)`;
-      btn.style.borderColor = `${colorFrom}99`;
-      btn.style.boxShadow = `0 0 20px ${colorFrom}44, 0 4px 12px rgba(0,0,0,0.4)`;
-      btn.style.transform = 'translateX(4px)';
+      btn.style.background = `${color}22`;
+      btn.style.borderColor = `${color}99`;
+      btn.style.boxShadow = `0 0 12px ${color}44`;
     });
     btn.addEventListener('mouseleave', () => {
-      btn.style.background = `linear-gradient(135deg, ${colorFrom}22, ${colorTo}11)`;
-      btn.style.borderColor = `${colorFrom}55`;
+      btn.style.background = 'transparent';
+      btn.style.borderColor = `${color}55`;
       btn.style.boxShadow = 'none';
-      btn.style.transform = 'translateX(0)';
     });
-    btn.addEventListener('mousedown', () => {
-      btn.style.transform = 'translateX(2px) scale(0.98)';
-    });
-    btn.addEventListener('mouseup', () => {
-      btn.style.transform = 'translateX(4px)';
-    });
+    btn.addEventListener('click', onClick);
     return btn;
   }
 }
