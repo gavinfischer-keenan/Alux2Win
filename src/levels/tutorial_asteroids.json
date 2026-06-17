@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "name": "Tutorial - Asteroids",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "planets": [
+    { "id": "p_home",    "x": 300,  "y": 1024, "faction": "player",  "upgradeLevel": 3, "startingParticles": 25, "isOrbiting": false },
+    { "id": "p_weak",    "x": 750,  "y": 1024, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 3,  "isOrbiting": false },
+    { "id": "p_strong",  "x": 1100, "y": 700,  "faction": "neutral", "upgradeLevel": 3, "startingParticles": 10, "isOrbiting": false },
+    { "id": "p_mid",     "x": 1100, "y": 1350, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 5,  "isOrbiting": false },
+    { "id": "p_enemy",   "x": 1750, "y": 1024, "faction": "enemy_a", "upgradeLevel": 2, "startingParticles": 15, "isOrbiting": false }
+  ],
+  "blackHoles": [],
+  "asteroidConfig": { "enabled": true }
+}

@@ -1,5 +1,5 @@
 // ============================================================
-// PlasmaStormSystem.ts — Plasma storm hazard logic for Alux2Win
+// PlasmaStormSystem.ts - Plasma storm hazard logic for Alux2Win
 // ============================================================
 //
 // Responsibilities:
@@ -34,7 +34,7 @@ function pointInEllipse(
  * Returns true if the particle is currently protected from storm damage.
  *
  * A particle is protected when it is in 'orbiting' mode AND its home planet
- * is also inside a storm — the planet's gravity field shields its orbiters.
+ * is also inside a storm - the planet's gravity field shields its orbiters.
  *
  * Exported for use by CollisionSystem / CombatSystem so that those systems
  * can skip combat interactions involving storm-protected particles.
@@ -135,7 +135,7 @@ export class PlasmaStormSystem {
         // Protected particles: stormTimer is intentionally left unchanged so
         // that accumulated exposure is preserved if protection later drops.
       } else {
-        // Outside all storms — reset the damage accumulator.
+        // Outside all storms - reset the damage accumulator.
         particle.stormTimer = 0;
       }
     }

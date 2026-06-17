@@ -114,12 +114,23 @@ export class AsteroidSystem {
           asteroid.x += nx * overlap;
           asteroid.y += ny * overlap;
 
-          // Reset planet to neutral level-1 state.
-          planet.faction       = 'neutral';
-          planet.particles     = 0;
-          planet.absorbedCount = 0;
-          planet.upgradeLevel  = 1;
-          planet.bonusHealth   = 0;
+          // Asteroid knocks the planet down 2 levels.
+          // A fully upgraded planet (Level 3) drops to Level 1 but survives.
+          // Lesser planets (Level 1, 2) drop below Level 1 and are lost to neutral.
+          if (planet.upgradeLevel === 3) {
+            planet.upgradeLevel  = 1;
+            planet.absorbedCount = 0;
+            planet.bonusHealth   = 0;
+            // Cap internal particles to the new level 1 capacity
+            planet.particles     = Math.min(planet.particles, 20); // PLANET_CAPACITY[1]
+          } else {
+            // Reset planet to neutral level-1 state.
+            planet.faction       = 'neutral';
+            planet.particles     = 0;
+            planet.absorbedCount = 0;
+            planet.upgradeLevel  = 1;
+            planet.bonusHealth   = 0;
+          }
 
           // Kill all orbiting particles that call this planet home.
           for (const p of state.particles) {

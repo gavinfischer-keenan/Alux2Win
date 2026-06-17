@@ -27,6 +27,12 @@ export class CombatSystem {
 
         // Plasma storm protection: skip all combat if particle is in storm
         if (particle.inStorm) continue;
+        
+        // If this planet is not the particle's intended target, fly right past it (ignore)
+        if (particle.targetPlanetId !== planet.id) {
+          continue;
+        }
+
         // If planet is in storm and enemy particle: convert to orbiting instead of attacking
         if (planet.inStorm && particle.faction !== planet.faction) {
           // Enemy arrives at storm-protected planet: join orbit peacefully, fight deferred
@@ -52,7 +58,7 @@ export class CombatSystem {
           
           let healAmount: number = particle.strength;
 
-          // 1. Heal inner health (orbiting particles)
+          // 1. Heal inner health (spawn visual orbiting particles)
           while (healAmount > 0 && planet.particles < planet.capacity) {
             healAmount -= 1;
             planet.particles += 1;
@@ -70,6 +76,7 @@ export class CombatSystem {
               mode:           'orbiting',
               strength:       1,
               orbitTimer:     0,
+              deployTimer:    0,
               damage:         0,
               homePlanetId:   planet.id,
               orbitAngle,
@@ -84,7 +91,7 @@ export class CombatSystem {
           }
 
           // 2. Heal outer shield (bonus health)
-          if (planet.bonusHealth < planet.maxBonusHealth) {
+          if (healAmount > 0 && planet.bonusHealth < planet.maxBonusHealth) {
             const needed = planet.maxBonusHealth - planet.bonusHealth;
             if (healAmount <= needed) {
               planet.bonusHealth += healAmount;
@@ -95,9 +102,43 @@ export class CombatSystem {
             }
           }
 
-          // 3. Remaining strength goes to upgrade
-          if (healAmount > 0) {
+          // 3. Upgrade Progress (if not fully upgraded)
+          if (healAmount > 0 && planet.upgradeLevel < 3) {
             planet.absorbedCount += healAmount;
+            healAmount = 0;
+          }
+
+          // 4. Fully upgraded and fully healed -> orbit as extra defenders
+          while (healAmount > 0) {
+            healAmount -= 1;
+            // The planet is maxed out. They go into orbit as excess defenders.
+            // (Note: They don't increase internal `planet.particles` past capacity, 
+            // they just exist in space orbiting the planet).
+            const orbitAngle  = Math.random() * Math.PI * 2;
+            const orbitRadius = PLANET_RADIUS[planet.upgradeLevel] * 1.8;
+            const orbitSpeed = 1.2;
+            state.particles.push({
+              id:             ++state.particleIdCounter,
+              x:              planet.x + orbitRadius * Math.cos(orbitAngle),
+              y:              planet.y + orbitRadius * Math.sin(orbitAngle),
+              vx:             -Math.sin(orbitAngle) * orbitRadius * orbitSpeed,
+              vy:             Math.cos(orbitAngle) * orbitRadius * orbitSpeed,
+              faction:        planet.faction,
+              mode:           'orbiting',
+              strength:       1,
+              orbitTimer:     0,
+              deployTimer:    0,
+              damage:         0,
+              homePlanetId:   planet.id,
+              orbitAngle,
+              orbitRadius,
+              alive:          true,
+              stormTimer:     0,
+              inStorm:        false,
+              speedMod:       1.0,
+              portalCooldown: 0,
+              trappedByBH:    null,
+            });
           }
         } else {
           // ---- Enemy / Neutral interaction ----

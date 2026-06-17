@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "name": "Tutorial - Normal Combat",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "planets": [
+    { "id": "p_home",     "x": 300,  "y": 1024, "faction": "player",  "upgradeLevel": 2, "startingParticles": 20, "isOrbiting": false },
+    { "id": "p_near_a",   "x": 650,  "y": 750,  "faction": "neutral", "upgradeLevel": 1, "startingParticles": 3,  "isOrbiting": false },
+    { "id": "p_near_b",   "x": 650,  "y": 1300, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 3,  "isOrbiting": false },
+    { "id": "p_mid",      "x": 1024, "y": 1024, "faction": "neutral", "upgradeLevel": 2, "startingParticles": 8,  "isOrbiting": false },
+    { "id": "p_far_a",    "x": 1400, "y": 700,  "faction": "neutral", "upgradeLevel": 1, "startingParticles": 5,  "isOrbiting": false },
+    { "id": "p_far_b",    "x": 1400, "y": 1350, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 5,  "isOrbiting": false },
+    { "id": "p_enemy",    "x": 1750, "y": 1024, "faction": "enemy_a", "upgradeLevel": 2, "startingParticles": 15, "isOrbiting": false }
+  ],
+  "blackHoles": []
+}

@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "name": "Tutorial - Black Holes",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "planets": [
+    { "id": "p_home",    "x": 200,  "y": 1024, "faction": "player",  "upgradeLevel": 2, "startingParticles": 20, "isOrbiting": false },
+    { "id": "p_safe",    "x": 600,  "y": 400,  "faction": "neutral", "upgradeLevel": 1, "startingParticles": 3,  "isOrbiting": false },
+    { "id": "p_danger",  "x": 600,  "y": 1650, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 3,  "isOrbiting": false },
+    { "id": "p_far",     "x": 1450, "y": 400,  "faction": "neutral", "upgradeLevel": 1, "startingParticles": 5,  "isOrbiting": false },
+    { "id": "p_enemy",   "x": 1800, "y": 1024, "faction": "enemy_a", "upgradeLevel": 2, "startingParticles": 15, "isOrbiting": false }
+  ],
+  "blackHoles": [],
+  "trappingBlackHoles": [
+    { "id": "tbh_center", "x": 1024, "y": 1024, "pullRadius": 350 },
+    { "id": "tbh_bottom", "x": 1024, "y": 1600, "pullRadius": 250 }
+  ]
+}

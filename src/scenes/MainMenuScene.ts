@@ -4,7 +4,15 @@
 // ============================================================
 
 import type { LevelData } from '../types';
-import tutorialMovementData from '../levels/tutorial_movement.json';
+import tutorialMovementData    from '../levels/tutorial_movement.json';
+import tutorialNormalData      from '../levels/tutorial_normal.json';
+import tutorialPlasmaData      from '../levels/tutorial_plasma.json';
+import tutorialAsteroidsData   from '../levels/tutorial_asteroids.json';
+import tutorialGammaData       from '../levels/tutorial_gamma.json';
+import tutorialSpeedData       from '../levels/tutorial_speed.json';
+import tutorialPortalsData     from '../levels/tutorial_portals.json';
+import tutorialBlackholesData  from '../levels/tutorial_blackholes.json';
+import tutorialWhiteholesData  from '../levels/tutorial_whiteholes.json';
 import skirmishData from '../levels/skirmish.json';
 import skirmishData2 from '../levels/skirmish_2.json';
 import plasmaStorm1Data from '../levels/plasma_storm_1.json';
@@ -28,7 +36,7 @@ export class MainMenuScene {
   private systemsPanel: HTMLElement | null = null;
   private _mainCard: HTMLElement | null = null;
 
-  onPlay: (levelData: LevelData, isTutorial?: boolean) => void = () => {};
+  onPlay: (levelData: LevelData, isTutorial?: boolean, tutorialId?: string) => void = () => {};
   onOpenEditor: () => void = () => {};
 
   constructor(container: HTMLElement) {
@@ -94,8 +102,8 @@ export class MainMenuScene {
       border: 1px solid rgba(79, 195, 247, 0.15);
       border-radius: 24px;
       box-shadow: 0 0 60px rgba(79, 195, 247, 0.08), 0 8px 40px rgba(0,0,0,0.6);
-      width: 100%;
-      max-width: 1200px;
+      width: 95vw;
+      max-width: 1600px;
       transition: opacity 0.3s ease, transform 0.3s ease;
     `;
     this._mainCard = card;
@@ -187,14 +195,27 @@ export class MainMenuScene {
     card.appendChild(header);
 
     // ── Grid Galaxy View ───────────────────────
+    // Inject a <style> block for custom huge scrollbars
+    const styleEl = document.createElement('style');
+    styleEl.innerHTML = `
+      .galaxy-scroller::-webkit-scrollbar { height: 24px; }
+      .galaxy-scroller::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 12px; margin: 0 10px; }
+      .galaxy-scroller::-webkit-scrollbar-thumb { background: rgba(79, 195, 247, 0.5); border-radius: 12px; border: 4px solid #000; }
+      .galaxy-scroller::-webkit-scrollbar-thumb:hover { background: rgba(79, 195, 247, 0.8); }
+    `;
+    document.head.appendChild(styleEl);
+
     const scrollContainer = document.createElement('div');
+    scrollContainer.className = 'galaxy-scroller';
     scrollContainer.style.cssText = `
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 20px;
-      overflow-y: auto;
-      padding: 10px 10px 20px 10px;
-      max-height: 65vh;
+      grid-template-rows: 260px 260px;
+      grid-auto-flow: column;
+      grid-auto-columns: 280px;
+      gap: 20px 24px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 10px 10px 30px 10px;
       width: 100%;
     `;
 
@@ -207,17 +228,17 @@ export class MainMenuScene {
     });
 
     const galaxies = [
-      { name: 'Tutorial',      image: '/assets/galaxies/tutorial.png',  locked: false, levels: [tutorialMovementData as LevelData], isTutorial: true },
-      { name: 'Normal',        image: '/assets/galaxies/normal.png',    locked: false, levels: [skirmishData as LevelData, skirmishData2 as LevelData, ...(customGroups['Normal'] || [])], isTutorial: false },
-      { name: 'Plasma Storms', image: '/assets/galaxies/plasma.png',    locked: false, levels: [plasmaStorm1Data as LevelData, ...(customGroups['Plasma Storms'] || [])],  isTutorial: false },
-      { name: 'Asteroids',     image: '/assets/galaxies/asteroid.png',  locked: false, levels: [asteroids1Data as LevelData, ...(customGroups['Asteroids'] || [])],    isTutorial: false },
-      { name: 'Gamma Rays',    image: '/assets/galaxies/nebula.png',    locked: false, levels: [gammaRays1Data as LevelData, ...(customGroups['Gamma Rays'] || [])],    isTutorial: false },
-      { name: 'Speed Traps',   image: '/assets/galaxies/ice.png',       locked: false, levels: [speedTraps1Data as LevelData, ...(customGroups['Speed Traps'] || [])],   isTutorial: false },
-      { name: 'Portals',       image: '/assets/galaxies/lava.png',      locked: false, levels: [portals1Data as LevelData, ...(customGroups['Portals'] || [])],      isTutorial: false },
-      { name: 'Black Holes',   image: '/assets/galaxies/void.png',      locked: false, levels: [blackholes1Data as LevelData, ...(customGroups['Black Holes'] || [])],   isTutorial: false },
-      { name: 'White Holes',   image: '/assets/galaxies/quantum.png',   locked: false, levels: [whiteholes1Data as LevelData, ...(customGroups['White Holes'] || [])],   isTutorial: false },
-      { name: 'Custom',        image: '/assets/galaxies/normal.png',    locked: false, levels: customGroups['Custom'] || [], isTutorial: false },
-      { name: 'Random',        image: '/assets/galaxies/quantum.png',   locked: false, levels: [], isTutorial: false },
+      { name: 'Tutorial',      image: '/assets/galaxies/tutorial.png',  locked: false, tutorialId: 'basics',     levels: [tutorialMovementData as LevelData], isTutorial: true },
+      { name: 'Normal',        image: '/assets/galaxies/normal.png',    locked: false, tutorialId: 'normal',     levels: [tutorialNormalData as LevelData, skirmishData as LevelData, skirmishData2 as LevelData, ...(customGroups['Normal'] || [])], isTutorial: false },
+      { name: 'Plasma Storms', image: '/assets/galaxies/plasma.png',    locked: false, tutorialId: 'plasma',     levels: [tutorialPlasmaData as LevelData, plasmaStorm1Data as LevelData, ...(customGroups['Plasma Storms'] || [])], isTutorial: false },
+      { name: 'Asteroids',     image: '/assets/galaxies/asteroid.png',  locked: false, tutorialId: 'asteroids',  levels: [tutorialAsteroidsData as LevelData, asteroids1Data as LevelData, ...(customGroups['Asteroids'] || [])], isTutorial: false },
+      { name: 'Gamma Rays',    image: '/assets/galaxies/nebula.png',    locked: false, tutorialId: 'gamma',      levels: [tutorialGammaData as LevelData, gammaRays1Data as LevelData, ...(customGroups['Gamma Rays'] || [])], isTutorial: false },
+      { name: 'Speed Traps',   image: '/assets/galaxies/ice.png',       locked: false, tutorialId: 'speed',      levels: [tutorialSpeedData as LevelData, speedTraps1Data as LevelData, ...(customGroups['Speed Traps'] || [])], isTutorial: false },
+      { name: 'Portals',       image: '/assets/galaxies/lava.png',      locked: false, tutorialId: 'portals',    levels: [tutorialPortalsData as LevelData, portals1Data as LevelData, ...(customGroups['Portals'] || [])], isTutorial: false },
+      { name: 'Black Holes',   image: '/assets/galaxies/void.png',      locked: false, tutorialId: 'blackholes', levels: [tutorialBlackholesData as LevelData, blackholes1Data as LevelData, ...(customGroups['Black Holes'] || [])], isTutorial: false },
+      { name: 'White Holes',   image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: 'whiteholes', levels: [tutorialWhiteholesData as LevelData, whiteholes1Data as LevelData, ...(customGroups['White Holes'] || [])], isTutorial: false },
+      { name: 'Custom',        image: '/assets/galaxies/normal.png',    locked: false, tutorialId: '',           levels: customGroups['Custom'] || [], isTutorial: false },
+      { name: 'Random',        image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: '',           levels: [], isTutorial: false },
     ];
 
     galaxies.forEach((g, idx) => {
@@ -225,7 +246,7 @@ export class MainMenuScene {
       tile.className = 'menu-anim-child';
       
       tile.style.cssText = `
-        height: 280px;
+        height: 100%;
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 16px;
@@ -264,33 +285,39 @@ export class MainMenuScene {
       const img = document.createElement('img');
       img.src = g.image;
       img.style.cssText = `
+        position: absolute;
+        top: 0; left: 0;
         width: 100%;
-        height: 280px;
+        height: 100%;
         object-fit: cover;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         filter: ${g.locked ? 'grayscale(80%)' : 'none'};
+        z-index: 0;
       `;
       tile.appendChild(img);
 
-      // Bottom Label
+      // Bottom Label container (Absolute position to avoid clipping)
       const labelContainer = document.createElement('div');
       labelContainer.style.cssText = `
-        flex: 1;
+        position: absolute;
+        bottom: 0; left: 0; width: 100%;
+        padding: 16px 12px 12px;
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        justify-content: flex-end;
         align-items: center;
-        background: linear-gradient(0deg, rgba(0,0,0,0.4), transparent);
+        background: linear-gradient(0deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 60%, transparent 100%);
+        z-index: 1;
       `;
       
       const titleLabel = document.createElement('div');
       titleLabel.textContent = g.name;
       titleLabel.style.cssText = `
         font-family: 'Orbitron', sans-serif;
-        font-size: 1.2rem;
-        font-weight: 700;
+        font-size: 1.3rem;
+        font-weight: 800;
         color: ${g.locked ? 'rgba(255,255,255,0.5)' : '#4fc3f7'};
         letter-spacing: 0.1em;
+        text-shadow: 0px 2px 4px rgba(0,0,0,0.8);
       `;
       labelContainer.appendChild(titleLabel);
 
@@ -305,6 +332,38 @@ export class MainMenuScene {
           margin-top: 4px;
         `;
         labelContainer.appendChild(soonLabel);
+      } else {
+        // Bright dots representing active systems
+        const dotsContainer = document.createElement('div');
+        dotsContainer.style.cssText = 'display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; justify-content: center; max-width: 90%;';
+        
+        const numSystems = g.name === 'Random' ? 1 : g.levels.length; // Random map is technically 1 infinite system
+        for (let i = 0; i < numSystems; i++) {
+          const dot = document.createElement('div');
+          dot.style.cssText = `
+            width: 8px;
+            height: 8px;
+            background-color: #4fc3f7;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #4fc3f7;
+          `;
+          dotsContainer.appendChild(dot);
+        }
+
+        if (numSystems === 0) {
+           const noSysLabel = document.createElement('div');
+           noSysLabel.textContent = '0 SYSTEMS';
+           noSysLabel.style.cssText = `
+             font-family: 'Rajdhani', sans-serif;
+             font-size: 0.8rem;
+             color: rgba(255,255,255,0.4);
+             letter-spacing: 0.1em;
+             margin-top: 6px;
+           `;
+           dotsContainer.appendChild(noSysLabel);
+        }
+        
+        labelContainer.appendChild(dotsContainer);
       }
 
       tile.appendChild(labelContainer);
@@ -1080,6 +1139,23 @@ export class MainMenuScene {
       `;
       tile.appendChild(descEl);
 
+      // Best Time
+      if (!sys.locked && sys.levelData) {
+        const top = HighScoreStore.getTop(sys.levelData.id!);
+        if (top.length > 0) {
+          const timeLabel = document.createElement('div');
+          timeLabel.textContent = `BEST: ${HighScoreStore.formatTime(top[0].bestTime)}`;
+          timeLabel.style.cssText = `
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.85rem;
+            color: rgba(255, 215, 0, 0.9);
+            margin-top: 10px;
+            letter-spacing: 0.1em;
+          `;
+          tile.appendChild(timeLabel);
+        }
+      }
+
       if (!sys.locked) {
         const playTag = document.createElement('div');
         playTag.textContent = '▶ START';
@@ -1167,33 +1243,52 @@ export class MainMenuScene {
         overflow: hidden;
       `;
 
+      // Is this the first system tile and not Custom? It's a tutorial!
+      const isTutorialTile = !isCustomGalaxy && i === 0 && galaxy.tutorialId;
+
       if (!isLocked) {
         tile.addEventListener('mouseenter', () => {
           tile.style.transform = 'translateY(-4px)';
-          tile.style.boxShadow = '0 8px 24px rgba(79, 195, 247, 0.2)';
-          tile.style.borderColor = 'rgba(79, 195, 247, 0.6)';
+          tile.style.boxShadow = isTutorialTile
+            ? '0 8px 24px rgba(255, 215, 0, 0.25)'
+            : '0 8px 24px rgba(79, 195, 247, 0.2)';
+          tile.style.borderColor = isTutorialTile
+            ? 'rgba(255, 215, 0, 0.7)'
+            : 'rgba(79, 195, 247, 0.6)';
         });
         tile.addEventListener('mouseleave', () => {
           tile.style.transform = 'translateY(0)';
           tile.style.boxShadow = 'none';
-          tile.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+          tile.style.borderColor = isTutorialTile
+            ? 'rgba(255, 215, 0, 0.3)'
+            : 'rgba(255, 255, 255, 0.1)';
         });
         tile.addEventListener('click', (e) => {
           if ((e.target as HTMLElement).closest('.delete-custom-btn')) return;
           audioManager.playClick();
           if (level) {
             this.closeSystemsPanel();
-            setTimeout(() => this.onPlay(level, false), 320);
+            if (isTutorialTile) {
+              setTimeout(() => this.onPlay(level, true, galaxy.tutorialId), 320);
+            } else {
+              setTimeout(() => this.onPlay(level, false), 320);
+            }
           }
         });
       }
 
+      // Tutorial tile gets a gold border
+      if (isTutorialTile) {
+        tile.style.border = '1px solid rgba(255, 215, 0, 0.3)';
+        tile.style.background = 'rgba(255, 215, 0, 0.04)';
+      }
+
       const numLabel = document.createElement('div');
-      numLabel.textContent = isCustomGalaxy ? `CUSTOM` : `SYSTEM 0${i + 1}`;
+      numLabel.textContent = isCustomGalaxy ? `CUSTOM` : (isTutorialTile ? '🎓 TUTORIAL' : `SYSTEM 0${i + 1}`);
       numLabel.style.cssText = `
         font-family: 'Rajdhani', sans-serif;
         font-size: 0.9rem;
-        color: rgba(255, 255, 255, 0.4);
+        color: ${isTutorialTile ? 'rgba(255, 215, 0, 0.7)' : 'rgba(255, 255, 255, 0.4)'};
         letter-spacing: 0.2em;
         margin-bottom: 8px;
       `;
@@ -1211,6 +1306,22 @@ export class MainMenuScene {
 
       tile.appendChild(numLabel);
       tile.appendChild(nameLabel);
+
+      if (level) {
+        const top = HighScoreStore.getTop(level.id!);
+        if (top.length > 0) {
+          const timeLabel = document.createElement('div');
+          timeLabel.textContent = `BEST: ${HighScoreStore.formatTime(top[0].bestTime)}`;
+          timeLabel.style.cssText = `
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.85rem;
+            color: rgba(255, 215, 0, 0.9);
+            margin-top: 8px;
+            letter-spacing: 0.1em;
+          `;
+          tile.appendChild(timeLabel);
+        }
+      }
 
       if (isLocked) {
         const lockLabel = document.createElement('div');

@@ -221,14 +221,26 @@ export class CameraController {
     const scaledH    = worldH * totalScale;
     const pad        = PAN_PADDING;
 
-    // X axis — always allow panning with padding
-    const minPanX = screenW - scaledW - fitX - pad;
-    const maxPanX = -fitX + pad;
+    // X axis
+    let minPanX = screenW - scaledW - fitX - pad;
+    let maxPanX = -fitX + pad;
+    if (minPanX > maxPanX) {
+      // If the world is smaller than the screen (plus padding), just allow free movement within padding,
+      // or swap them so Math.max/min doesn't break
+      const temp = minPanX;
+      minPanX = maxPanX;
+      maxPanX = temp;
+    }
     this._panX = Math.max(minPanX, Math.min(maxPanX, this._panX));
 
-    // Y axis — always allow panning with padding
-    const minPanY = screenH - scaledH - fitY - pad;
-    const maxPanY = -fitY + pad;
+    // Y axis
+    let minPanY = screenH - scaledH - fitY - pad;
+    let maxPanY = -fitY + pad;
+    if (minPanY > maxPanY) {
+      const temp = minPanY;
+      minPanY = maxPanY;
+      maxPanY = temp;
+    }
     this._panY = Math.max(minPanY, Math.min(maxPanY, this._panY));
   }
 

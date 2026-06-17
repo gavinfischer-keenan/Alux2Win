@@ -80,8 +80,8 @@ export class Planet {
       this.label.text = String(Math.floor(d.particles));
     }
 
-    // Health arc — redraw every frame (cheap Graphics op)
-    this._drawHealthArc();
+    // Indicators (health/upgrade arcs) — redraw every frame
+    this._drawIndicators();
 
     if (selected !== this.lastSelected) {
       this.lastSelected = selected;
@@ -123,27 +123,57 @@ export class Planet {
 
   // ---- Private drawing helpers ----
 
-  private _drawHealthArc(): void {
+  private _drawIndicators(): void {
     this.healthArc.clear();
     const d = this.data;
-    if (d.maxBonusHealth === 0) return;
 
-    const ratio = Math.max(0, Math.min(1, d.bonusHealth / d.maxBonusHealth));
-    if (ratio <= 0) return;
+    // ----- Left Side: Health/Damage Bar -----
+    const totalHealth = d.particles + d.bonusHealth;
+    const maxHealth   = d.capacity + d.maxBonusHealth;
+    const healthRatio = Math.max(0, Math.min(1, totalHealth / maxHealth));
+    
+    // Draw Health Bar if damaged
+    if (healthRatio < 1.0 && maxHealth > 0) {
+      const radius = PLANET_RADIUS[d.upgradeLevel] + 6;
+      // Left side: Pi/2 to 3Pi/2. Let's make it an arc centered at Math.PI (left)
+      const arcLength = healthRatio * Math.PI * 0.8; // 80% of semi-circle
+      const startAngle = Math.PI - arcLength / 2;
+      const endAngle   = Math.PI + arcLength / 2;
+      const color      = healthRatio < 0.3 ? 0xff3333 : (healthRatio < 0.7 ? 0xffaa00 : 0x33ff33);
 
-    const radius     = PLANET_RADIUS[d.upgradeLevel] + 6;
-    const startAngle = -Math.PI / 2;                          // 12 o'clock
-    const endAngle   = startAngle + ratio * Math.PI * 2;      // clockwise
-    const color      = ratio < 0.25 ? 0xff8f00 : FACTION_COLORS[d.faction];
+      this.healthArc
+        .arc(0, 0, radius, startAngle, endAngle)
+        .stroke({ color, alpha: 0.85, width: 3 });
 
-    this.healthArc
-      .arc(0, 0, radius, startAngle, endAngle)
-      .stroke({ color, alpha: 0.85, width: 3 });
+      // Subtle track
+      this.healthArc
+        .arc(0, 0, radius, Math.PI - Math.PI*0.4, Math.PI + Math.PI*0.4)
+        .stroke({ color: 0xffffff, alpha: 0.1, width: 1 });
+    }
 
-    // Subtle track ring (full circle, faint)
-    this.healthArc
-      .arc(0, 0, radius, 0, Math.PI * 2)
-      .stroke({ color: 0xffffff, alpha: 0.08, width: 1 });
+    // ----- Right Side: Upgrade Progress Bar -----
+    if (d.upgradeLevel < 3) {
+      const target = d.upgradeLevel === 1 ? 25 : 50; // UPGRADE_THRESHOLDS[2] and [3]
+      const upgradeRatio = Math.max(0, Math.min(1, d.absorbedCount / target));
+      
+      if (upgradeRatio > 0) {
+        const radius = PLANET_RADIUS[d.upgradeLevel] + 6;
+        // Right side: -Pi/2 to Pi/2. Centered at 0 (right)
+        const arcLength = upgradeRatio * Math.PI * 0.8;
+        const startAngle = 0 - arcLength / 2;
+        const endAngle   = 0 + arcLength / 2;
+        
+        this.healthArc
+          .arc(0, 0, radius, startAngle, endAngle)
+          .stroke({ color: 0x00ffff, alpha: 0.9, width: 3 });
+      }
+
+      // Subtle track
+      const radius = PLANET_RADIUS[d.upgradeLevel] + 6;
+      this.healthArc
+        .arc(0, 0, radius, -Math.PI*0.4, Math.PI*0.4)
+        .stroke({ color: 0xffffff, alpha: 0.1, width: 1 });
+    }
   }
 
 

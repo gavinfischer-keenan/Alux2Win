@@ -60,7 +60,7 @@ describe('CombatSystem', () => {
     };
   }
 
-  function createParticle(id: number, x: number, y: number, faction: any, strength: any = 1, mode: any = 'traveling', inStorm: boolean = false): ParticleData {
+  function createParticle(id: number, x: number, y: number, faction: any, strength: any = 1, mode: any = 'traveling', inStorm: boolean = false, targetPlanetId?: string): ParticleData {
     return {
       id,
       x,
@@ -73,6 +73,7 @@ describe('CombatSystem', () => {
       orbitTimer: 0,
       damage: 0,
       homePlanetId: 'some-planet',
+      targetPlanetId,
       alive: true,
       stormTimer: 0,
       inStorm,
@@ -88,7 +89,7 @@ describe('CombatSystem', () => {
     state.planets.set(planet.id, planet);
 
     const radius = PLANET_RADIUS[1];
-    const particle = createParticle(1, 100 + radius, 100, 'enemy_a', 1);
+    const particle = createParticle(1, 100 + radius, 100, 'enemy_a', 1, 'traveling', false, 'p1');
     state.particles.push(particle);
 
     system.update(state, eventBus);
@@ -102,7 +103,7 @@ describe('CombatSystem', () => {
     state.planets.set(planet.id, planet);
 
     const radius = PLANET_RADIUS[1];
-    const particle = createParticle(1, 100 + radius, 100, 'player', 1);
+    const particle = createParticle(1, 100 + radius, 100, 'player', 1, 'traveling', false, 'p1');
     state.particles.push(particle);
 
     system.update(state, eventBus);
@@ -119,7 +120,7 @@ describe('CombatSystem', () => {
 
     const radius = PLANET_RADIUS[1];
     // 5X particle so we heal bonus health by 5
-    const particle = createParticle(1, 100 + radius, 100, 'player', 5);
+    const particle = createParticle(1, 100 + radius, 100, 'player', 5, 'traveling', false, 'p1');
     state.particles.push(particle);
 
     system.update(state, eventBus);
@@ -129,12 +130,49 @@ describe('CombatSystem', () => {
     expect(planet.bonusHealth).toBe(10);
   });
 
+  it('friendly particle should absorb into upgrade progress if fully healed', () => {
+    // Level 1 planet, full health, full bonus health
+    const planet = createPlanet('p1', 100, 100, 'player', 20, 10);
+    state.planets.set(planet.id, planet);
+
+    const radius = PLANET_RADIUS[1];
+    // 5X particle
+    const particle = createParticle(1, 100 + radius, 100, 'player', 5, 'traveling', false, 'p1');
+    state.particles.push(particle);
+
+    system.update(state, eventBus);
+
+    // It is fully absorbed into upgrade progress
+    expect(state.particles.length).toBe(0);
+    expect(planet.absorbedCount).toBe(5);
+  });
+
+  it('friendly particle should go into orbit if fully upgraded and fully healed', () => {
+    // Level 3 planet, full health, full bonus health
+    const planet = createPlanet('p1', 100, 100, 'player', 20, 10);
+    planet.upgradeLevel = 3;
+    state.planets.set(planet.id, planet);
+
+    const radius = PLANET_RADIUS[3];
+    // 2X particle
+    const particle = createParticle(1, 100 + radius, 100, 'player', 2, 'traveling', false, 'p1');
+    state.particles.push(particle);
+
+    system.update(state, eventBus);
+
+    // Converted to 2 orbiting particles
+    expect(state.particles.length).toBe(2);
+    expect(state.particles[0].mode).toBe('orbiting');
+    expect(state.particles[1].mode).toBe('orbiting');
+    expect(planet.absorbedCount).toBe(0);
+  });
+
   it('enemy particle should deplete bonus health first', () => {
     const planet = createPlanet('p1', 100, 100, 'player', 10, 5);
     state.planets.set(planet.id, planet);
 
     const radius = PLANET_RADIUS[1];
-    const particle = createParticle(1, 100 + radius, 100, 'enemy_a', 5);
+    const particle = createParticle(1, 100 + radius, 100, 'enemy_a', 5, 'traveling', false, 'p1');
     state.particles.push(particle);
 
     system.update(state, eventBus);
@@ -152,7 +190,7 @@ describe('CombatSystem', () => {
     eventBus.on('planet:captured', () => { captureEmitted = true; });
 
     const radius = PLANET_RADIUS[1];
-    const particle = createParticle(1, 100 + radius, 100, 'enemy_a', 5);
+    const particle = createParticle(1, 100 + radius, 100, 'enemy_a', 5, 'traveling', false, 'p1');
     state.particles.push(particle);
 
     system.update(state, eventBus);
@@ -163,14 +201,14 @@ describe('CombatSystem', () => {
   });
 
   it('neutral planet should be captured by faction', () => {
-    const planet = createPlanet('p1', 100, 100, 'neutral', 0);
+    const planet = createPlanet('p1', 100, 100, 'neutral', 1);
     state.planets.set(planet.id, planet);
 
     let capturedFaction = '';
-    eventBus.on('planet:captured', (ev) => { capturedFaction = ev.newFaction; });
+    eventBus.on('planet:captured', (data: any) => { capturedFaction = data.newFaction; });
 
     const radius = PLANET_RADIUS[1];
-    const particle = createParticle(1, 100 + radius, 100, 'enemy_a', 1);
+    const particle = createParticle(1, 100 + radius, 100, 'enemy_a', 1, 'traveling', false, 'p1');
     state.particles.push(particle);
 
     system.update(state, eventBus);
@@ -185,7 +223,7 @@ describe('CombatSystem', () => {
     state.planets.set(planet.id, planet);
 
     const radius = PLANET_RADIUS[1];
-    const particle = createParticle(1, 100 + radius, 100, 'enemy_a', 1, 'traveling', true); // in storm
+    const particle = createParticle(1, 100 + radius, 100, 'enemy_a', 1, 'traveling', true, 'p1');
     state.particles.push(particle);
 
     system.update(state, eventBus);
@@ -195,11 +233,12 @@ describe('CombatSystem', () => {
   });
 
   it('if planet in storm and enemy particle, enemy should join orbit peacefully', () => {
-    const planet = createPlanet('p1', 100, 100, 'player', 5, 0, true); // planet in storm
+    const planet = createPlanet('p1', 100, 100, 'player', 5);
+    planet.inStorm = true; // Planet protected
     state.planets.set(planet.id, planet);
 
     const radius = PLANET_RADIUS[1];
-    const particle = createParticle(1, 100 + radius, 100, 'enemy_a', 1, 'traveling');
+    const particle = createParticle(1, 100 + radius, 100, 'enemy_a', 1, 'traveling', false, 'p1');
     state.particles.push(particle);
 
     system.update(state, eventBus);

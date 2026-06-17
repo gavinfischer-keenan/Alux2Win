@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "name": "Tutorial - Gamma Rays",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "planets": [
+    { "id": "p_home",     "x": 300,  "y": 400,  "faction": "player",  "upgradeLevel": 3, "startingParticles": 25, "isOrbiting": false },
+    { "id": "p_safe",     "x": 700,  "y": 400,  "faction": "neutral", "upgradeLevel": 1, "startingParticles": 3,  "isOrbiting": false },
+    { "id": "p_danger",   "x": 1024, "y": 1024, "faction": "neutral", "upgradeLevel": 2, "startingParticles": 8,  "isOrbiting": false },
+    { "id": "p_far",      "x": 1300, "y": 1600, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 5,  "isOrbiting": false },
+    { "id": "p_enemy",    "x": 1750, "y": 1650, "faction": "enemy_a", "upgradeLevel": 2, "startingParticles": 15, "isOrbiting": false }
+  ],
+  "blackHoles": [],
+  "gammaRayConfig": { "enabled": true, "intervalSeconds": 20 }
+}

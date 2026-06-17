@@ -34,7 +34,7 @@ export class SpeedZoneSystem {
 
         if (dist <= zone.radius) {
           if (zone.type === 'speedup') {
-            p.speedMod = 1.5;
+            p.speedMod = 2.0; // further 50% increase from original 1.5
           } else {
             // 'slowdown'
             p.speedMod = 0.3;

@@ -135,6 +135,7 @@ export class GameScene {
 
   // Tutorial mode
   private _isTutorial = false;
+  private _tutorialId = 'basics';
   private tutorialController: TutorialController | null = null;
 
   // Pause / speed state
@@ -149,10 +150,11 @@ export class GameScene {
   private _dragStartY = 0;
 
   // Stats tracking
-  private _levelId      = 'unknown';
-  private _elapsedTime  = 0;
+  private _levelId       = 'unknown';
+  private _elapsedTime   = 0;
   private _peakParticles = 0;
   private _peakPlanets   = 0;
+  private _isDestroyed = false;
 
   onGameOver: (winner: Faction | null) => void = () => {};
 
@@ -163,8 +165,9 @@ export class GameScene {
 
   // ── Public API ────────────────────────────────────────────
 
-  async loadLevel(levelData: LevelData, uiContainer: HTMLElement, isTutorial = false): Promise<void> {
+  async loadLevel(levelData: LevelData, uiContainer: HTMLElement, isTutorial = false, tutorialId = 'basics'): Promise<void> {
     this._isTutorial = isTutorial;
+    this._tutorialId = tutorialId;
     this.container = uiContainer;
     this.state = this.initGameState(levelData);
     this._levelId = (levelData as any).id ?? 'level_unknown';
@@ -271,9 +274,14 @@ export class GameScene {
     // Attach tutorial controller (must be after hudContainer is available)
     if (isTutorial) {
       this.tutorialController = new TutorialController(
+        this._tutorialId,
         this.hudContainer,
         (planetId) => this.getPlanetScreenPosById(planetId),
       );
+      // Wire up the exit callback so EXIT button returns to menu
+      this.tutorialController.setExitCallback(() => {
+        this.onGameOver(null);
+      });
     }
   }
 
@@ -292,6 +300,7 @@ export class GameScene {
   }
 
   destroy(): void {
+    this._isDestroyed = true;
     this.gameLoop?.stop();
     this.inputManager?.destroy();
     if (this._keyHandler) document.removeEventListener('keydown', this._keyHandler);
@@ -425,8 +434,10 @@ export class GameScene {
   // ── Update (Fixed-tick) ───────────────────────────────────
 
   private update(dt: number): void {
+    if (this._isDestroyed || !this.state.running) return;
+
     this.cameraController?.update(dt);
-    if (!this.state.running || this.state.winner !== null) return;
+    if (this.state.winner !== null) return;
     if (this._paused) return;  // freeze all simulation when paused
     this.state.tick++;
     const dt_ = dt * this._timeScale;  // apply speed multiplier
@@ -685,13 +696,16 @@ export class GameScene {
     this.state.selectedParticleIds.clear();
   }
 
-  private deployFromSelected(
-    targetPlanetId?: string,
-    targetX?: number,
-    targetY?: number
-  ): void {
+  private deployFromSelected(targetPlanetId?: string, targetX?: number, targetY?: number): void {
+    let fromIds = Array.from(this.state.selectedPlanetIds);
+    if (targetPlanetId) {
+      // Prevent deploying to itself
+      fromIds = fromIds.filter(id => id !== targetPlanetId);
+    }
+    if (fromIds.length === 0) return;
+
     this._deployParticles(
-      Array.from(this.state.selectedPlanetIds),
+      fromIds,
       targetPlanetId,
       targetX,
       targetY

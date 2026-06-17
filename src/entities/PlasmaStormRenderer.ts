@@ -1,5 +1,5 @@
 // ============================================================
-// PlasmaStormRenderer.ts — Plasma storm visual entity for Alux2Win
+// PlasmaStormRenderer.ts - Plasma storm visual entity for Alux2Win
 // ============================================================
 //
 // Renders all active plasma storms each frame using PixiJS v8's
@@ -13,15 +13,15 @@ import type { PlasmaStormData } from '../types';
 
 // -- Palette -------------------------------------------------------------------
 
-/** Outer glow layer — dark purple, very transparent. */
+/** Outer glow layer - dark purple, very transparent. */
 const COLOR_OUTER  = 0x7c3aed;
 const ALPHA_OUTER  = 0.08;
 
-/** Mid layer — bright purple, semi-transparent. */
+/** Mid layer - bright purple, semi-transparent. */
 const COLOR_MID    = 0xa855f7;
 const ALPHA_MID    = 0.15;
 
-/** Core/inner layer — light lavender, most opaque of the fills. */
+/** Core/inner layer - light lavender, most opaque of the fills. */
 const COLOR_CORE   = 0xd8b4fe;
 const ALPHA_CORE   = 0.25;
 
@@ -64,7 +64,7 @@ export class PlasmaStormRenderer {
       const swirlX = Math.cos(angle) * SWIRL_OFFSET;
       const swirlY = Math.sin(angle) * SWIRL_OFFSET;
 
-      // -- Layer 1: Outer glow (scaled 1.2×) --------------------
+      // -- Layer 1: Outer glow (scaled 1.2-) --------------------
       g.ellipse(x, y, radiusX * 1.2, radiusY * 1.2)
         .fill({ color: COLOR_OUTER, alpha: ALPHA_OUTER });
 
@@ -72,11 +72,11 @@ export class PlasmaStormRenderer {
       g.ellipse(x, y, radiusX * 1.2, radiusY * 1.2)
         .stroke({ color: COLOR_STROKE, width: WIDTH_STROKE, alpha: ALPHA_STROKE });
 
-      // -- Layer 2: Mid layer (1.0×) -----------------------------
+      // -- Layer 2: Mid layer (1.0-) -----------------------------
       g.ellipse(x, y, radiusX, radiusY)
         .fill({ color: COLOR_MID, alpha: ALPHA_MID });
 
-      // -- Layer 3: Core/inner ellipse (0.6×, offset for swirl) --
+      // -- Layer 3: Core/inner ellipse (0.6-, offset for swirl) --
       g.ellipse(
         x + swirlX,
         y + swirlY,
