@@ -2,6 +2,10 @@
 // GammaRayRenderer.ts — Alux2Win
 // Renders the gamma-ray warning trail and active beam sweep
 // using PixiJS v8 Graphics API (stroke-based, no lineStyle).
+//
+// Warning trail is RED (not amber) and has two phases:
+//   First 30 s: very subtle / barely visible (gentle hint)
+//   Last 30 s:  ramps up to near-full intensity with urgency
 // ============================================================
 
 import { Container, Graphics } from 'pixi.js';
@@ -24,8 +28,6 @@ export class GammaRayRenderer {
     // Nothing to draw if the system is off or no path has been chosen yet.
     if (!gammaRay.enabled || gammaRay.path === null) return;
 
-    const path = gammaRay.path;
-
     if (gammaRay.firing) {
       this._drawFiringBeam(g, gammaRay);
     } else {
@@ -40,37 +42,62 @@ export class GammaRayRenderer {
   // ── Private drawing helpers ────────────────────────────────
 
   /**
-   * Warning trail phase: shown from T-60 s until the beam fires.
-   * Fades in from very faint to quite visible as the timer approaches 0.
-   * A gentle sine pulse adds a subtle "alive" feel.
+   * Warning trail phase — shown from T-60 s until the beam fires.
+   *
+   * Two-phase opacity:
+   *   T-60 → T-30  (phase 0): extremely faint — just a whisper of red.
+   *   T-30 → T-0   (phase 1): ramps up quickly to near-full intensity.
+   *
+   * Colors shifted to red/crimson to match the danger aesthetic.
    */
   private _drawWarningTrail(g: Graphics, gammaRay: GammaRayState): void {
     const path = gammaRay.path!;
 
-    // t = 0 at the start of the warning window, 1 just before firing.
-    const t = Math.max(0, Math.min(1, 1 - gammaRay.timer / 60));
+    // How far into the 30-second "final countdown" window are we?
+    // urgency = 0 when path first appears (timer ≈ 60), 1 just before firing.
+    const urgency = Math.max(0, Math.min(1, 1 - gammaRay.timer / 30));
 
-    // Pulse — a slow sine oscillation that shifts alpha slightly.
-    const pulse = Math.sin(Date.now() * 0.003) * 0.03;
+    // Slow pulse for the "alive" feel.
+    const pulse = Math.sin(Date.now() * 0.003) * 0.025;
 
-    const trailAlpha = 0.03 + t * 0.22 + pulse;
+    // Phase A (first 30 s): timer > 30  → urgency = 0 (timer of 30+ maps to urgency 0)
+    // Phase B (last 30 s):  timer 0-30  → urgency 0→1
+    //
+    // Outer glow alpha:
+    //   Phase A: 0.012 + small pulse (extremely faint)
+    //   Phase B: ramp from 0.012 → 0.28
+    const outerAlpha = Math.max(0, gammaRay.timer > 30
+      ? 0.012 + pulse * 0.5          // phase A: whisper
+      : 0.012 + urgency * 0.27 + pulse); // phase B: build
 
-    // ── Outer glow (wide, faint amber) ─────────────────────────
+    // Bright core alpha: much more visible, but still faint in phase A.
+    const coreAlpha = Math.max(0, gammaRay.timer > 30
+      ? 0.018 + pulse
+      : 0.018 + urgency * 0.52 + pulse);
+
+    // ── Outer glow (wide, blood-red) ───────────────────────
     g.moveTo(path.x1, path.y1)
       .lineTo(path.x2, path.y2)
-      .stroke({ color: 0xfde68a, width: path.width, alpha: Math.max(0, trailAlpha) });
+      .stroke({ color: 0xcc1100, width: path.width, alpha: outerAlpha });
 
-    // ── Bright beam core (narrow, much more opaque) ─────────────
-    const coreAlpha = Math.min(1, trailAlpha * 3);
+    // ── Mid glow (narrower, brighter crimson) ───────────────
+    const midAlpha = Math.max(0, gammaRay.timer > 30
+      ? 0.014 + pulse * 0.6
+      : 0.014 + urgency * 0.38 + pulse);
     g.moveTo(path.x1, path.y1)
       .lineTo(path.x2, path.y2)
-      .stroke({ color: 0xfef3c7, width: path.width * 0.1, alpha: Math.max(0, coreAlpha) });
+      .stroke({ color: 0xff2200, width: path.width * 0.45, alpha: midAlpha });
+
+    // ── Bright beam core (narrow, hot orange-red) ────────────
+    g.moveTo(path.x1, path.y1)
+      .lineTo(path.x2, path.y2)
+      .stroke({ color: 0xff6030, width: path.width * 0.09, alpha: Math.min(1, coreAlpha) });
   }
 
   /**
    * Firing phase: the beam sweeps from (x1,y1) toward (x2,y2) over 3 s.
-   * Draws three overlapping strokes (outer glow, mid glow, core) plus a
-   * circular pulse at the leading edge.
+   * Draws three overlapping strokes (outer glow, mid glow, core) in red/white
+   * plus a circular pulse at the leading edge.
    */
   private _drawFiringBeam(g: Graphics, gammaRay: GammaRayState): void {
     const path = gammaRay.path!;
@@ -80,26 +107,29 @@ export class GammaRayRenderer {
     const frontX = path.x1 + (path.x2 - path.x1) * progress;
     const frontY = path.y1 + (path.y2 - path.y1) * progress;
 
-    // Only draw if the beam has actually started moving.
     if (progress <= 0) return;
 
-    // ── Layer 1: wide outer glow (amber) ───────────────────────
+    // ── Layer 1: wide outer glow (dark red) ────────────────
     g.moveTo(path.x1, path.y1)
       .lineTo(frontX, frontY)
-      .stroke({ color: 0xfde68a, width: path.width, alpha: 0.35 });
+      .stroke({ color: 0xcc1100, width: path.width, alpha: 0.38 });
 
-    // ── Layer 2: bright mid glow (pale yellow) ─────────────────
+    // ── Layer 2: bright mid glow (vivid red) ───────────────
     g.moveTo(path.x1, path.y1)
       .lineTo(frontX, frontY)
-      .stroke({ color: 0xfef9c3, width: path.width * 0.4, alpha: 0.6 });
+      .stroke({ color: 0xff3300, width: path.width * 0.4, alpha: 0.65 });
 
-    // ── Layer 3: searing white core ────────────────────────────
+    // ── Layer 3: searing white-hot core ────────────────────
     g.moveTo(path.x1, path.y1)
       .lineTo(frontX, frontY)
       .stroke({ color: 0xffffff, width: path.width * 0.15, alpha: 0.95 });
 
-    // ── Leading-edge pulse circle ──────────────────────────────
+    // ── Leading-edge pulse circle ──────────────────────────
     g.circle(frontX, frontY, path.width * 0.6)
-      .fill({ color: 0xffffff, alpha: 0.3 });
+      .fill({ color: 0xff4422, alpha: 0.35 });
+
+    // ── Bright core pulse ──────────────────────────────────
+    g.circle(frontX, frontY, path.width * 0.2)
+      .fill({ color: 0xffffff, alpha: 0.55 });
   }
 }

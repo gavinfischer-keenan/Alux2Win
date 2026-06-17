@@ -20,6 +20,8 @@ export class HUD {
   private pauseBtn: HTMLElement;
   private pausedBanner: HTMLElement;
   private factionDisplays: FactionDisplay[];
+  private gammaCountdownEl: HTMLElement;   // gamma-ray countdown widget
+  private hintEl: HTMLElement;             // control hint (hidden when countdown is active)
 
   private lastFpsUpdate = 0;
   private frameCount    = 0;
@@ -32,6 +34,8 @@ export class HUD {
     this.fpsEl        = this.element.querySelector<HTMLElement>('#hud-fps')!;
     this.pauseBtn     = this.element.querySelector<HTMLElement>('#hud-pause-btn')!;
     this.pausedBanner = this.element.querySelector<HTMLElement>('#hud-paused-banner')!;
+    this.gammaCountdownEl = this.element.querySelector<HTMLElement>('#hud-gamma-countdown')!;
+    this.hintEl           = this.element.querySelector<HTMLElement>('#hud-hint')!;
 
     const factionDefs: Array<{ faction: Faction; label: string }> = [
       { faction: 'player',  label: 'You'   },
@@ -85,7 +89,40 @@ export class HUD {
       const total = (stationedCounts[fd.faction] ?? 0) + (travelCounts[fd.faction] ?? 0);
       fd.countEl.textContent = String(Math.floor(total));
     }
+
+    // ── Gamma-ray countdown widget ─────────────────────────────
+    const gr = state.gammaRay;
+    // Countdown text appears only in the final 30 seconds before firing.
+    const inCountdownWindow = gr.enabled && gr.path !== null && !gr.firing && gr.timer <= 30;
+    if (inCountdownWindow) {
+      const secsLeft = Math.ceil(Math.max(0, gr.timer));
+      this.gammaCountdownEl.textContent = `☢  GAMMA RAY  ${secsLeft}s`;
+
+      // Urgency: 0 when countdown starts (timer=30), 1 at firing.
+      const urgency = Math.max(0, Math.min(1, 1 - gr.timer / 30));
+      const baseAlpha = 0.5 + urgency * 0.5;
+      const scale     = 1 + urgency * 0.22;
+      const glow      = Math.round(urgency * 22);
+
+      this.gammaCountdownEl.style.opacity    = String(baseAlpha);
+      this.gammaCountdownEl.style.transform  = `translateX(-50%) scale(${scale.toFixed(3)})`;
+      this.gammaCountdownEl.style.textShadow = `0 0 ${glow}px rgba(255,60,0,0.9)`;
+      this.gammaCountdownEl.style.display    = 'block';
+      this.hintEl.style.display              = 'none';
+    } else if (gr.enabled && gr.firing) {
+      // During the beam firing show a bright FIRING label
+      this.gammaCountdownEl.textContent      = '☢  GAMMA RAY  FIRING!';
+      this.gammaCountdownEl.style.opacity    = '1';
+      this.gammaCountdownEl.style.transform  = 'translateX(-50%) scale(1.3)';
+      this.gammaCountdownEl.style.textShadow = '0 0 28px rgba(255,60,0,1)';
+      this.gammaCountdownEl.style.display    = 'block';
+      this.hintEl.style.display              = 'none';
+    } else {
+      this.gammaCountdownEl.style.display = 'none';
+      this.hintEl.style.display           = 'block';
+    }
   }
+
 
   show(): void    { this.element.style.display = 'block'; }
   hide(): void    { this.element.style.display = 'none';  }
@@ -240,6 +277,7 @@ export class HUD {
 
     // ── Control hint (bottom-center) ───────────────────────
     const hint = document.createElement('div');
+    hint.id = 'hud-hint';
     hint.style.cssText = `
       position: absolute;
       bottom: 18px;
@@ -256,6 +294,27 @@ export class HUD {
     `;
     hint.textContent = 'Drag to select  |  Right-click to send  |  ESC to pause';
     el.appendChild(hint);
+
+    // ── Gamma-ray countdown (bottom-center, replaces hint) ─
+    const gammaCountdown = document.createElement('div');
+    gammaCountdown.id = 'hud-gamma-countdown';
+    gammaCountdown.style.cssText = `
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: #ff3c00;
+      letter-spacing: 0.18em;
+      white-space: nowrap;
+      user-select: none;
+      pointer-events: none;
+      display: none;
+      transition: transform 0.3s ease, text-shadow 0.3s ease, opacity 0.3s ease;
+    `;
+    el.appendChild(gammaCountdown);
 
     return el;
   }
