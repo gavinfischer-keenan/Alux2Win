@@ -22,6 +22,8 @@ import {
   PARTICLE_SPEED,
 } from '../types';
 import { HUD } from '../ui/HUD';
+import { PauseMenu } from '../ui/PauseMenu';
+import type { GameSpeed } from '../ui/PauseMenu';
 
 // ── Engine imports ───────────────────────────────────────────
 import { Renderer }        from '../engine/Renderer';
@@ -84,8 +86,16 @@ export class GameScene {
   private hudContainer!: HTMLElement;
   private dragBox: HTMLElement | null = null;
   private resultOverlay: HTMLElement | null = null;
+  private pauseMenu: PauseMenu | null = null;
 
-  // Drag-select bookkeeping (we track manually using InputManager callbacks)
+  // Pause / speed state
+  private _paused   = false;
+  private _timeScale: GameSpeed = 1;
+
+  // ESC key handler — stored so it can be removed on destroy
+  private _keyHandler: ((e: KeyboardEvent) => void) | null = null;
+
+  // Drag-select bookkeeping
   private _dragStartX = 0;
   private _dragStartY = 0;
 
@@ -124,7 +134,16 @@ export class GameScene {
     this.hudContainer = document.createElement('div');
     this.hudContainer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:15;';
     this.container.appendChild(this.hudContainer);
-    this.hud = new HUD(this.hudContainer);
+    this.hud = new HUD(this.hudContainer, () => this.togglePause());
+
+    // Pause menu (hidden initially)
+    this.pauseMenu = new PauseMenu(this.container, this._timeScale);
+    this.pauseMenu.onResume      = () => this.togglePause();
+    this.pauseMenu.onSpeedChange = (s) => { this._timeScale = s; };
+    this.pauseMenu.onQuitToMenu  = () => {
+      this._paused = false;
+      this.onGameOver(null);
+    };
 
     // Determine AI factions from level data
     const aiFactions = new Set<Faction>();
@@ -146,6 +165,12 @@ export class GameScene {
       (alpha) => this.render(alpha)
     );
 
+    // ESC key toggles pause
+    this._keyHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') this.togglePause();
+    };
+    document.addEventListener('keydown', this._keyHandler);
+
     // Listen for game:over emitted by CombatSystem
     this.eventBus.on('game:over', (payload: { winner: Faction }) => {
       this.showResultOverlay(payload.winner);
@@ -166,16 +191,35 @@ export class GameScene {
   destroy(): void {
     this.gameLoop?.stop();
     this.inputManager?.destroy();
+    if (this._keyHandler) document.removeEventListener('keydown', this._keyHandler);
     this.hud?.destroy();
     this.hudContainer?.remove();
     this.dragBox?.remove();
     this.resultOverlay?.remove();
+    this.pauseMenu?.destroy();
+    this.pauseMenu = null;
 
     this.entities.planets.forEach(p => p.destroy());
     this.entities.planets.clear();
     this.entities.blackHoles.forEach(bh => bh.destroy());
     this.entities.blackHoles.clear();
     this.entities.particles?.destroy();
+  }
+
+  // ── Pause / Speed ─────────────────────────────────────────
+
+  togglePause(): void {
+    // Don't allow pause after game is over
+    if (this.state?.winner !== null && this.state?.winner !== undefined) return;
+
+    this._paused = !this._paused;
+    this.hud.setPaused(this._paused);
+
+    if (this._paused) {
+      this.pauseMenu?.show();
+    } else {
+      this.pauseMenu?.hide();
+    }
   }
 
   // ── Game State Init ───────────────────────────────────────
@@ -235,7 +279,10 @@ export class GameScene {
 
   private update(dt: number): void {
     if (!this.state.running || this.state.winner !== null) return;
+    if (this._paused) return;  // freeze all simulation when paused
     this.state.tick++;
+    const dt_ = dt * this._timeScale;  // apply speed multiplier
+    dt = dt_;
 
     // Rebuild spatial hash
     this.spatialHash.clear();
