@@ -189,6 +189,11 @@ export class MovementSystem {
 
     p.x += p.vx * dt;
     p.y += p.vy * dt;
+
+    // Decrement deployTimer if active
+    if (p.deployTimer !== undefined && p.deployTimer > 0) {
+      p.deployTimer -= dt;
+    }
   }
 
   // ---- Combat ----

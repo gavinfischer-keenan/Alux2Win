@@ -62,6 +62,7 @@ export interface ParticleData {
   targetY?: number;             // empty-space target Y (stationed destination)
   orbitAngle?: number;
   orbitRadius?: number;
+  deployTimer?: number;         // grace period after deployment before interactions
   alive: boolean;
 }
 

@@ -14,6 +14,7 @@ import type { GameSpeed } from '../ui/PauseMenu';
 export class MainMenuScene {
   private element: HTMLElement;
   private settingsPanel: HTMLElement | null = null;
+  private systemsPanel: HTMLElement | null = null;
   private _mainCard: HTMLElement | null = null;
 
   onPlay: (levelData: LevelData) => void = () => {};
@@ -185,8 +186,8 @@ export class MainMenuScene {
     `;
 
     const galaxies = [
-      { name: 'Tutorial', image: '/assets/galaxies/tutorial.png', locked: false, onClick: () => this.onPlay(tutorialData as LevelData) },
-      { name: 'Normal', image: '/assets/galaxies/normal.png', locked: false, onClick: () => this.onPlay(skirmishData as LevelData) },
+      { name: 'Tutorial', image: '/assets/galaxies/tutorial.png', locked: false, levelData: tutorialData as LevelData },
+      { name: 'Normal', image: '/assets/galaxies/normal.png', locked: false, levelData: skirmishData as LevelData },
       { name: 'Plasma Storms', image: '/assets/galaxies/plasma.png', locked: true },
       { name: 'Asteroids', image: '/assets/galaxies/asteroid.png', locked: true },
       { name: 'Nebula Fog', image: '/assets/galaxies/nebula.png', locked: true },
@@ -215,7 +216,7 @@ export class MainMenuScene {
         opacity: ${g.locked ? '0.6' : '1'};
       `;
 
-      if (!g.locked && g.onClick) {
+      if (!g.locked) {
         tile.addEventListener('mouseenter', () => {
           tile.style.transform = 'translateY(-6px)';
           tile.style.boxShadow = '0 12px 24px rgba(79, 195, 247, 0.2)';
@@ -226,7 +227,7 @@ export class MainMenuScene {
           tile.style.boxShadow = 'none';
           tile.style.borderColor = 'rgba(255, 255, 255, 0.1)';
         });
-        tile.addEventListener('click', g.onClick);
+        tile.addEventListener('click', () => this.openSystemsPanel(g));
       }
 
       // Thumbnail Image
@@ -750,5 +751,252 @@ export class MainMenuScene {
     });
     btn.addEventListener('click', onClick);
     return btn;
+  }
+
+  // ── Systems panel ────────────────────────────────────────
+
+  private openSystemsPanel(galaxy: any): void {
+    if (this.systemsPanel) {
+      this.systemsPanel.remove();
+    }
+    this.systemsPanel = this.createSystemsPanel(galaxy);
+    this.element.appendChild(this.systemsPanel);
+
+    const card = this._mainCard!;
+    const panel = this.systemsPanel;
+
+    // Slide card left + fade out
+    card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    card.style.opacity = '0';
+    card.style.transform = 'translateX(-40px)';
+    card.style.pointerEvents = 'none';
+
+    // Show panel, slide in from right
+    panel.style.display = 'flex';
+    panel.style.opacity = '0';
+    panel.style.transform = 'translateX(40px)';
+    panel.style.pointerEvents = 'auto';
+    
+    requestAnimationFrame(() => {
+      panel.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+      panel.style.opacity = '1';
+      panel.style.transform = 'translateX(0)';
+    });
+  }
+
+  private closeSystemsPanel(): void {
+    const card = this._mainCard!;
+    const panel = this.systemsPanel;
+    if (!panel) return;
+
+    // Slide panel out right
+    panel.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    panel.style.opacity = '0';
+    panel.style.transform = 'translateX(40px)';
+    panel.style.pointerEvents = 'none';
+
+    // Slide card back in
+    card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    card.style.opacity = '1';
+    card.style.transform = 'translateX(0)';
+    card.style.pointerEvents = 'auto';
+
+    setTimeout(() => {
+      if (this.systemsPanel) {
+        this.systemsPanel.remove();
+        this.systemsPanel = null;
+      }
+    }, 310);
+  }
+
+  private createSystemsPanel(galaxy: any): HTMLElement {
+    const panel = document.createElement('div');
+    panel.style.cssText = `
+      position: absolute;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      padding: 40px;
+      background: rgba(0, 0, 10, 0.85);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(79, 195, 247, 0.2);
+      border-radius: 24px;
+      box-shadow: 0 0 60px rgba(79, 195, 247, 0.1), 0 8px 48px rgba(0,0,0,0.8);
+      width: 90%;
+      max-width: 1000px;
+      max-height: 90vh;
+      overflow-y: auto;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateX(40px);
+    `;
+
+    // Background Image representing the theme
+    const bgImg = document.createElement('div');
+    bgImg.style.cssText = `
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-image: url('${galaxy.image}');
+      background-size: cover;
+      background-position: center;
+      opacity: 0.15;
+      z-index: -1;
+      border-radius: 24px;
+      mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+    `;
+    panel.appendChild(bgImg);
+
+    // Header
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex; align-items:center; width:100%; gap:20px; margin-bottom:10px;';
+
+    const backBtn = document.createElement('button');
+    backBtn.textContent = '← BACK';
+    backBtn.style.cssText = `
+      background: transparent;
+      border: 1px solid rgba(79, 195, 247, 0.4);
+      border-radius: 8px;
+      color: rgba(79, 195, 247, 0.9);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      padding: 10px 16px;
+      transition: all 0.2s;
+    `;
+    backBtn.addEventListener('click', () => this.closeSystemsPanel());
+    backBtn.addEventListener('mouseenter', () => {
+      backBtn.style.background = 'rgba(79, 195, 247, 0.1)';
+      backBtn.style.borderColor = 'rgba(79, 195, 247, 0.8)';
+    });
+    backBtn.addEventListener('mouseleave', () => {
+      backBtn.style.background = 'transparent';
+      backBtn.style.borderColor = 'rgba(79, 195, 247, 0.4)';
+    });
+
+    const title = document.createElement('div');
+    title.textContent = `${galaxy.name.toUpperCase()} SYSTEMS`;
+    title.style.cssText = `
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2rem;
+      font-weight: 900;
+      color: #4fc3f7;
+      letter-spacing: 0.15em;
+      text-shadow: 0 0 20px rgba(79, 195, 247, 0.5);
+      flex: 1;
+      text-align: right;
+    `;
+
+    header.appendChild(backBtn);
+    header.appendChild(title);
+    panel.appendChild(header);
+
+    // Grid of systems
+    const grid = document.createElement('div');
+    grid.style.cssText = `
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 20px;
+      width: 100%;
+    `;
+
+    const systemNames = [
+      'Alpha Centauri',
+      'Sirius Prime',
+      'Vega Core',
+      'Betelgeuse Anomaly',
+      'Rigel Outpost',
+      'Orion Nebula',
+      'Pleiades Cluster',
+      'Andromeda Edge',
+      'Void Nexus'
+    ];
+
+    for (let i = 0; i < 9; i++) {
+      const isLocked = i > 0;
+      const tile = document.createElement('div');
+      
+      tile.style.cssText = `
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 140px;
+        cursor: ${isLocked ? 'not-allowed' : 'pointer'};
+        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+        opacity: ${isLocked ? '0.5' : '1'};
+        position: relative;
+        overflow: hidden;
+      `;
+
+      if (!isLocked) {
+        tile.addEventListener('mouseenter', () => {
+          tile.style.transform = 'translateY(-4px)';
+          tile.style.boxShadow = '0 8px 24px rgba(79, 195, 247, 0.2)';
+          tile.style.borderColor = 'rgba(79, 195, 247, 0.6)';
+        });
+        tile.addEventListener('mouseleave', () => {
+          tile.style.transform = 'translateY(0)';
+          tile.style.boxShadow = 'none';
+          tile.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+        });
+        tile.addEventListener('click', () => {
+          if (galaxy.levelData) {
+            this.onPlay(galaxy.levelData);
+          }
+        });
+      }
+
+      const numLabel = document.createElement('div');
+      numLabel.textContent = `SYSTEM 0${i + 1}`;
+      numLabel.style.cssText = `
+        font-family: 'Rajdhani', sans-serif;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.4);
+        letter-spacing: 0.2em;
+        margin-bottom: 8px;
+      `;
+
+      const nameLabel = document.createElement('div');
+      nameLabel.textContent = systemNames[i];
+      nameLabel.style.cssText = `
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: ${isLocked ? 'rgba(255, 255, 255, 0.6)' : '#4fc3f7'};
+        text-align: center;
+      `;
+
+      tile.appendChild(numLabel);
+      tile.appendChild(nameLabel);
+
+      if (isLocked) {
+        const lockLabel = document.createElement('div');
+        lockLabel.textContent = 'Coming Soon';
+        lockLabel.style.cssText = `
+          font-family: 'Rajdhani', sans-serif;
+          font-size: 0.8rem;
+          color: rgba(255, 200, 100, 0.9);
+          letter-spacing: 0.15em;
+          margin-top: 12px;
+          text-transform: uppercase;
+        `;
+        tile.appendChild(lockLabel);
+      }
+
+      grid.appendChild(tile);
+    }
+
+    panel.appendChild(grid);
+
+    return panel;
   }
 }

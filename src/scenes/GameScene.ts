@@ -500,6 +500,7 @@ export class GameScene {
       p.targetX        = targetX;
       p.targetY        = targetY;
       p.orbitTimer     = 0;
+      p.deployTimer    = 1.5;
       // Set initial velocity toward target
       const destX = targetPlanetId
         ? (this.state.planets.get(targetPlanetId)?.x ?? p.x)
@@ -560,6 +561,7 @@ export class GameScene {
         p.targetX        = targetX;
         p.targetY        = targetY;
         p.orbitTimer     = 0;
+        p.deployTimer    = 1.5;
 
         const destX = targetPlanet ? targetPlanet.x : (targetX ?? p.x);
         const destY = targetPlanet ? targetPlanet.y : (targetY ?? p.y);
@@ -595,8 +597,9 @@ export class GameScene {
           mode:           'traveling',
           strength:       1,
           orbitTimer:     0,
+          deployTimer:    1.5,
           damage:         0,
-          homePlanetId:   srcId,
+          homePlanetId:   src.id,
           targetPlanetId: targetPlanetId,
           targetX:        targetX,
           targetY:        targetY,

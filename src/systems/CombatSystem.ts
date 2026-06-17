@@ -25,11 +25,58 @@ export class CombatSystem {
         if (dist > planetRadius + 40) continue;
 
         if (particle.faction === planet.faction) {
-          // ---- Friendly absorption (upgrade fuel) ----
+          // Skip friendly absorption if particle was just deployed
+          if (particle.deployTimer !== undefined && particle.deployTimer > 0) {
+            continue;
+          }
+          // ---- Friendly absorption (upgrade fuel or heal) ----
           particle.alive = false;
           anyDied = true;
-          // Strength counts toward upgrade (5X = 5 credits)
-          planet.absorbedCount += particle.strength;
+          
+          let healAmount: number = particle.strength;
+
+          // 1. Heal inner health (orbiting particles)
+          while (healAmount > 0 && planet.particles < planet.capacity) {
+            healAmount -= 1;
+            planet.particles += 1;
+            
+            const orbitAngle  = Math.random() * Math.PI * 2;
+            const orbitRadius = PLANET_RADIUS[planet.upgradeLevel] * 1.8;
+            const orbitSpeed = 1.2;
+            state.particles.push({
+              id:           ++state.particleIdCounter,
+              x:            planet.x + orbitRadius * Math.cos(orbitAngle),
+              y:            planet.y + orbitRadius * Math.sin(orbitAngle),
+              vx:           -Math.sin(orbitAngle) * orbitRadius * orbitSpeed,
+              vy:           Math.cos(orbitAngle) * orbitRadius * orbitSpeed,
+              faction:      planet.faction,
+              mode:         'orbiting',
+              strength:     1,
+              orbitTimer:   0,
+              damage:       0,
+              homePlanetId: planet.id,
+              orbitAngle,
+              orbitRadius,
+              alive:        true,
+            });
+          }
+
+          // 2. Heal outer shield (bonus health)
+          if (planet.bonusHealth < planet.maxBonusHealth) {
+            const needed = planet.maxBonusHealth - planet.bonusHealth;
+            if (healAmount <= needed) {
+              planet.bonusHealth += healAmount;
+              healAmount = 0;
+            } else {
+              planet.bonusHealth = planet.maxBonusHealth;
+              healAmount -= needed;
+            }
+          }
+
+          // 3. Remaining strength goes to upgrade
+          if (healAmount > 0) {
+            planet.absorbedCount += healAmount;
+          }
         } else {
           // ---- Enemy / Neutral interaction ----
           particle.alive = false;

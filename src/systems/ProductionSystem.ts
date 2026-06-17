@@ -71,7 +71,22 @@ export class ProductionSystem {
       const home = state.planets.get(p.homePlanetId);
       if (!home) continue;
       home.particles = Math.max(0, home.particles - 1);
-      home.absorbedCount += p.strength;
+      
+      let healAmount: number = p.strength;
+      if (home.bonusHealth < home.maxBonusHealth) {
+        const needed = home.maxBonusHealth - home.bonusHealth;
+        if (healAmount <= needed) {
+          home.bonusHealth += healAmount;
+          healAmount = 0;
+        } else {
+          home.bonusHealth = home.maxBonusHealth;
+          healAmount -= needed;
+        }
+      }
+
+      if (healAmount > 0) {
+        home.absorbedCount += healAmount;
+      }
     }
 
     state.particles = state.particles.filter(p => p.alive);
