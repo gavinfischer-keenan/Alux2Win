@@ -4,8 +4,9 @@
 // ============================================================
 
 import type { LevelData } from '../types';
-import tutorialData from '../levels/tutorial.json';
+import tutorialMovementData from '../levels/tutorial_movement.json';
 import skirmishData from '../levels/skirmish.json';
+import skirmishData2 from '../levels/skirmish_2.json';
 import { SettingsStore } from '../core/SettingsStore';
 import type { GameSettings } from '../core/SettingsStore';
 import { audioManager } from '../core/AudioManager';
@@ -17,7 +18,7 @@ export class MainMenuScene {
   private systemsPanel: HTMLElement | null = null;
   private _mainCard: HTMLElement | null = null;
 
-  onPlay: (levelData: LevelData) => void = () => {};
+  onPlay: (levelData: LevelData, isTutorial?: boolean) => void = () => {};
   onOpenEditor: () => void = () => {};
 
   constructor(container: HTMLElement) {
@@ -186,8 +187,8 @@ export class MainMenuScene {
     `;
 
     const galaxies = [
-      { name: 'Tutorial', image: '/assets/galaxies/tutorial.png', locked: false, levelData: tutorialData as LevelData },
-      { name: 'Normal', image: '/assets/galaxies/normal.png', locked: false, levelData: skirmishData as LevelData },
+      { name: 'Tutorial', image: '/assets/galaxies/tutorial.png', locked: false, levels: [tutorialMovementData as LevelData], isTutorial: true },
+      { name: 'Normal', image: '/assets/galaxies/normal.png', locked: false, levels: [skirmishData as LevelData, skirmishData2 as LevelData], isTutorial: false },
       { name: 'Plasma Storms', image: '/assets/galaxies/plasma.png', locked: true },
       { name: 'Asteroids', image: '/assets/galaxies/asteroid.png', locked: true },
       { name: 'Nebula Fog', image: '/assets/galaxies/nebula.png', locked: true },
@@ -835,7 +836,7 @@ export class MainMenuScene {
       align-items: center;
       gap: 20px;
       padding: 40px;
-      background: rgba(0, 0, 10, 0.85);
+      background: rgba(0, 0, 12, 0.88);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
       border: 1px solid rgba(79, 195, 247, 0.2);
@@ -912,7 +913,7 @@ export class MainMenuScene {
     header.appendChild(title);
     panel.appendChild(header);
 
-    // Grid of systems
+    // Grid of systems — branched by galaxy type
     const grid = document.createElement('div');
     grid.style.cssText = `
       display: grid;
@@ -921,6 +922,173 @@ export class MainMenuScene {
       width: 100%;
     `;
 
+    if (galaxy.name === 'Tutorial') {
+      this.buildTutorialSystemTiles(grid, galaxy);
+    } else {
+      this.buildGenericSystemTiles(grid, galaxy);
+    }
+
+    panel.appendChild(grid);
+
+    return panel;
+  }
+
+  // ── Tutorial-specific 3-tile system grid ────────────────────
+
+  private buildTutorialSystemTiles(grid: HTMLElement, galaxy: any): void {
+    const systems = [
+      {
+        num: '01',
+        name: 'Movement',
+        icon: '🚀',
+        desc: 'Learn to select planets, send particles, capture neutral worlds, and survive your first counter-attack.',
+        locked: false,
+        levelData: galaxy.levels?.[0] as LevelData | undefined,
+        isTutorial: true,
+      },
+      {
+        num: '02',
+        name: 'Attack',
+        icon: '⚔️',
+        desc: 'Master deploying fleets strategically, overwhelming fortified enemy planets, and managing multiple fronts.',
+        locked: true,
+        levelData: undefined,
+        isTutorial: true,
+      },
+      {
+        num: '03',
+        name: 'Conquest',
+        icon: '👑',
+        desc: 'Combine all skills for total galactic domination — upgrade chains, multi-enemy engagements, and the final push.',
+        locked: true,
+        levelData: undefined,
+        isTutorial: true,
+      },
+    ];
+
+    for (const sys of systems) {
+      const tile = document.createElement('div');
+      tile.style.cssText = `
+        background: ${sys.locked ? 'rgba(255,255,255,0.03)' : 'rgba(79,195,247,0.05)'};
+        border: 1px solid ${sys.locked ? 'rgba(255,255,255,0.08)' : 'rgba(79,195,247,0.2)'};
+        border-radius: 16px;
+        padding: 28px 24px 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        min-height: 200px;
+        cursor: ${sys.locked ? 'not-allowed' : 'pointer'};
+        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+        opacity: ${sys.locked ? '0.5' : '1'};
+        position: relative;
+        overflow: hidden;
+        text-align: center;
+      `;
+
+      if (!sys.locked) {
+        tile.addEventListener('mouseenter', () => {
+          tile.style.transform = 'translateY(-6px)';
+          tile.style.boxShadow = '0 10px 28px rgba(79, 195, 247, 0.25)';
+          tile.style.borderColor = 'rgba(79, 195, 247, 0.6)';
+        });
+        tile.addEventListener('mouseleave', () => {
+          tile.style.transform = 'translateY(0)';
+          tile.style.boxShadow = 'none';
+          tile.style.borderColor = 'rgba(79,195,247,0.2)';
+        });
+        tile.addEventListener('click', () => {
+          audioManager.playClick();
+          if (sys.levelData) {
+            this.closeSystemsPanel();
+            setTimeout(() => this.onPlay(sys.levelData!, sys.isTutorial), 320);
+          }
+        });
+      }
+
+      // System number badge
+      const numBadge = document.createElement('div');
+      numBadge.textContent = `SYSTEM ${sys.num}`;
+      numBadge.style.cssText = `
+        font-family: 'Rajdhani', sans-serif;
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: ${sys.locked ? 'rgba(255,255,255,0.3)' : 'rgba(79,195,247,0.6)'};
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+      `;
+      tile.appendChild(numBadge);
+
+      // Icon
+      const iconEl = document.createElement('div');
+      iconEl.textContent = sys.icon;
+      iconEl.style.cssText = `
+        font-size: 2.4rem;
+        line-height: 1;
+        filter: ${sys.locked ? 'grayscale(1)' : 'none'};
+      `;
+      tile.appendChild(iconEl);
+
+      // Name
+      const nameEl = document.createElement('div');
+      nameEl.textContent = sys.name;
+      nameEl.style.cssText = `
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.2rem;
+        font-weight: 900;
+        color: ${sys.locked ? 'rgba(255,255,255,0.4)' : '#4fc3f7'};
+        letter-spacing: 0.1em;
+        text-shadow: ${sys.locked ? 'none' : '0 0 12px rgba(79,195,247,0.4)'};
+      `;
+      tile.appendChild(nameEl);
+
+      // Description
+      const descEl = document.createElement('div');
+      descEl.textContent = sys.desc;
+      descEl.style.cssText = `
+        font-family: 'Rajdhani', sans-serif;
+        font-size: 0.82rem;
+        color: ${sys.locked ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.55)'};
+        line-height: 1.45;
+        letter-spacing: 0.02em;
+      `;
+      tile.appendChild(descEl);
+
+      if (!sys.locked) {
+        const playTag = document.createElement('div');
+        playTag.textContent = '▶ START';
+        playTag.style.cssText = `
+          margin-top: auto;
+          font-family: 'Orbitron', sans-serif;
+          font-size: 0.72rem;
+          font-weight: 700;
+          color: rgba(79,195,247,0.7);
+          letter-spacing: 0.18em;
+          border: 1px solid rgba(79,195,247,0.25);
+          border-radius: 6px;
+          padding: 5px 14px;
+        `;
+        tile.appendChild(playTag);
+      } else {
+        const soonTag = document.createElement('div');
+        soonTag.textContent = 'Coming Soon';
+        soonTag.style.cssText = `
+          margin-top: auto;
+          font-family: 'Rajdhani', sans-serif;
+          font-size: 0.8rem;
+          color: rgba(255,200,100,0.7);
+          letter-spacing: 0.15em;
+        `;
+        tile.appendChild(soonTag);
+      }
+
+      grid.appendChild(tile);
+    }
+  }
+
+  // ── Generic 9-tile system grid (non-Tutorial galaxies) ──────
+
+  private buildGenericSystemTiles(grid: HTMLElement, galaxy: any): void {
     const systemNames = [
       'Alpha Centauri',
       'Sirius Prime',
@@ -934,9 +1102,10 @@ export class MainMenuScene {
     ];
 
     for (let i = 0; i < 9; i++) {
-      const isLocked = i > 0;
+      const level = galaxy.levels ? galaxy.levels[i] : null;
+      const isLocked = !level;
       const tile = document.createElement('div');
-      
+
       tile.style.cssText = `
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -966,8 +1135,10 @@ export class MainMenuScene {
           tile.style.borderColor = 'rgba(255, 255, 255, 0.1)';
         });
         tile.addEventListener('click', () => {
-          if (galaxy.levelData) {
-            this.onPlay(galaxy.levelData);
+          audioManager.playClick();
+          if (level) {
+            this.closeSystemsPanel();
+            setTimeout(() => this.onPlay(level, false), 320);
           }
         });
       }
@@ -1011,9 +1182,5 @@ export class MainMenuScene {
 
       grid.appendChild(tile);
     }
-
-    panel.appendChild(grid);
-
-    return panel;
   }
 }
