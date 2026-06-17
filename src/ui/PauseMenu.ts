@@ -3,6 +3,8 @@
 // Triggered by ESC key or the HUD pause button.
 // ============================================================
 
+import { SettingsStore } from '../core/SettingsStore';
+
 export type GameSpeed = 0.5 | 1 | 2 | 3;
 
 const SPEED_OPTIONS: { label: string; value: GameSpeed }[] = [
@@ -22,11 +24,11 @@ export class PauseMenu {
   onSpeedChange: (speed: GameSpeed) => void = () => {};
   onQuitToMenu: () => void = () => {};
 
-  constructor(container: HTMLElement, initialSpeed: GameSpeed = 1) {
-    this._currentSpeed = initialSpeed;
+  constructor(container: HTMLElement, initialSpeed?: GameSpeed) {
+    this._currentSpeed = initialSpeed ?? (SettingsStore.get().gameSpeed as GameSpeed);
     this.element = this._build();
     container.appendChild(this.element);
-    this._setActiveSpeed(initialSpeed);
+    this._setActiveSpeed(this._currentSpeed);
   }
 
   // ── Public API ────────────────────────────────────────────
@@ -166,6 +168,7 @@ export class PauseMenu {
       btn.addEventListener('click', () => {
         this._setActiveSpeed(value);
         this.onSpeedChange(value);
+        SettingsStore.update({ gameSpeed: value });
       });
       btn.addEventListener('mouseenter', () => {
         if (this._currentSpeed !== value) {

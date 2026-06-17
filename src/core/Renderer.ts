@@ -29,6 +29,11 @@ export class Renderer {
   private _worldWidth:  number = 2048;
   private _worldHeight: number = 2048;
 
+  // Cached fit-transform values (updated by _fitWorld)
+  private _fitX     = 0;
+  private _fitY     = 0;
+  private _fitScale = 1;
+
   // ── Public accessors ────────────────────────────────────────
 
   /** The raw PixiJS canvas element. */
@@ -107,6 +112,14 @@ export class Renderer {
   getWidth():  number { return this.app.screen.width; }
   getHeight(): number { return this.app.screen.height; }
 
+  /** Expose the world container for camera control. */
+  getWorldContainer(): Container { return this._worldContainer; }
+
+  /** Returns the cached fit-transform baseline computed by _fitWorld(). */
+  getFitTransform(): { x: number; y: number; scale: number } {
+    return { x: this._fitX, y: this._fitY, scale: this._fitScale };
+  }
+
   /**
    * Call after loading a level to scale the world container so the
    * entire world fits inside the current viewport (letterboxed).
@@ -152,10 +165,15 @@ export class Renderer {
       (sh - margin * 2) / worldH,
     );
 
+    // Cache fit-transform for CameraController baseline.
+    this._fitX     = (sw - worldW * scale) / 2;
+    this._fitY     = (sh - worldH * scale) / 2;
+    this._fitScale = scale;
+
     this._worldContainer.scale.set(scale);
     // Centre the scaled world in the viewport.
-    this._worldContainer.x = (sw - worldW * scale) / 2;
-    this._worldContainer.y = (sh - worldH * scale) / 2;
+    this._worldContainer.x = this._fitX;
+    this._worldContainer.y = this._fitY;
   }
 
   /**

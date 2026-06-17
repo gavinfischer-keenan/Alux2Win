@@ -24,6 +24,9 @@ import {
 import { HUD } from '../ui/HUD';
 import { PauseMenu } from '../ui/PauseMenu';
 import type { GameSpeed } from '../ui/PauseMenu';
+import { CameraController } from '../core/CameraController';
+import { audioManager }     from '../core/AudioManager';
+import { SettingsStore }    from '../core/SettingsStore';
 
 // ── Engine imports ───────────────────────────────────────────
 import { Renderer }        from '../engine/Renderer';
@@ -87,6 +90,7 @@ export class GameScene {
   private dragBox: HTMLElement | null = null;
   private resultOverlay: HTMLElement | null = null;
   private pauseMenu: PauseMenu | null = null;
+  private cameraController: CameraController | null = null;
 
   // Pause / speed state
   private _paused   = false;
@@ -171,9 +175,24 @@ export class GameScene {
     };
     document.addEventListener('keydown', this._keyHandler);
 
+    // Camera
+    const fit = this.renderer.getFitTransform();
+    this.cameraController = new CameraController(this.renderer.getWorldContainer());
+    this.cameraController.setBaseline(
+      fit.x, fit.y, fit.scale,
+      levelData.worldWidth, levelData.worldHeight,
+      this.renderer.getWidth(), this.renderer.getHeight()
+    );
+    this.cameraController.attach(this.container);
+
     // Listen for game:over emitted by CombatSystem
     this.eventBus.on('game:over', (payload: { winner: Faction }) => {
       this.showResultOverlay(payload.winner);
+    });
+
+    // Listen for planet captures for audio feedback
+    this.eventBus.on('planet:captured', (payload: { planetId: string; newFaction: string }) => {
+      audioManager.playCapture(payload.newFaction);
     });
   }
 
@@ -181,6 +200,9 @@ export class GameScene {
     this.state.running = true;
     this.gameLoop.start();
     this.hud.show();
+    // Init speed from settings and start audio
+    this._timeScale = SettingsStore.get().gameSpeed as typeof this._timeScale;
+    audioManager.ensureReady().then(() => audioManager.startAmbient());
   }
 
   stop(): void {
@@ -198,6 +220,9 @@ export class GameScene {
     this.resultOverlay?.remove();
     this.pauseMenu?.destroy();
     this.pauseMenu = null;
+    this.cameraController?.destroy();
+    this.cameraController = null;
+    audioManager.stopAmbient();
 
     this.entities.planets.forEach(p => p.destroy());
     this.entities.planets.clear();
@@ -278,6 +303,7 @@ export class GameScene {
   // ── Update (Fixed-tick) ───────────────────────────────────
 
   private update(dt: number): void {
+    this.cameraController?.update(dt);
     if (!this.state.running || this.state.winner !== null) return;
     if (this._paused) return;  // freeze all simulation when paused
     this.state.tick++;
@@ -453,6 +479,7 @@ export class GameScene {
       const count = Math.floor(src.particles / 2);
       if (count === 0) return;
       src.particles -= count;
+      audioManager.playLaunch();
 
       for (let i = 0; i < count; i++) {
         const angle  = Math.random() * Math.PI * 2;
@@ -529,6 +556,8 @@ export class GameScene {
   private showResultOverlay(winner: Faction | null): void {
     if (this.resultOverlay) return;
     this.stop();
+    audioManager.stopAmbient();
+    audioManager.playGameOver(winner === 'player');
 
     const overlay = document.createElement('div');
     overlay.className = 'game-result-overlay';
