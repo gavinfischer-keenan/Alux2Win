@@ -25,6 +25,22 @@ export class CombatSystem {
         // The interaction distance is increased by 40 (the aggro radius)
         if (dist > planetRadius + 40) continue;
 
+        // Plasma storm protection: skip all combat if particle is in storm
+        if (particle.inStorm) continue;
+        // If planet is in storm and enemy particle: convert to orbiting instead of attacking
+        if (planet.inStorm && particle.faction !== planet.faction) {
+          // Enemy arrives at storm-protected planet: join orbit peacefully, fight deferred
+          particle.mode = 'orbiting';
+          particle.targetPlanetId = undefined;
+          particle.targetX = undefined;
+          particle.targetY = undefined;
+          particle.orbitAngle = Math.atan2(particle.y - planet.y, particle.x - planet.x);
+          particle.orbitRadius = PLANET_RADIUS[planet.upgradeLevel] * 1.8;
+          particle.homePlanetId = planet.id;
+          planet.particles++;
+          break;
+        }
+
         if (particle.faction === planet.faction) {
           // Skip friendly absorption if particle was just deployed
           if (particle.deployTimer !== undefined && particle.deployTimer > 0) {
@@ -59,6 +75,8 @@ export class CombatSystem {
               orbitAngle,
               orbitRadius,
               alive:        true,
+              stormTimer:   0,
+              inStorm:      false,
             });
           }
 
@@ -175,3 +193,4 @@ export class CombatSystem {
     eventBus.emit('game:over', { winner: state.winner! });
   }
 }
+

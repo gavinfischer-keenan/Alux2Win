@@ -9,10 +9,13 @@ import { randomRange } from '../utils/MathUtils';
 /** Named render layers, composited in draw order (back → front). */
 export interface RenderLayers {
   background:   Container;  // screen-space, full viewport
-  blackHoles:   Container;  // world-space (inside worldContainer)
+  plasmaStorms: Container;  // world-space (hazard, behind planets)
+  blackHoles:   Container;  // world-space
   orbitPaths:   Container;  // world-space
   planets:      Container;  // world-space
   particles:    Container;  // world-space
+  asteroids:    Container;  // world-space (hazard, above particles)
+  gammaRay:     Container;  // world-space (hazard, top of world)
   ui:           Container;  // screen-space (HUD, etc.)
   selectionBox: Container;  // screen-space
 }
@@ -77,15 +80,21 @@ export class Renderer {
     this._worldContainer = new Container();
     this.app.stage.addChild(this._worldContainer);
 
-    // World-space layers (children of worldContainer)
+    // World-space layers (children of worldContainer, in draw order)
+    const plasmaStorms = new Container();
     const blackHoles   = new Container();
     const orbitPaths   = new Container();
     const planets      = new Container();
     const particles    = new Container();
+    const asteroids    = new Container();
+    const gammaRay     = new Container();
+    this._worldContainer.addChild(plasmaStorms);
     this._worldContainer.addChild(blackHoles);
     this._worldContainer.addChild(orbitPaths);
     this._worldContainer.addChild(planets);
     this._worldContainer.addChild(particles);
+    this._worldContainer.addChild(asteroids);
+    this._worldContainer.addChild(gammaRay);
 
     // Screen-space UI layers (on top of everything, not scaled)
     const ui           = new Container();
@@ -95,10 +104,13 @@ export class Renderer {
 
     this.layers = {
       background,
+      plasmaStorms,
       blackHoles,
       orbitPaths,
       planets,
       particles,
+      asteroids,
+      gammaRay,
       ui,
       selectionBox,
     };

@@ -163,6 +163,8 @@ export class LevelSerializer {
         bonusHealth:    PLANET_BONUS_HEALTH[def.upgradeLevel],
         maxBonusHealth: PLANET_BONUS_HEALTH[def.upgradeLevel],
         isOrbiting: def.isOrbiting,
+        inStorm: false,
+        wasInStorm: false,
       };
 
       if (def.isOrbiting) {
@@ -319,3 +321,6 @@ export class LevelSerializer {
 // Re-export the radius lookup so callers can calculate planet visual sizes
 // without importing types directly.
 export { PLANET_RADIUS };
+
+
+

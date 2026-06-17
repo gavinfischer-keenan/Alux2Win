@@ -42,6 +42,7 @@ export class CollisionSystem {
         if (other === p)                 continue;
         if (!other.alive)                continue;
         if (other.faction === p.faction) continue; // same faction
+        if (p.inStorm || other.inStorm)  continue; // storm-protected
 
         // Deduplicate pair
         const lo = p.id < other.id ? p.id : other.id;
@@ -97,8 +98,9 @@ export class CollisionSystem {
             targetX:       p.targetX,
             targetY:       p.targetY,
             orbitAngle:    p.orbitAngle,
-            orbitRadius:   p.orbitRadius,
             alive:         true,
+            stormTimer:    0,
+            inStorm:       false,
           });
         }
       }
@@ -115,3 +117,5 @@ export class CollisionSystem {
     }
   }
 }
+
+

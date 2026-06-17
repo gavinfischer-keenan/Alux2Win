@@ -30,6 +30,7 @@ export class ProductionSystem {
     for (const planet of state.planets.values()) {
       if (planet.faction === 'neutral') continue;
       if (planet.particles >= planet.capacity) continue;
+      if (planet.inStorm) continue; // no production while in plasma storm
 
       let acc = (this.accumulators.get(planet.id) ?? 0) + dt * planet.productionRate;
 
@@ -150,6 +151,8 @@ export class ProductionSystem {
           orbitAngle:    avgAngle,
           orbitRadius,
           alive:         true,
+          stormTimer:    0,
+          inStorm:       false,
         });
       }
     }
@@ -184,6 +187,8 @@ export class ProductionSystem {
       orbitAngle,
       orbitRadius,
       alive:        true,
+      stormTimer:   0,
+      inStorm:      false,
     };
   }
 }

@@ -28,18 +28,21 @@ export interface PlanetData {
   y: number;
   faction: Faction;
   upgradeLevel: UpgradeLevel;
-  particles: number;        // count of orbiting particle objects
-  capacity: number;         // max orbiting particle objects
-  productionRate: number;   // particles/sec
-  absorbedCount: number;    // particles absorbed toward next upgrade
-  bonusHealth: number;      // extra HP from upgrades (depleted before particle count)
-  maxBonusHealth: number;   // maximum bonusHealth for this upgrade level (for arc ratio)
+  particles: number;
+  capacity: number;
+  productionRate: number;
+  absorbedCount: number;
+  bonusHealth: number;
+  maxBonusHealth: number;
   isOrbiting: boolean;
   orbitCenterX?: number;
   orbitCenterY?: number;
   orbitRadius?: number;
-  orbitSpeed?: number;      // radians/sec
-  orbitAngle?: number;      // current angle (radians)
+  orbitSpeed?: number;
+  orbitAngle?: number;
+  // hazard state
+  inStorm: boolean;
+  wasInStorm: boolean;
 }
 
 // ---- Particle Data (runtime) ----
@@ -53,17 +56,20 @@ export interface ParticleData {
   vy: number;
   faction: Faction;
   mode: ParticleMode;
-  strength: ParticleStrength;   // 1 = normal, 5 = composite
-  orbitTimer: number;           // seconds in orbit without orders (auto-absorb clock)
-  damage: number;               // accumulated incoming damage this frame
+  strength: ParticleStrength;
+  orbitTimer: number;
+  damage: number;
   homePlanetId: string;
-  targetPlanetId?: string;      // planet being targeted (chased dynamically)
-  targetX?: number;             // empty-space target X (stationed destination)
-  targetY?: number;             // empty-space target Y (stationed destination)
+  targetPlanetId?: string;
+  targetX?: number;
+  targetY?: number;
   orbitAngle?: number;
   orbitRadius?: number;
-  deployTimer?: number;         // grace period after deployment before interactions
+  deployTimer?: number;
   alive: boolean;
+  // hazard state
+  stormTimer: number;      // seconds spent inside storm (not protected)
+  inStorm: boolean;        // currently inside a plasma storm
 }
 
 // ---- Black Hole Data (runtime) ----
@@ -76,6 +82,60 @@ export interface BlackHoleData {
   pullStrength: number;
 }
 
+// ---- Plasma Storm ----
+export interface PlasmaStormDef {
+  id: string;
+  x: number;
+  y: number;
+  radiusX: number;
+  radiusY: number;
+  vx: number;
+  vy: number;
+}
+
+export interface PlasmaStormData {
+  id: string;
+  x: number;
+  y: number;
+  radiusX: number;
+  radiusY: number;
+  vx: number;
+  vy: number;
+  angle: number;     // slow rotation for visual
+}
+
+// ---- Asteroid ----
+export interface AsteroidData {
+  id: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  hitCount: number;
+  alive: boolean;
+  angle: number;     // visual spin
+}
+
+// ---- Gamma Ray ----
+export interface GammaRayPath {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  width: number;
+  targetedPlanetIds: string[];
+}
+
+export interface GammaRayState {
+  enabled: boolean;
+  timer: number;          // seconds until next fire
+  intervalSeconds: number;
+  path: GammaRayPath | null;
+  firing: boolean;        // beam is actively crossing
+  fireProgress: number;   // 0..1 — beam sweep progress
+}
+
 // ---- Level JSON Schema ----
 export interface LevelData {
   version: 1;
@@ -84,6 +144,9 @@ export interface LevelData {
   worldHeight: number;
   planets: PlanetDef[];
   blackHoles: BlackHoleDef[];
+  plasmaStorms?:  PlasmaStormDef[];
+  asteroidConfig?: { enabled: boolean };
+  gammaRayConfig?: { enabled: boolean; intervalSeconds?: number };
 }
 
 export interface PlanetDef {
@@ -115,11 +178,18 @@ export interface GameState {
   particles: ParticleData[];
   blackHoles: Map<string, BlackHoleData>;
   selectedPlanetIds: Set<string>;
-  selectedParticleIds: Set<number>;   // IDs of stationed particles currently selected
+  selectedParticleIds: Set<number>;
   particleIdCounter: number;
   tick: number;
   running: boolean;
   winner: Faction | null;
+  worldWidth: number;
+  worldHeight: number;
+  // hazard systems (populated from level data; empty arrays/defaults if not present)
+  plasmaStorms: PlasmaStormData[];
+  asteroids: AsteroidData[];
+  asteroidRespawnTimer: number;
+  gammaRay: GammaRayState;
 }
 
 // ---- Upgrade thresholds ----

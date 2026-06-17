@@ -42,6 +42,8 @@ function defaultPlanet(id: string, x: number, y: number): PlanetData {
     bonusHealth:    PLANET_BONUS_HEALTH[1],
     maxBonusHealth: PLANET_BONUS_HEALTH[1],
     isOrbiting: false,
+    inStorm: false,
+    wasInStorm: false,
   };
 }
 
@@ -590,3 +592,7 @@ export class EditorScene {
     };
   }
 }
+
+
+
+

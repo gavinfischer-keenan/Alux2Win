@@ -39,13 +39,16 @@ import { InputManager }    from '../engine/InputManager';
 import { SpatialHash }     from '../engine/SpatialHash';
 
 // ── System imports ───────────────────────────────────────────
-import { OrbitSystem }     from '../systems/OrbitSystem';
-import { ProductionSystem } from '../systems/ProductionSystem';
-import { MovementSystem }  from '../systems/MovementSystem';
-import { GravitySystem }   from '../systems/GravitySystem';
-import { CollisionSystem } from '../systems/CollisionSystem';
-import { CombatSystem }    from '../systems/CombatSystem';
-import { UpgradeSystem }   from '../systems/UpgradeSystem';
+import { OrbitSystem }       from '../systems/OrbitSystem';
+import { ProductionSystem }  from '../systems/ProductionSystem';
+import { MovementSystem }    from '../systems/MovementSystem';
+import { GravitySystem }     from '../systems/GravitySystem';
+import { CollisionSystem }   from '../systems/CollisionSystem';
+import { CombatSystem }      from '../systems/CombatSystem';
+import { UpgradeSystem }     from '../systems/UpgradeSystem';
+import { PlasmaStormSystem } from '../systems/PlasmaStormSystem';
+import { AsteroidSystem }    from '../systems/AsteroidSystem';
+import { GammaRaySystem }    from '../systems/GammaRaySystem';
 
 // ── AI import ────────────────────────────────────────────────
 import { AIController }    from '../ai/AIController';
@@ -54,9 +57,12 @@ import { AIController }    from '../ai/AIController';
 import { TutorialController } from '../tutorial/TutorialController';
 
 // ── Entity imports ────────────────────────────────────────────
-import { Planet }          from '../entities/Planet';
-import { ParticleRenderer } from '../entities/ParticleRenderer';
-import { BlackHoleEntity } from '../entities/BlackHoleEntity';
+import { Planet }              from '../entities/Planet';
+import { ParticleRenderer }    from '../entities/ParticleRenderer';
+import { BlackHoleEntity }     from '../entities/BlackHoleEntity';
+import { PlasmaStormRenderer } from '../entities/PlasmaStormRenderer';
+import { AsteroidRenderer }    from '../entities/AsteroidEntity';
+import { GammaRayRenderer }    from '../entities/GammaRayRenderer';
 
 // ── Vec2 for InputManager ────────────────────────────────────
 import type { Vec2 } from '../types';
@@ -72,23 +78,32 @@ export class GameScene {
   private inputManager!: InputManager;
 
   private systems = {
-    orbit:      new OrbitSystem(),
-    production: new ProductionSystem(),
-    movement:   new MovementSystem(),
-    gravity:    new GravitySystem(),
-    collision:  new CollisionSystem(),
-    combat:     new CombatSystem(),
-    upgrade:    new UpgradeSystem(),
+    orbit:        new OrbitSystem(),
+    production:   new ProductionSystem(),
+    movement:     new MovementSystem(),
+    gravity:      new GravitySystem(),
+    collision:    new CollisionSystem(),
+    combat:       new CombatSystem(),
+    upgrade:      new UpgradeSystem(),
+    plasmaStorm:  new PlasmaStormSystem(),
+    asteroid:     new AsteroidSystem(),
+    gammaRay:     new GammaRaySystem(),
   };
 
   private entities: {
-    planets:    Map<string, Planet>;
-    particles:  ParticleRenderer;
-    blackHoles: Map<string, BlackHoleEntity>;
+    planets:      Map<string, Planet>;
+    particles:    ParticleRenderer;
+    blackHoles:   Map<string, BlackHoleEntity>;
+    plasmaStorms: PlasmaStormRenderer;
+    asteroids:    AsteroidRenderer;
+    gammaRay:     GammaRayRenderer;
   } = {
-    planets:    new Map(),
-    particles:  null as unknown as ParticleRenderer,
-    blackHoles: new Map(),
+    planets:      new Map(),
+    particles:    null as unknown as ParticleRenderer,
+    blackHoles:   new Map(),
+    plasmaStorms: null as unknown as PlasmaStormRenderer,
+    asteroids:    null as unknown as AsteroidRenderer,
+    gammaRay:     null as unknown as GammaRayRenderer,
   };
 
   private container!: HTMLElement;
@@ -153,7 +168,11 @@ export class GameScene {
     });
 
     // Particle renderer (batched)
-    this.entities.particles = new ParticleRenderer(this.renderer.layers.particles);
+    this.entities.particles    = new ParticleRenderer(this.renderer.layers.particles);
+    // Hazard renderers
+    this.entities.plasmaStorms = new PlasmaStormRenderer(this.renderer.layers.plasmaStorms);
+    this.entities.asteroids    = new AsteroidRenderer(this.renderer.layers.asteroids);
+    this.entities.gammaRay     = new GammaRayRenderer(this.renderer.layers.gammaRay);
 
     // HUD overlay
     this.hudContainer = document.createElement('div');
@@ -268,6 +287,9 @@ export class GameScene {
     this.entities.blackHoles.forEach(bh => bh.destroy());
     this.entities.blackHoles.clear();
     this.entities.particles?.destroy();
+    this.entities.plasmaStorms?.destroy();
+    this.entities.asteroids?.destroy();
+    this.entities.gammaRay?.destroy();
   }
 
   // ── Pause / Speed ─────────────────────────────────────────
@@ -313,6 +335,8 @@ export class GameScene {
         orbitRadius: def.orbitRadius,
         orbitSpeed: def.orbitSpeed,
         orbitAngle: def.orbitStartAngle ?? 0,
+        inStorm: false,
+        wasInStorm: false,
       };
       planets.set(def.id, data);
     });
@@ -339,6 +363,22 @@ export class GameScene {
       tick:                0,
       running:             false,
       winner:              null,
+      worldWidth:          levelData.worldWidth,
+      worldHeight:         levelData.worldHeight,
+      plasmaStorms: (levelData.plasmaStorms ?? []).map(def => ({
+        ...def,
+        angle: 0,
+      })),
+      asteroids:            [],
+      asteroidRespawnTimer: (levelData.asteroidConfig?.enabled) ? 0 : 9999,
+      gammaRay: {
+        enabled:         !!(levelData.gammaRayConfig?.enabled),
+        timer:           levelData.gammaRayConfig?.intervalSeconds ?? 120,
+        intervalSeconds: levelData.gammaRayConfig?.intervalSeconds ?? 120,
+        path:            null,
+        firing:          false,
+        fireProgress:    0,
+      },
     };
   }
 
@@ -373,6 +413,13 @@ export class GameScene {
     this.systems.collision.update(this.state, this.spatialHash);
     this.systems.combat.update(this.state, this.eventBus);
     this.systems.upgrade.update(this.state);
+
+    // Hazard systems (only active if level enables them)
+    this.systems.plasmaStorm.update(dt, this.state);
+    if (this.state.asteroids.length > 0 || this.state.asteroidRespawnTimer < 9999)
+      this.systems.asteroid.update(dt, this.state);
+    if (this.state.gammaRay.enabled)
+      this.systems.gammaRay.update(dt, this.state);
 
     // Prune dead particles
     this.state.particles = this.state.particles.filter(p => p.alive);
@@ -409,6 +456,10 @@ export class GameScene {
       if (data) entity.render(data);
     });
     this.entities.particles.render(this.state.particles);
+    // Hazard renderers
+    this.entities.plasmaStorms.render(this.state.plasmaStorms);
+    this.entities.asteroids.render(this.state.asteroids);
+    this.entities.gammaRay.render(this.state.gammaRay);
   }
 
   // ── Input Binding ─────────────────────────────────────────
@@ -663,6 +714,8 @@ export class GameScene {
           targetX:        targetX,
           targetY:        targetY,
           alive:          true,
+          stormTimer:     0,
+          inStorm:        false,
         };
         this.state.particles.push(particle);
       }

@@ -7,6 +7,9 @@ import type { LevelData } from '../types';
 import tutorialMovementData from '../levels/tutorial_movement.json';
 import skirmishData from '../levels/skirmish.json';
 import skirmishData2 from '../levels/skirmish_2.json';
+import plasmaStorm1Data from '../levels/plasma_storm_1.json';
+import asteroids1Data from '../levels/asteroids_1.json';
+import gammaRays1Data from '../levels/gamma_rays_1.json';
 import { SettingsStore } from '../core/SettingsStore';
 import type { GameSettings } from '../core/SettingsStore';
 import { audioManager } from '../core/AudioManager';
@@ -189,9 +192,9 @@ export class MainMenuScene {
     const galaxies = [
       { name: 'Tutorial', image: '/assets/galaxies/tutorial.png', locked: false, levels: [tutorialMovementData as LevelData], isTutorial: true },
       { name: 'Normal', image: '/assets/galaxies/normal.png', locked: false, levels: [skirmishData as LevelData, skirmishData2 as LevelData], isTutorial: false },
-      { name: 'Plasma Storms', image: '/assets/galaxies/plasma.png', locked: true },
-      { name: 'Asteroids', image: '/assets/galaxies/asteroid.png', locked: true },
-      { name: 'Gamma Rays', image: '/assets/galaxies/nebula.png', locked: true },
+      { name: 'Plasma Storms', image: '/assets/galaxies/plasma.png', locked: false, levels: [plasmaStorm1Data as LevelData], isTutorial: false },
+      { name: 'Asteroids', image: '/assets/galaxies/asteroid.png', locked: false, levels: [asteroids1Data as LevelData], isTutorial: false },
+      { name: 'Gamma Rays', image: '/assets/galaxies/nebula.png', locked: false, levels: [gammaRays1Data as LevelData], isTutorial: false },
       { name: 'Ice World', image: '/assets/galaxies/ice.png', locked: true },
       { name: 'Lava Core', image: '/assets/galaxies/lava.png', locked: true },
       { name: 'Void Sector', image: '/assets/galaxies/void.png', locked: true },
