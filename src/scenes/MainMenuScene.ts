@@ -5,6 +5,7 @@
 
 import type { LevelData } from '../types';
 import tutorialMovementData    from '../levels/tutorial_movement.json';
+import tutorialCommanderData   from '../levels/tutorial_commander.json';
 import tutorialNormalData      from '../levels/tutorial_normal.json';
 import tutorialPlasmaData      from '../levels/tutorial_plasma.json';
 import tutorialAsteroidsData   from '../levels/tutorial_asteroids.json';
@@ -228,7 +229,18 @@ export class MainMenuScene {
     });
 
     const galaxies = [
-      { name: 'Tutorial',      image: '/assets/galaxies/tutorial.png',  locked: false, tutorialId: 'basics',     levels: [tutorialMovementData as LevelData], isTutorial: true },
+      { name: 'Tutorial',      image: '/assets/galaxies/tutorial.png',  locked: false, tutorialId: 'commander', levels: [
+          tutorialCommanderData as LevelData,
+          tutorialNormalData as LevelData,
+          tutorialPlasmaData as LevelData,
+          tutorialAsteroidsData as LevelData,
+          tutorialGammaData as LevelData,
+          tutorialSpeedData as LevelData,
+          tutorialPortalsData as LevelData,
+          tutorialBlackholesData as LevelData,
+          tutorialWhiteholesData as LevelData,
+          tutorialMovementData as LevelData,
+        ], isTutorial: true },
       { name: 'Normal',        image: '/assets/galaxies/normal.png',    locked: false, tutorialId: 'normal',     levels: [tutorialNormalData as LevelData, skirmishData as LevelData, skirmishData2 as LevelData, ...(customGroups['Normal'] || [])], isTutorial: false },
       { name: 'Plasma Storms', image: '/assets/galaxies/plasma.png',    locked: false, tutorialId: 'plasma',     levels: [tutorialPlasmaData as LevelData, plasmaStorm1Data as LevelData, ...(customGroups['Plasma Storms'] || [])], isTutorial: false },
       { name: 'Asteroids',     image: '/assets/galaxies/asteroid.png',  locked: false, tutorialId: 'asteroids',  levels: [tutorialAsteroidsData as LevelData, asteroids1Data as LevelData, ...(customGroups['Asteroids'] || [])], isTutorial: false },
@@ -1018,171 +1030,278 @@ export class MainMenuScene {
     return panel;
   }
 
-  // ── Tutorial-specific 3-tile system grid ────────────────────
+  // ── Tutorial galaxy system grid ─────────────────────────────
 
   private buildTutorialSystemTiles(grid: HTMLElement, galaxy: any): void {
-    const systems = [
-      {
-        num: '01',
-        name: 'Movement',
-        icon: '🚀',
-        desc: 'Learn to select planets, send particles, capture neutral worlds, and survive your first counter-attack.',
-        locked: false,
-        levelData: galaxy.levels?.[0] as LevelData | undefined,
-        isTutorial: true,
-      },
-      {
-        num: '02',
-        name: 'Attack',
-        icon: '⚔️',
-        desc: 'Master deploying fleets strategically, overwhelming fortified enemy planets, and managing multiple fronts.',
-        locked: true,
-        levelData: undefined,
-        isTutorial: true,
-      },
-      {
-        num: '03',
-        name: 'Conquest',
-        icon: '👑',
-        desc: 'Combine all skills for total galactic domination — upgrade chains, multi-enemy engagements, and the final push.',
-        locked: true,
-        levelData: undefined,
-        isTutorial: true,
-      },
+    const levels = (galaxy.levels ?? []) as LevelData[];
+
+    // Hazard tutorial definitions (indices 1-9 in the galaxy.levels array)
+    const hazardTutorials = [
+      { tutorialId: 'normal',     icon: '⚔️',  name: 'Strategy',      desc: 'Multi-planet warfare — expand fast, contest the center, press the advantage.',                          levelIndex: 1 },
+      { tutorialId: 'plasma',     icon: '🌀',  name: 'Plasma Storms', desc: 'Storms block attacks. Learn to use them as shields and move around them.',                            levelIndex: 2 },
+      { tutorialId: 'asteroids',  icon: '☄️',  name: 'Asteroids',     desc: 'Rocks rain down and knock planets down 2 levels. Upgrade fast or lose everything.',                   levelIndex: 3 },
+      { tutorialId: 'gamma',      icon: '⚡',  name: 'Gamma Rays',    desc: 'A massive beam sweeps the galaxy. Stay out of its path — or use it to punish the enemy.',             levelIndex: 4 },
+      { tutorialId: 'speed',      icon: '💨',  name: 'Speed Zones',   desc: 'Green zones double particle speed. Red zones slow them. Route your fleets for surprise strikes.',     levelIndex: 5 },
+      { tutorialId: 'portals',    icon: '🌀',  name: 'Portals',       desc: 'Wormhole pairs teleport particles instantly. Use them to flank from unexpected directions.',          levelIndex: 6 },
+      { tutorialId: 'blackholes', icon: '🕳️', name: 'Black Holes',   desc: 'Pull zones trap particles. Route wide and bait enemies into the gravity well.',                       levelIndex: 7 },
+      { tutorialId: 'whiteholes', icon: '✨',  name: 'White Holes',   desc: 'Feed 20 particles to trigger a supernova. Charge near enemies for galaxy-wide devastation.',          levelIndex: 8 },
     ];
 
-    for (const sys of systems) {
+    // ── Featured Commander Training tile (full-width) ──────────
+    const commanderLevel = levels[0] as LevelData | undefined;
+    const featuredTile = document.createElement('div');
+    featuredTile.style.cssText = `
+      grid-column: 1 / -1;
+      background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,165,0,0.04));
+      border: 1px solid rgba(255, 215, 0, 0.35);
+      border-radius: 20px;
+      padding: 32px 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+      position: relative;
+      overflow: hidden;
+    `;
+
+    featuredTile.addEventListener('mouseenter', () => {
+      featuredTile.style.transform = 'translateY(-4px)';
+      featuredTile.style.boxShadow = '0 12px 40px rgba(255,215,0,0.2)';
+      featuredTile.style.borderColor = 'rgba(255, 215, 0, 0.7)';
+    });
+    featuredTile.addEventListener('mouseleave', () => {
+      featuredTile.style.transform = 'translateY(0)';
+      featuredTile.style.boxShadow = 'none';
+      featuredTile.style.borderColor = 'rgba(255, 215, 0, 0.35)';
+    });
+    if (commanderLevel) {
+      featuredTile.addEventListener('click', () => {
+        audioManager.playClick();
+        this.closeSystemsPanel();
+        setTimeout(() => this.onPlay(commanderLevel, true, 'commander'), 320);
+      });
+    }
+
+    const featuredBadge = document.createElement('div');
+    featuredBadge.textContent = '🎓 START HERE';
+    featuredBadge.style.cssText = `
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: rgba(255,215,0,0.7);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+    `;
+
+    const featuredRow = document.createElement('div');
+    featuredRow.style.cssText = 'display: flex; align-items: center; gap: 18px;';
+
+    const featuredIcon = document.createElement('div');
+    featuredIcon.textContent = '🚀';
+    featuredIcon.style.cssText = 'font-size: 3rem; line-height: 1; filter: drop-shadow(0 0 16px rgba(255,215,0,0.5));';
+
+    const featuredText = document.createElement('div');
+    featuredText.style.cssText = 'display: flex; flex-direction: column; gap: 4px;';
+
+    const featuredName = document.createElement('div');
+    featuredName.textContent = 'Commander Training';
+    featuredName.style.cssText = `
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #ffd700;
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 20px rgba(255,215,0,0.4);
+    `;
+
+    const featuredDesc = document.createElement('div');
+    featuredDesc.textContent = 'The complete guide. Learn to select, capture, upgrade, attack, and repair your planets — everything you need to conquer any galaxy.';
+    featuredDesc.style.cssText = `
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.95rem;
+      color: rgba(255,255,255,0.65);
+      line-height: 1.5;
+    `;
+
+    featuredText.appendChild(featuredName);
+    featuredText.appendChild(featuredDesc);
+    featuredRow.appendChild(featuredIcon);
+    featuredRow.appendChild(featuredText);
+
+    const featuredCta = document.createElement('div');
+    featuredCta.textContent = '▶ BEGIN TRAINING';
+    featuredCta.style.cssText = `
+      align-self: flex-start;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: rgba(255,215,0,0.9);
+      letter-spacing: 0.18em;
+      border: 1px solid rgba(255,215,0,0.4);
+      border-radius: 8px;
+      padding: 8px 18px;
+      margin-top: 4px;
+    `;
+
+    // Show best time if available
+    if (commanderLevel?.id) {
+      const top = HighScoreStore.getTop(commanderLevel.id);
+      if (top.length > 0) {
+        const timeLabel = document.createElement('div');
+        timeLabel.textContent = `BEST: ${HighScoreStore.formatTime(top[0].bestTime)}`;
+        timeLabel.style.cssText = `
+          font-family: 'Rajdhani', sans-serif;
+          font-size: 0.85rem;
+          color: rgba(255, 215, 0, 0.9);
+          letter-spacing: 0.1em;
+          margin-top: 2px;
+        `;
+        featuredText.appendChild(timeLabel);
+      }
+    }
+
+    featuredTile.appendChild(featuredBadge);
+    featuredTile.appendChild(featuredRow);
+    featuredTile.appendChild(featuredCta);
+    grid.appendChild(featuredTile);
+
+    // ── Divider ──────────────────────────────────────────────
+    const divider = document.createElement('div');
+    divider.style.cssText = `
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 4px 0;
+    `;
+    const divLine1 = document.createElement('div');
+    divLine1.style.cssText = 'flex: 1; height: 1px; background: rgba(255,255,255,0.08);';
+    const divLabel = document.createElement('div');
+    divLabel.textContent = 'HAZARD TUTORIALS';
+    divLabel.style.cssText = `
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.25);
+      letter-spacing: 0.3em;
+      white-space: nowrap;
+    `;
+    const divLine2 = document.createElement('div');
+    divLine2.style.cssText = 'flex: 1; height: 1px; background: rgba(255,255,255,0.08);';
+    divider.appendChild(divLine1);
+    divider.appendChild(divLabel);
+    divider.appendChild(divLine2);
+    grid.appendChild(divider);
+
+    // ── Hazard tutorial tiles ────────────────────────────────
+    for (const h of hazardTutorials) {
+      const level = levels[h.levelIndex] as LevelData | undefined;
       const tile = document.createElement('div');
       tile.style.cssText = `
-        background: ${sys.locked ? 'rgba(255,255,255,0.03)' : 'rgba(79,195,247,0.05)'};
-        border: 1px solid ${sys.locked ? 'rgba(255,255,255,0.08)' : 'rgba(79,195,247,0.2)'};
-        border-radius: 16px;
-        padding: 28px 24px 24px;
+        background: rgba(79,195,247,0.04);
+        border: 1px solid rgba(79,195,247,0.15);
+        border-radius: 14px;
+        padding: 22px 20px 18px;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 10px;
-        min-height: 200px;
-        cursor: ${sys.locked ? 'not-allowed' : 'pointer'};
+        gap: 8px;
+        min-height: 180px;
+        cursor: ${level ? 'pointer' : 'not-allowed'};
         transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
-        opacity: ${sys.locked ? '0.5' : '1'};
+        opacity: ${level ? '1' : '0.4'};
         position: relative;
-        overflow: hidden;
         text-align: center;
       `;
 
-      if (!sys.locked) {
+      if (level) {
         tile.addEventListener('mouseenter', () => {
-          tile.style.transform = 'translateY(-6px)';
-          tile.style.boxShadow = '0 10px 28px rgba(79, 195, 247, 0.25)';
-          tile.style.borderColor = 'rgba(79, 195, 247, 0.6)';
+          tile.style.transform = 'translateY(-5px)';
+          tile.style.boxShadow = '0 8px 28px rgba(79,195,247,0.2)';
+          tile.style.borderColor = 'rgba(79,195,247,0.5)';
         });
         tile.addEventListener('mouseleave', () => {
           tile.style.transform = 'translateY(0)';
           tile.style.boxShadow = 'none';
-          tile.style.borderColor = 'rgba(79,195,247,0.2)';
+          tile.style.borderColor = 'rgba(79,195,247,0.15)';
         });
         tile.addEventListener('click', () => {
           audioManager.playClick();
-          if (sys.levelData) {
-            this.closeSystemsPanel();
-            setTimeout(() => this.onPlay(sys.levelData!, sys.isTutorial), 320);
-          }
+          this.closeSystemsPanel();
+          setTimeout(() => this.onPlay(level, true, h.tutorialId), 320);
         });
       }
 
-      // System number badge
-      const numBadge = document.createElement('div');
-      numBadge.textContent = `SYSTEM ${sys.num}`;
-      numBadge.style.cssText = `
+      const badge = document.createElement('div');
+      badge.textContent = '🎓 TUTORIAL';
+      badge.style.cssText = `
         font-family: 'Rajdhani', sans-serif;
-        font-size: 0.7rem;
+        font-size: 0.62rem;
         font-weight: 700;
-        color: ${sys.locked ? 'rgba(255,255,255,0.3)' : 'rgba(79,195,247,0.6)'};
+        color: rgba(79,195,247,0.5);
         letter-spacing: 0.25em;
-        text-transform: uppercase;
       `;
-      tile.appendChild(numBadge);
 
-      // Icon
       const iconEl = document.createElement('div');
-      iconEl.textContent = sys.icon;
-      iconEl.style.cssText = `
-        font-size: 2.4rem;
-        line-height: 1;
-        filter: ${sys.locked ? 'grayscale(1)' : 'none'};
-      `;
-      tile.appendChild(iconEl);
+      iconEl.textContent = h.icon;
+      iconEl.style.cssText = 'font-size: 2rem; line-height: 1; margin-top: 2px;';
 
-      // Name
       const nameEl = document.createElement('div');
-      nameEl.textContent = sys.name;
+      nameEl.textContent = h.name;
       nameEl.style.cssText = `
         font-family: 'Orbitron', sans-serif;
-        font-size: 1.2rem;
-        font-weight: 900;
-        color: ${sys.locked ? 'rgba(255,255,255,0.4)' : '#4fc3f7'};
-        letter-spacing: 0.1em;
-        text-shadow: ${sys.locked ? 'none' : '0 0 12px rgba(79,195,247,0.4)'};
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: #4fc3f7;
+        letter-spacing: 0.08em;
+        text-shadow: 0 0 10px rgba(79,195,247,0.3);
       `;
-      tile.appendChild(nameEl);
 
-      // Description
       const descEl = document.createElement('div');
-      descEl.textContent = sys.desc;
+      descEl.textContent = h.desc;
       descEl.style.cssText = `
         font-family: 'Rajdhani', sans-serif;
-        font-size: 0.82rem;
-        color: ${sys.locked ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.55)'};
-        line-height: 1.45;
-        letter-spacing: 0.02em;
+        font-size: 0.78rem;
+        color: rgba(255,255,255,0.5);
+        line-height: 1.4;
       `;
+
+      tile.appendChild(badge);
+      tile.appendChild(iconEl);
+      tile.appendChild(nameEl);
       tile.appendChild(descEl);
 
-      // Best Time
-      if (!sys.locked && sys.levelData) {
-        const top = HighScoreStore.getTop(sys.levelData.id!);
+      if (level?.id) {
+        const top = HighScoreStore.getTop(level.id);
         if (top.length > 0) {
           const timeLabel = document.createElement('div');
           timeLabel.textContent = `BEST: ${HighScoreStore.formatTime(top[0].bestTime)}`;
           timeLabel.style.cssText = `
             font-family: 'Rajdhani', sans-serif;
-            font-size: 0.85rem;
-            color: rgba(255, 215, 0, 0.9);
-            margin-top: 10px;
+            font-size: 0.8rem;
+            color: rgba(255,215,0,0.9);
+            margin-top: 6px;
             letter-spacing: 0.1em;
           `;
           tile.appendChild(timeLabel);
         }
       }
 
-      if (!sys.locked) {
-        const playTag = document.createElement('div');
-        playTag.textContent = '▶ START';
-        playTag.style.cssText = `
-          margin-top: auto;
-          font-family: 'Orbitron', sans-serif;
-          font-size: 0.72rem;
-          font-weight: 700;
-          color: rgba(79,195,247,0.7);
-          letter-spacing: 0.18em;
-          border: 1px solid rgba(79,195,247,0.25);
-          border-radius: 6px;
-          padding: 5px 14px;
-        `;
-        tile.appendChild(playTag);
-      } else {
-        const soonTag = document.createElement('div');
-        soonTag.textContent = 'Coming Soon';
-        soonTag.style.cssText = `
-          margin-top: auto;
-          font-family: 'Rajdhani', sans-serif;
-          font-size: 0.8rem;
-          color: rgba(255,200,100,0.7);
-          letter-spacing: 0.15em;
-        `;
-        tile.appendChild(soonTag);
-      }
+      const startTag = document.createElement('div');
+      startTag.textContent = level ? '▶ START' : 'Coming Soon';
+      startTag.style.cssText = `
+        margin-top: auto;
+        font-family: 'Orbitron', sans-serif;
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: ${level ? 'rgba(79,195,247,0.7)' : 'rgba(255,200,100,0.5)'};
+        letter-spacing: 0.15em;
+        border: 1px solid ${level ? 'rgba(79,195,247,0.2)' : 'rgba(255,200,100,0.15)'};
+        border-radius: 5px;
+        padding: 4px 12px;
+      `;
+      tile.appendChild(startTag);
 
       grid.appendChild(tile);
     }

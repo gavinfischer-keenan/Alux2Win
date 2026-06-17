@@ -41,8 +41,131 @@ interface EnemyAction {
 
 const TUTORIAL_SCRIPTS: Record<string, TutorialStep[]> = {
 
+  // ── COMMANDER TRAINING (Tutorial galaxy, combined tutorial) ─
+  commander: [
+    {
+      id: 'welcome',
+      icon: '🌌',
+      heading: 'Welcome, Commander!',
+      body: 'This is your home planet — it produces energy particles that orbit it continuously. More particles means more firepower. Let\'s learn everything you need to conquer this galaxy.',
+      pointAtPlanet: 'p_home',
+      autoDismiss: false,
+      isDone: (_s, elapsed) => elapsed > 8,
+    },
+    {
+      id: 'select',
+      icon: '🖱️',
+      heading: 'Step 1 — Select',
+      body: 'Left-click your home planet to select it. You\'ll see a bright ring appear around it. You can also drag across multiple planets to select them all at once.',
+      pointAtPlanet: 'p_home',
+      autoDismiss: true,
+      isDone: (state) => state.selectedPlanetIds.has('p_home'),
+    },
+    {
+      id: 'capture',
+      icon: '🎯',
+      heading: 'Step 2 — Capture',
+      body: 'With your planet selected, right-click the grey planet above to send particles to capture it. Grey planets are neutral — they belong to nobody yet!',
+      pointAtPlanet: 'p_near',
+      autoDismiss: true,
+      isDone: (state) => {
+        const pNear = state.planets.get('p_near');
+        if (pNear && pNear.faction === 'player') return true;
+        return state.particles.some(p => p.alive && p.faction === 'player' && p.targetPlanetId === 'p_near');
+      },
+    },
+    {
+      id: 'captured',
+      icon: '✅',
+      heading: 'Captured!',
+      body: 'That planet is now yours and producing particles for you. More planets = faster growth. Now capture the neutral planet below too — build your empire!',
+      pointAtPlanet: 'p_upgrade',
+      autoDismiss: false,
+      isDone: (state, elapsed) => {
+        const pNear = state.planets.get('p_near');
+        return (pNear?.faction === 'player') && elapsed > 8;
+      },
+    },
+    {
+      id: 'upgrade_hint',
+      icon: '⬆️',
+      heading: 'Step 3 — Upgrade',
+      body: 'Send particles from your home planet BACK to one of your captured planets. Each particle absorbed upgrades it. Watch the cyan arc on the RIGHT side of the planet fill up — that\'s your upgrade progress!',
+      pointAtPlanet: 'p_upgrade',
+      autoDismiss: true,
+      isDone: (state) => {
+        for (const planet of state.planets.values()) {
+          if (planet.faction === 'player' && planet.id !== 'p_home' && planet.upgradeLevel >= 2) return true;
+        }
+        return false;
+      },
+    },
+    {
+      id: 'upgraded',
+      icon: '🌟',
+      heading: 'Planet Upgraded!',
+      body: 'See how it grew? Level 2 planets produce particles twice as fast. Level 3 is even more powerful. Upgraded planets are also tougher to destroy — keep upgrading!',
+      autoDismiss: false,
+      isDone: (_s, elapsed) => elapsed > 8,
+    },
+    {
+      id: 'attack_prompt',
+      icon: '⚔️',
+      heading: 'Step 4 — Attack!',
+      body: 'Time to go on offense. Select your strongest planet and right-click the enemy\'s red planet. Your particles will fly there and fight theirs. Overwhelm them with numbers!',
+      pointAtPlanet: 'p_enemy',
+      autoDismiss: true,
+      isDone: (state) => {
+        return state.particles.some(p => p.alive && p.faction === 'player' && p.targetPlanetId === 'p_enemy');
+      },
+    },
+    {
+      id: 'combat',
+      icon: '💥',
+      heading: 'Combat!',
+      body: 'Your particles clash with enemy particles in space — they cancel each other out. Whoever sends MORE particles wins the battle. Use your upgraded planets to out-produce and overwhelm!',
+      pointAtPlanet: 'p_enemy',
+      autoDismiss: true,
+      isDone: (state) => {
+        // Enemy attacked — advance when player planet takes damage OR enemy sends particles
+        const enemyParticles = state.particles.filter(p => p.alive && p.faction === 'enemy_a');
+        const playerPlanets  = [...state.planets.values()].filter(p => p.faction === 'player');
+        return playerPlanets.some(p => p.bonusHealth < p.maxBonusHealth) || enemyParticles.length > 5;
+      },
+    },
+    {
+      id: 'repair_hint',
+      icon: '🛡️',
+      heading: 'Step 5 — Repair!',
+      body: 'If a planet takes damage, send YOUR particles to it. The RED arc on the LEFT side shows damage. Incoming particles heal damage FIRST, then contribute to upgrades. Keep your planets healthy!',
+      autoDismiss: false,
+      isDone: (_s, elapsed) => elapsed > 12,
+    },
+    {
+      id: 'counter_attack',
+      icon: '🚀',
+      heading: 'Press the Advantage!',
+      body: 'You\'ve got the basics! Now push forward — capture the central neutral planet, upgrade everything to level 3, and eliminate the enemy base. The galaxy is yours to take!',
+      pointAtPlanet: 'p_enemy',
+      autoDismiss: true,
+      isDone: (state) => {
+        const enemyPlanets = [...state.planets.values()].filter(p => p.faction === 'enemy_a');
+        return enemyPlanets.length === 0;
+      },
+    },
+    {
+      id: 'complete',
+      icon: '🏆',
+      heading: 'Commander Training Complete!',
+      body: 'You\'ve mastered the full toolkit: selecting, capturing, upgrading, attacking, and repairing. You\'re ready for any galaxy!',
+      autoDismiss: false,
+      isDone: () => false,
+    },
+  ],
+
   // ── BASICS (Tutorial galaxy) ────────────────────────────────
   basics: [
+
     {
       id: 'welcome',
       icon: '🌌',
@@ -554,6 +677,14 @@ const TUTORIAL_SCRIPTS: Record<string, TutorialStep[]> = {
 
 function makeEnemyScript(tutorialId: string): EnemyAction[] {
   const scripts: Record<string, EnemyAction[]> = {
+    commander: [
+      // At 35s: enemy attacks the mid neutral to demonstrate threat
+      { triggerTime: 35, from: ['p_enemy'], to: 'p_mid',     done: false },
+      // At 55s: direct attack on a player planet (demo repair)
+      { triggerTime: 55, from: ['p_enemy'], to: 'p_near',    done: false },
+      // At 80s: final big push
+      { triggerTime: 80, from: ['p_enemy'], to: 'p_home',    done: false },
+    ],
     basics: [
       { triggerTime: 30, from: ['p_enemy'], to: 'p_mid',     done: false },
       { triggerTime: 50, from: ['p_enemy'], to: 'p_near',    done: false },
@@ -602,6 +733,7 @@ function makeEnemyScript(tutorialId: string): EnemyAction[] {
 // ---------------------------------------------------------------------------
 
 const COMPLETION_BLURBS: Record<string, string> = {
+  commander:  'Select, capture, upgrade, attack, repair. You know it all now, Commander.',
   basics:     'You\'ve mastered the fundamentals of galactic warfare.',
   normal:     'Pure strategy — no excuses, just skill. You\'ve got it.',
   plasma:     'Storms are now your allies, not just obstacles.',

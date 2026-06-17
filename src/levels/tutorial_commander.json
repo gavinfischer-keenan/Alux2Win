@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "name": "Tutorial - Commander Training",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "planets": [
+    { "id": "p_home",     "x": 350,  "y": 1024, "faction": "player",  "upgradeLevel": 2, "startingParticles": 25, "isOrbiting": false },
+    { "id": "p_near",     "x": 700,  "y": 820,  "faction": "neutral", "upgradeLevel": 1, "startingParticles": 2,  "isOrbiting": false },
+    { "id": "p_upgrade",  "x": 700,  "y": 1230, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 2,  "isOrbiting": false },
+    { "id": "p_mid",      "x": 1100, "y": 1024, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 5,  "isOrbiting": false },
+    { "id": "p_outpost",  "x": 1450, "y": 700,  "faction": "neutral", "upgradeLevel": 1, "startingParticles": 4,  "isOrbiting": false },
+    { "id": "p_enemy",    "x": 1700, "y": 1024, "faction": "enemy_a", "upgradeLevel": 2, "startingParticles": 18, "isOrbiting": false }
+  ],
+  "blackHoles": []
+}
