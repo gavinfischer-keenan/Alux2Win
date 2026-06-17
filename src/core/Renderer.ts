@@ -143,6 +143,19 @@ export class Renderer {
     };
   }
 
+  /**
+   * Convert world coordinates → viewport-relative screen coordinates.
+   * The inverse of screenToWorld — used to position HTML overlays over game entities.
+   */
+  worldToScreen(worldX: number, worldY: number): { x: number; y: number } {
+    const wc = this._worldContainer;
+    const s  = wc.scale.x || 1;
+    return {
+      x: worldX * s + wc.x,
+      y: worldY * s + wc.y,
+    };
+  }
+
   destroy(): void {
     this.app.destroy(true, { children: true, texture: true });
   }

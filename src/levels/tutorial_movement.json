@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "name": "Tutorial — Movement",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "planets": [
+    {
+      "id": "p_home",
+      "x": 480,
+      "y": 1024,
+      "faction": "player",
+      "upgradeLevel": 2,
+      "startingParticles": 20,
+      "isOrbiting": false
+    },
+    {
+      "id": "p_near",
+      "x": 820,
+      "y": 920,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 2,
+      "isOrbiting": false
+    },
+    {
+      "id": "p_mid",
+      "x": 1024,
+      "y": 1200,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 4,
+      "isOrbiting": false
+    },
+    {
+      "id": "p_upgrade",
+      "x": 820,
+      "y": 1150,
+      "faction": "neutral",
+      "upgradeLevel": 2,
+      "startingParticles": 3,
+      "isOrbiting": false
+    },
+    {
+      "id": "p_enemy",
+      "x": 1580,
+      "y": 1024,
+      "faction": "enemy_a",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    }
+  ],
+  "blackHoles": []
+}

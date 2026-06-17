@@ -227,7 +227,10 @@ export class MainMenuScene {
           tile.style.boxShadow = 'none';
           tile.style.borderColor = 'rgba(255, 255, 255, 0.1)';
         });
-        tile.addEventListener('click', () => this.openSystemsPanel(g));
+        tile.addEventListener('click', () => {
+          audioManager.playClick();
+          this.openSystemsPanel(g);
+        });
       }
 
       // Thumbnail Image
@@ -406,7 +409,10 @@ export class MainMenuScene {
       backBtn.style.borderColor = 'rgba(149,117,205,0.35)';
       backBtn.style.color = 'rgba(149,117,205,0.8)';
     });
-    backBtn.addEventListener('click', () => this.closeSettings());
+    backBtn.addEventListener('click', () => {
+      audioManager.playClick();
+      this.closeSettings();
+    });
 
     const panelTitle = document.createElement('div');
     panelTitle.textContent = 'SETTINGS';
@@ -478,6 +484,7 @@ export class MainMenuScene {
         letter-spacing: 0.04em;
       `;
       btn.addEventListener('click', () => {
+        audioManager.playClick();
         currentSpeed = value;
         SettingsStore.update({ gameSpeed: value as GameSettings['gameSpeed'] });
         applySpeedStyles(value);
@@ -686,6 +693,7 @@ export class MainMenuScene {
         btn.appendChild(badge);
       } else {
         btn.addEventListener('click', () => {
+          audioManager.playClick();
           currentTheme = value;
           SettingsStore.update({ colorTheme: value });
           applyThemeStyles(value);
@@ -755,7 +763,10 @@ export class MainMenuScene {
       btn.style.borderColor = `${color}55`;
       btn.style.boxShadow = 'none';
     });
-    btn.addEventListener('click', onClick);
+    btn.addEventListener('click', () => {
+      audioManager.playClick();
+      onClick();
+    });
     return btn;
   }
 

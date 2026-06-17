@@ -28,6 +28,8 @@ import type { GameSpeed } from '../ui/PauseMenu';
 import { CameraController } from '../core/CameraController';
 import { audioManager }     from '../core/AudioManager';
 import { SettingsStore }    from '../core/SettingsStore';
+import { HighScoreStore }   from '../core/HighScoreStore';
+import type { GameStats }   from '../core/HighScoreStore';
 
 // ── Engine imports ───────────────────────────────────────────
 import { Renderer }        from '../engine/Renderer';
@@ -47,6 +49,9 @@ import { UpgradeSystem }   from '../systems/UpgradeSystem';
 
 // ── AI import ────────────────────────────────────────────────
 import { AIController }    from '../ai/AIController';
+
+// ── Tutorial import ──────────────────────────────────────
+import { TutorialController } from '../tutorial/TutorialController';
 
 // ── Entity imports ────────────────────────────────────────────
 import { Planet }          from '../entities/Planet';
@@ -93,6 +98,10 @@ export class GameScene {
   private pauseMenu: PauseMenu | null = null;
   private cameraController: CameraController | null = null;
 
+  // Tutorial mode
+  private _isTutorial = false;
+  private tutorialController: TutorialController | null = null;
+
   // Pause / speed state
   private _paused   = false;
   private _timeScale: GameSpeed = 1;
@@ -104,6 +113,12 @@ export class GameScene {
   private _dragStartX = 0;
   private _dragStartY = 0;
 
+  // Stats tracking
+  private _levelId      = 'unknown';
+  private _elapsedTime  = 0;
+  private _peakParticles = 0;
+  private _peakPlanets   = 0;
+
   onGameOver: (winner: Faction | null) => void = () => {};
 
   constructor(renderer: Renderer, eventBus: EventBus) {
@@ -113,9 +128,14 @@ export class GameScene {
 
   // ── Public API ────────────────────────────────────────────
 
-  async loadLevel(levelData: LevelData, uiContainer: HTMLElement): Promise<void> {
+  async loadLevel(levelData: LevelData, uiContainer: HTMLElement, isTutorial = false): Promise<void> {
+    this._isTutorial = isTutorial;
     this.container = uiContainer;
     this.state = this.initGameState(levelData);
+    this._levelId = (levelData as any).id ?? 'level_unknown';
+    this._elapsedTime   = 0;
+    this._peakParticles = 0;
+    this._peakPlanets   = 0;
 
     // Inform renderer of world dimensions
     this.renderer.setWorldSize(levelData.worldWidth, levelData.worldHeight);
@@ -157,8 +177,16 @@ export class GameScene {
         aiFactions.add(p.faction);
       }
     });
-    this.aiController = new AIController(Array.from(aiFactions), SettingsStore.get().difficulty);
-    this.spatialHash  = new SpatialHash(64);
+    // In tutorial mode, the TutorialController handles enemy faction directly
+    // — spin up a no-op AIController with an empty faction list.
+    this.aiController = new AIController(
+      isTutorial ? [] : Array.from(aiFactions),
+      SettingsStore.get().difficulty
+    );
+    this.spatialHash = new SpatialHash(64);
+
+    // Create tutorial controller if needed (after hudContainer is set up below)
+    // We do this after the HUD is attached so we can layer on top of it.
 
     // Input — attach to the container (canvas has pointer-events:none so events pass through to it)
     this.inputManager = new InputManager(this.container);
@@ -195,6 +223,14 @@ export class GameScene {
     this.eventBus.on('planet:captured', (payload: { planetId: string; newFaction: string }) => {
       audioManager.playCapture(payload.newFaction);
     });
+
+    // Attach tutorial controller (must be after hudContainer is available)
+    if (isTutorial) {
+      this.tutorialController = new TutorialController(
+        this.hudContainer,
+        (planetId) => this.getPlanetScreenPosById(planetId),
+      );
+    }
   }
 
   start(): void {
@@ -215,6 +251,8 @@ export class GameScene {
     this.gameLoop?.stop();
     this.inputManager?.destroy();
     if (this._keyHandler) document.removeEventListener('keydown', this._keyHandler);
+    this.tutorialController?.destroy();
+    this.tutorialController = null;
     this.hud?.destroy();
     this.hudContainer?.remove();
     this.dragBox?.remove();
@@ -314,6 +352,13 @@ export class GameScene {
     const dt_ = dt * this._timeScale;  // apply speed multiplier
     dt = dt_;
 
+    // Track elapsed time and peak stats
+    this._elapsedTime += dt;
+    const playerParticles = this.state.particles.filter(p => p.alive && p.faction === 'player').length;
+    const playerPlanets   = [...this.state.planets.values()].filter(p => p.faction === 'player').length;
+    if (playerParticles > this._peakParticles) this._peakParticles = playerParticles;
+    if (playerPlanets   > this._peakPlanets)   this._peakPlanets   = playerPlanets;
+
     // Rebuild spatial hash
     this.spatialHash.clear();
     this.state.particles.forEach(p => {
@@ -336,6 +381,13 @@ export class GameScene {
     this.aiController.update(dt, this.state, (fromIds, targetPlanetId) => {
       this._deployParticles(fromIds, targetPlanetId, undefined, undefined);
     });
+
+    // Tutorial controller (scripted enemy + overlay steps)
+    if (this._isTutorial && this.tutorialController) {
+      this.tutorialController.update(dt, this.state, (fromIds, targetPlanetId) => {
+        this._deployParticles(fromIds, targetPlanetId, undefined, undefined);
+      });
+    }
 
     // Win condition check
     this.checkWinCondition();
@@ -624,6 +676,13 @@ export class GameScene {
     return this.getPlanetAtWorldPoint(world.x, world.y);
   }
 
+  /** Returns the screen-space centre of a planet by id (used by TutorialController for arrows). */
+  private getPlanetScreenPosById(planetId: string): { x: number; y: number } | null {
+    const planet = this.state?.planets.get(planetId);
+    if (!planet) return null;
+    return this.renderer.worldToScreen(planet.x, planet.y);
+  }
+
   private getPlanetAtWorldPoint(wx: number, wy: number): string | null {
     let best: string | null = null;
     let bestDist = Infinity;
@@ -666,38 +725,133 @@ export class GameScene {
     audioManager.stopAmbient();
     audioManager.playGameOver(winner === 'player');
 
+    const isVictory = winner === 'player';
+    const colorHex  = isVictory ? '#4fc3f7' : winner ? '#ef5350' : '#78909c';
+
+    // Gather final stats
+    const finalParticles = this.state.particles.filter(p => p.alive && p.faction === 'player').length;
+    const finalPlanets   = [...this.state.planets.values()].filter(p => p.faction === 'player').length;
+    const stats: GameStats = {
+      elapsedTime:   this._elapsedTime,
+      peakParticles: this._peakParticles,
+      peakPlanets:   this._peakPlanets,
+      finalParticles,
+      finalPlanets,
+    };
+
+    // Save high score on victory
+    let isNewRecord = false;
+    let prevBest: number | null = null;
+    if (isVictory) {
+      const prev = HighScoreStore.getBest(this._levelId);
+      prevBest   = prev?.bestTime ?? null;
+      isNewRecord = HighScoreStore.submit(this._levelId, this._elapsedTime);
+    }
+
     const overlay = document.createElement('div');
     overlay.className = 'game-result-overlay';
+    overlay.style.cssText = `
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.78);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+      animation: fadeIn 0.4s ease;
+    `;
 
-    const isVictory = winner === 'player';
-    const colorHex  = winner ? FACTION_COLORS_HEX[winner] : '#78909c';
-
+    // Title
     const title = document.createElement('div');
     title.style.cssText = `
       font-family: 'Orbitron', sans-serif;
-      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-size: clamp(2rem, 5vw, 3.4rem);
       font-weight: 900;
       color: ${colorHex};
-      text-shadow: 0 0 30px ${colorHex}88;
-      letter-spacing: 0.12em;
-      margin-bottom: 12px;
+      text-shadow: 0 0 40px ${colorHex}88;
+      letter-spacing: 0.15em;
+      margin-bottom: 8px;
+      animation: pulse-glow 2s ease-in-out infinite;
     `;
-    title.textContent = isVictory ? 'VICTORY' : winner ? 'DEFEATED' : 'DRAW';
+    title.textContent = isVictory ? '⚡ VICTORY' : winner ? '☠ YOU DIED' : '💀 ANNIHILATED';
 
+    // Subtitle
     const sub = document.createElement('div');
     sub.style.cssText = `
       font-family: 'Rajdhani', sans-serif;
-      font-size: 1.1rem;
-      color: rgba(255,255,255,0.45);
-      letter-spacing: 0.15em;
-      margin-bottom: 36px;
+      font-size: 1rem;
+      color: rgba(255,255,255,0.4);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 32px;
     `;
     sub.textContent = isVictory
-      ? 'The galaxy is yours.'
+      ? 'The galaxy bows before you.'
       : winner
-      ? `${winner.replace('_', ' ').toUpperCase()} has conquered all.`
+      ? `${winner.replace(/_/g, ' ').toUpperCase()} has crushed you into dust.`
       : 'All forces have been annihilated.';
 
+    // Stats card
+    const statsCard = document.createElement('div');
+    statsCard.style.cssText = `
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px 40px;
+      margin-bottom: 28px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px 40px;
+      min-width: 380px;
+    `;
+
+    const addStat = (label: string, value: string, highlight = false) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex; flex-direction:column; align-items:center;';
+      const lbl = document.createElement('div');
+      lbl.textContent = label;
+      lbl.style.cssText = `
+        font-family: 'Rajdhani', sans-serif;
+        font-size: 0.7rem;
+        color: rgba(255,255,255,0.35);
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+      `;
+      const val = document.createElement('div');
+      val.textContent = value;
+      val.style.cssText = `
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: ${highlight ? colorHex : 'rgba(255,255,255,0.85)'};
+        text-shadow: ${highlight ? `0 0 12px ${colorHex}88` : 'none'};
+      `;
+      row.appendChild(lbl);
+      row.appendChild(val);
+      statsCard.appendChild(row);
+    };
+
+    addStat('TIME', HighScoreStore.formatTime(stats.elapsedTime), isVictory);
+    addStat('PEAK UNITS', stats.peakParticles.toString());
+    addStat('PEAK PLANETS', stats.peakPlanets.toString());
+    addStat('FINAL UNITS', stats.finalParticles.toString());
+
+    // High score block (victory only)
+    if (isVictory) {
+      const hsRow = document.createElement('div');
+      hsRow.style.cssText = 'grid-column: 1 / -1; text-align:center; padding-top:8px; border-top:1px solid rgba(255,255,255,0.08); margin-top:4px;';
+      if (isNewRecord) {
+        hsRow.innerHTML = `<span style="font-family:'Orbitron',sans-serif;font-size:0.85rem;color:#ffd54f;letter-spacing:0.1em;">🏆 NEW BEST TIME!</span>`;
+      } else if (prevBest !== null) {
+        hsRow.innerHTML = `<span style="font-family:'Rajdhani',sans-serif;font-size:0.8rem;color:rgba(255,255,255,0.35);letter-spacing:0.1em;">BEST: ${HighScoreStore.formatTime(prevBest)}</span>`;
+      }
+      statsCard.appendChild(hsRow);
+    }
+
+    // Buttons
     const btnRow = document.createElement('div');
     btnRow.style.cssText = 'display:flex; gap:16px;';
 
@@ -707,6 +861,7 @@ export class GameScene {
     retryBtn.style.padding = '12px 28px';
     retryBtn.style.fontSize = '13px';
     retryBtn.addEventListener('click', () => {
+      audioManager.playClick();
       this.resultOverlay?.remove();
       this.resultOverlay = null;
       this.onGameOver(winner);
@@ -730,6 +885,7 @@ export class GameScene {
     menuBtn.addEventListener('mouseenter', () => { menuBtn.style.background = 'rgba(255,255,255,0.14)'; });
     menuBtn.addEventListener('mouseleave', () => { menuBtn.style.background = 'rgba(255,255,255,0.08)'; });
     menuBtn.addEventListener('click', () => {
+      audioManager.playClick();
       this.resultOverlay?.remove();
       this.resultOverlay = null;
       this.onGameOver(null);
@@ -739,6 +895,7 @@ export class GameScene {
     btnRow.appendChild(menuBtn);
     overlay.appendChild(title);
     overlay.appendChild(sub);
+    overlay.appendChild(statsCard);
     overlay.appendChild(btnRow);
     this.container.appendChild(overlay);
     this.resultOverlay = overlay;

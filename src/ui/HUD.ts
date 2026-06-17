@@ -5,6 +5,7 @@
 
 import type { GameState, Faction } from '../types';
 import { FACTION_COLORS_HEX } from '../types';
+import { audioManager } from '../core/AudioManager';
 
 interface FactionDisplay {
   faction: Faction;
@@ -201,7 +202,10 @@ export class HUD {
       transition: background 0.15s, border-color 0.15s, color 0.15s;
       user-select: none;
     `;
-    pauseBtn.addEventListener('click', onPauseClick);
+    pauseBtn.addEventListener('click', () => {
+      audioManager.playClick();
+      onPauseClick();
+    });
     pauseBtn.addEventListener('mouseenter', () => {
       pauseBtn.style.background   = 'rgba(79,195,247,0.15)';
       pauseBtn.style.borderColor  = 'rgba(79,195,247,0.4)';

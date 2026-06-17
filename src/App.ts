@@ -24,6 +24,7 @@ export class App {
 
   /** Active level — kept so test-level retry works after editor changes. */
   private activeLevel: LevelData | null = null;
+  private activeIsTutorial = false;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -63,8 +64,8 @@ export class App {
     this.currentScene = 'menu';
     this.menuScene    = new MainMenuScene(this.container);
 
-    this.menuScene.onPlay = (levelData: LevelData) => {
-      this.startGame(levelData);
+    this.menuScene.onPlay = (levelData: LevelData, isTutorial = false) => {
+      this.startGame(levelData, isTutorial);
     };
     this.menuScene.onOpenEditor = () => {
       this.openEditor();
@@ -80,8 +81,9 @@ export class App {
 
   // ── Scene: Game ───────────────────────────────────────────
 
-  private startGame(levelData: LevelData): void {
+  private startGame(levelData: LevelData, isTutorial = false): void {
     this.activeLevel = levelData;
+    this.activeIsTutorial = isTutorial;
     this.destroyMenu();
     this.destroyEditor();
 
@@ -93,7 +95,7 @@ export class App {
       this.showMenu();
     };
 
-    this.gameScene.loadLevel(levelData, this.container)
+    this.gameScene.loadLevel(levelData, this.container, isTutorial)
       .then(() => {
         this.gameScene!.start();
       })
@@ -147,7 +149,7 @@ export class App {
         this.showMenu();
         break;
       case 'game':
-        if (this.activeLevel) this.startGame(this.activeLevel);
+        if (this.activeLevel) this.startGame(this.activeLevel, this.activeIsTutorial);
         break;
       case 'editor':
         this.destroyGame();

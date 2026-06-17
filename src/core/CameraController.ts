@@ -6,8 +6,11 @@ import type { Container } from 'pixi.js';
 
 const PAN_SPEED  = 380;   // screen px/sec via keyboard
 const ZOOM_RATE  = 1.8;   // zoom factor per second via keyboard hold
-const MIN_ZOOM   = 0.5;   // relative to fit scale
+const MIN_ZOOM   = 0.4;   // relative to fit scale
 const MAX_ZOOM   = 8.0;
+
+// Extra padding (in screen px) the player can pan beyond the world edge
+const PAN_PADDING = 200;
 
 export class CameraController {
   private _wc: Container;
@@ -28,12 +31,13 @@ export class CameraController {
   private _panX  = 0;
   private _panY  = 0;
 
-  // Drag state
+  // Middle-click / right-click drag state
   private _isDragging    = false;
   private _dragStartX    = 0;
   private _dragStartY    = 0;
   private _dragPanStartX = 0;
   private _dragPanStartY = 0;
+  private _dragButton    = -1;
 
   // Keyboard state
   private _keysDown = new Set<string>();
@@ -56,16 +60,20 @@ export class CameraController {
   };
 
   private readonly _onMouseDown = (e: MouseEvent): void => {
-    const isMiddle = e.button === 1;
-    const isAltLeft = e.button === 0 && e.altKey;
-    if (!isMiddle && !isAltLeft) return;
+    // Middle-click, right-click, or alt+left-click all start a pan drag
+    const isMiddle   = e.button === 1;
+    const isRight    = e.button === 2;
+    const isAltLeft  = e.button === 0 && e.altKey;
+    if (!isMiddle && !isRight && !isAltLeft) return;
     e.preventDefault();
+    e.stopPropagation();
     this._isDragging    = true;
+    this._dragButton    = e.button;
     this._dragStartX    = e.clientX;
     this._dragStartY    = e.clientY;
     this._dragPanStartX = this._panX;
     this._dragPanStartY = this._panY;
-    if (this._el) this._el.style.cursor = 'grabbing';
+    if (this._el) this._el.style.cursor = 'grab';
   };
 
   private readonly _onMouseMove = (e: MouseEvent): void => {
@@ -80,10 +88,16 @@ export class CameraController {
 
   private readonly _onMouseUp = (e: MouseEvent): void => {
     if (!this._isDragging) return;
-    if (e.button === 1 || e.button === 0) {
+    if (e.button === this._dragButton) {
       this._isDragging = false;
+      this._dragButton = -1;
       if (this._el) this._el.style.cursor = '';
     }
+  };
+
+  private readonly _onContextMenu = (e: MouseEvent): void => {
+    // When we're dragging with right-click, suppress context menu
+    if (this._isDragging || this._dragButton === 2) e.preventDefault();
   };
 
   private readonly _onKeyDown = (e: KeyboardEvent): void => {
@@ -128,6 +142,7 @@ export class CameraController {
     this._el = el;
     el.addEventListener('wheel',     this._onWheel,     { passive: false });
     el.addEventListener('mousedown', this._onMouseDown);
+    el.addEventListener('contextmenu', this._onContextMenu);
     window.addEventListener('mousemove', this._onMouseMove);
     window.addEventListener('mouseup',   this._onMouseUp);
     document.addEventListener('keydown', this._onKeyDown);
@@ -136,8 +151,9 @@ export class CameraController {
 
   destroy(): void {
     if (this._el) {
-      this._el.removeEventListener('wheel',     this._onWheel);
-      this._el.removeEventListener('mousedown', this._onMouseDown);
+      this._el.removeEventListener('wheel',       this._onWheel);
+      this._el.removeEventListener('mousedown',   this._onMouseDown);
+      this._el.removeEventListener('contextmenu', this._onContextMenu);
       this._el = null;
     }
     window.removeEventListener('mousemove', this._onMouseMove);
@@ -203,24 +219,17 @@ export class CameraController {
     const totalScale = fitScale * zoom;
     const scaledW    = worldW * totalScale;
     const scaledH    = worldH * totalScale;
+    const pad        = PAN_PADDING;
 
-    // X axis
-    if (scaledW > screenW) {
-      const minPanX = screenW - scaledW - fitX;
-      const maxPanX = -fitX;
-      this._panX = Math.max(minPanX, Math.min(maxPanX, this._panX));
-    } else {
-      this._panX = 0;
-    }
+    // X axis — always allow panning with padding
+    const minPanX = screenW - scaledW - fitX - pad;
+    const maxPanX = -fitX + pad;
+    this._panX = Math.max(minPanX, Math.min(maxPanX, this._panX));
 
-    // Y axis
-    if (scaledH > screenH) {
-      const minPanY = screenH - scaledH - fitY;
-      const maxPanY = -fitY;
-      this._panY = Math.max(minPanY, Math.min(maxPanY, this._panY));
-    } else {
-      this._panY = 0;
-    }
+    // Y axis — always allow panning with padding
+    const minPanY = screenH - scaledH - fitY - pad;
+    const maxPanY = -fitY + pad;
+    this._panY = Math.max(minPanY, Math.min(maxPanY, this._panY));
   }
 
   private _applyTransform(): void {

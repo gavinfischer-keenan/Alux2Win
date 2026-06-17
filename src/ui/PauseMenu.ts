@@ -4,6 +4,7 @@
 // ============================================================
 
 import { SettingsStore } from '../core/SettingsStore';
+import { audioManager } from '../core/AudioManager';
 
 export type GameSpeed = 0.5 | 1 | 2 | 3;
 
@@ -166,6 +167,7 @@ export class PauseMenu {
         letter-spacing: 0.04em;
       `;
       btn.addEventListener('click', () => {
+        audioManager.playClick();
         this._setActiveSpeed(value);
         this.onSpeedChange(value);
         SettingsStore.update({ gameSpeed: value });
@@ -190,12 +192,18 @@ export class PauseMenu {
     // ── Resume button ─────────────────────────────────────────
     const resumeBtn = this._buildActionBtn('▶  RESUME', '#4fc3f7', '#22d3ee');
     resumeBtn.style.marginTop = '8px';
-    resumeBtn.addEventListener('click', () => this.onResume());
+    resumeBtn.addEventListener('click', () => {
+      audioManager.playClick();
+      this.onResume();
+    });
     card.appendChild(resumeBtn);
 
     // ── Quit button ───────────────────────────────────────────
     const quitBtn = this._buildActionBtn('⌂  QUIT TO MENU', '#78909c', '#90a4ae');
-    quitBtn.addEventListener('click', () => this.onQuitToMenu());
+    quitBtn.addEventListener('click', () => {
+      audioManager.playClick();
+      this.onQuitToMenu();
+    });
     card.appendChild(quitBtn);
 
     // ── ESC hint ──────────────────────────────────────────────
