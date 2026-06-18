@@ -154,6 +154,7 @@ export class EditorScene {
 
   show(container: HTMLElement): void {
     this.uiContainer = container;
+    this.lastTime = 0;
 
     // PixiJS rendering layer for editor graphics
     this.editorContainer = new Container();
@@ -180,6 +181,7 @@ export class EditorScene {
     this.propertiesPanel.onSpeedZoneChange  = (id, changes) => this.updateSpeedZoneProperty(id, changes);
     this.propertiesPanel.onPortalChange     = (id, changes) => this.updatePortalProperty(id, changes);
     this.propertiesPanel.onTrappingBHChange = (id, changes) => this.updateTrappingBHProperty(id, changes);
+    this.propertiesPanel.onDeselect        = () => this.selectEntity(null);
     this.propertiesPanel.onDeleteEntity    = (id) => {
       this.deleteEntity(id);
       this.propertiesPanel.hide();
@@ -211,10 +213,49 @@ export class EditorScene {
 
   // ── Render Loop ───────────────────────────────────────────
 
-  private rafLoop = (): void => {
+  private lastTime = 0;
+
+  private rafLoop = (timestamp: number): void => {
+    if (!this.lastTime) this.lastTime = timestamp;
+    const dt = Math.min((timestamp - this.lastTime) / 1000, 0.1);
+    this.lastTime = timestamp;
+
+    this.updateEditor(dt);
     this.renderEditor();
     this._onRaf = requestAnimationFrame(this.rafLoop);
   };
+
+  private updateEditor(dt: number): void {
+    // Update orbiting planets
+    this.editState.planets.forEach(planet => {
+      if (planet.isOrbiting) {
+        const orbitCenterX = planet.orbitCenterX ?? planet.x;
+        const orbitCenterY = planet.orbitCenterY ?? planet.y;
+        const orbitRadiusX = planet.orbitRadius ?? 120;
+        const orbitRadiusY = planet.orbitShape === 'ellipse' ? (planet.orbitRadiusY ?? orbitRadiusX) : orbitRadiusX;
+        const orbitSpeed   = planet.orbitSpeed ?? 0.3;
+
+        planet.orbitAngle = ((planet.orbitAngle ?? 0) + orbitSpeed * dt);
+
+        planet.x = orbitCenterX + orbitRadiusX * Math.cos(planet.orbitAngle);
+        planet.y = orbitCenterY + orbitRadiusY * Math.sin(planet.orbitAngle);
+      }
+    });
+
+    // Update animations for other elements in editor
+    this.editState.speedZones.forEach(sz => {
+      sz.pulseAngle = (sz.pulseAngle ?? 0) + 0.8 * dt;
+    });
+    this.editState.portals.forEach(p => {
+      p.pulseAngle = (p.pulseAngle ?? 0) + 1.0 * dt;
+    });
+    this.editState.trappingBlackHoles.forEach(tbh => {
+      tbh.pulseAngle = (tbh.pulseAngle ?? 0) + 0.9 * dt;
+    });
+    this.editState.whiteHoles.forEach(wh => {
+      wh.pulseAngle = (wh.pulseAngle ?? 0) + 1.0 * dt;
+    });
+  }
 
   private renderEditor(): void {
     const gfx = this.editorGfx;
@@ -772,6 +813,12 @@ export class EditorScene {
   private moveEntity(id: string, nx: number, ny: number): void {
     const planet = this.editState.planets.get(id);
     if (planet) {
+      if (planet.isOrbiting && planet.orbitCenterX !== undefined && planet.orbitCenterY !== undefined) {
+        const dx = Math.round(nx) - planet.x;
+        const dy = Math.round(ny) - planet.y;
+        planet.orbitCenterX += dx;
+        planet.orbitCenterY += dy;
+      }
       planet.x = Math.round(nx);
       planet.y = Math.round(ny);
       if (this.editState.selectedEntityId === id) {
@@ -836,7 +883,17 @@ export class EditorScene {
       planet.productionRate = PLANET_PRODUCTION[planet.upgradeLevel];
     }
     if (changes.startingParticles !== undefined) planet.health = changes.startingParticles;
-    if (changes.isOrbiting !== undefined)        planet.isOrbiting = changes.isOrbiting;
+    if (changes.isOrbiting !== undefined) {
+      planet.isOrbiting = changes.isOrbiting;
+      if (planet.isOrbiting) {
+        if (planet.orbitCenterX === undefined) planet.orbitCenterX = planet.x;
+        if (planet.orbitRadius === undefined) planet.orbitRadius = 120;
+        if (planet.orbitRadiusY === undefined) planet.orbitRadiusY = 120;
+        if (planet.orbitSpeed === undefined) planet.orbitSpeed = 0.3;
+        if (planet.orbitAngle === undefined) planet.orbitAngle = Math.PI / 2;
+        if (planet.orbitCenterY === undefined) planet.orbitCenterY = planet.y - (planet.orbitRadiusY ?? planet.orbitRadius ?? 120);
+      }
+    }
     if (changes.orbitShape !== undefined)        planet.orbitShape = changes.orbitShape;
     if (changes.orbitSpeed !== undefined)        planet.orbitSpeed = changes.orbitSpeed;
     if (changes.orbitCenterX !== undefined)      planet.orbitCenterX = changes.orbitCenterX;

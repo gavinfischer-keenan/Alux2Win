@@ -22,6 +22,7 @@ export class PropertiesPanel {
   onPortalChange:     (id: string, changes: Partial<PortalDef>)                  => void = () => {};
   onTrappingBHChange: (id: string, changes: Partial<TrappingBlackHoleDef>)       => void = () => {};
   onDeleteEntity:     (id: string)                                                => void = () => {};
+  onDeselect:         ()                                                          => void = () => {};
 
   // Current selection tracking
   private currentPlanetId:    string | null = null;
@@ -149,6 +150,9 @@ export class PropertiesPanel {
     spacer.style.flex = '1';
     this.element.appendChild(spacer);
 
+    // OK Button
+    this.element.appendChild(this.buildOkBtn());
+
     // Delete button
     this.element.appendChild(this.buildDeleteBtn(() => this.currentPlanetId));
   }
@@ -218,6 +222,9 @@ export class PropertiesPanel {
     spacer.style.flex = '1';
     this.element.appendChild(spacer);
 
+    // OK Button
+    this.element.appendChild(this.buildOkBtn());
+
     // Delete
     this.element.appendChild(this.buildDeleteBtn(() => this.currentBhId));
   }
@@ -286,6 +293,9 @@ export class PropertiesPanel {
     const spacer = document.createElement('div');
     spacer.style.flex = '1';
     this.element.appendChild(spacer);
+
+    // OK Button
+    this.element.appendChild(this.buildOkBtn());
 
     // Delete button
     this.element.appendChild(this.buildDeleteBtn(() => this.currentSpeedZoneId));
@@ -369,6 +379,9 @@ export class PropertiesPanel {
     spacer.style.flex = '1';
     this.element.appendChild(spacer);
 
+    // OK Button
+    this.element.appendChild(this.buildOkBtn());
+
     // Delete button
     this.element.appendChild(this.buildDeleteBtn(() => this.currentPortalId));
   }
@@ -405,6 +418,9 @@ export class PropertiesPanel {
     spacer.style.flex = '1';
     this.element.appendChild(spacer);
 
+    // OK Button
+    this.element.appendChild(this.buildOkBtn());
+
     // Delete button
     this.element.appendChild(this.buildDeleteBtn(() => this.currentTBHId));
   }
@@ -426,6 +442,9 @@ export class PropertiesPanel {
     const spacer = document.createElement('div');
     spacer.style.flex = '1';
     this.element.appendChild(spacer);
+
+    // OK Button
+    this.element.appendChild(this.buildOkBtn());
 
     // Delete button
     this.element.appendChild(this.buildDeleteBtn(() => this.currentWhiteHoleId));
@@ -787,6 +806,36 @@ export class PropertiesPanel {
     btn.addEventListener('click', () => {
       const id = getId();
       if (id) this.onDeleteEntity(id);
+    });
+    return btn;
+  }
+
+  private buildOkBtn(): HTMLElement {
+    const btn = document.createElement('button');
+    btn.textContent = '✓  Done / OK';
+    btn.style.cssText = `
+      width: 100%;
+      padding: 8px 0;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: box-shadow 0.2s;
+      margin-bottom: 6px;
+    `;
+    btn.addEventListener('mouseenter', () => {
+      btn.style.boxShadow = '0 0 14px rgba(34,197,94,0.6)';
+    });
+    btn.addEventListener('mouseleave', () => {
+      btn.style.boxShadow = 'none';
+    });
+    btn.addEventListener('click', () => {
+      this.onDeselect();
     });
     return btn;
   }
