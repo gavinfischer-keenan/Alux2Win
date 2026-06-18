@@ -19,6 +19,7 @@ class AudioManager {
   private _captureBuffer: AudioBuffer | null = null;
   private _shieldDamageBuffer: AudioBuffer | null = null;
   private _blackholeTrapBuffer: AudioBuffer | null = null;
+  private _asteroidEnterBuffer: AudioBuffer | null = null;
 
   // ── Init ─────────────────────────────────────────────────
 
@@ -68,6 +69,15 @@ class AudioManager {
       this._blackholeTrapBuffer = await this._ctx.decodeAudioData(arrayBuffer);
     } catch (err) {
       console.warn('Failed to load blackhole trap audio', err);
+    }
+
+    // Load asteroid enter MP3
+    try {
+      const response = await fetch('/assets/audio/asteroid_enter.mp3');
+      const arrayBuffer = await response.arrayBuffer();
+      this._asteroidEnterBuffer = await this._ctx.decodeAudioData(arrayBuffer);
+    } catch (err) {
+      console.warn('Failed to load asteroid enter audio', err);
     }
 
     if (this._ctx.state === 'suspended') {
@@ -499,6 +509,27 @@ class AudioManager {
 
     const source = ctx.createBufferSource();
     source.buffer = this._blackholeTrapBuffer;
+    
+    const g = ctx.createGain();
+    g.gain.value = 1.0;
+    source.connect(g);
+    g.connect(master);
+    
+    source.start();
+  }
+
+  /** Played when an asteroid spawns on screen. */
+  private _lastAsteroidTime = -Infinity;
+
+  playAsteroidEnter(): void {
+    const ctx = this._ctx;
+    const master = this._masterGain;
+    if (!ctx || !master || !this._asteroidEnterBuffer) return;
+    if (ctx.currentTime - this._lastAsteroidTime < 5.0) return; // 5s cooldown
+    this._lastAsteroidTime = ctx.currentTime;
+
+    const source = ctx.createBufferSource();
+    source.buffer = this._asteroidEnterBuffer;
     
     const g = ctx.createGain();
     g.gain.value = 1.0;

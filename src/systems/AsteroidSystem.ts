@@ -15,6 +15,7 @@
 
 import type { AsteroidData, GameState, ParticleData } from '../types';
 import { PLANET_RADIUS, FACTION_COLORS } from '../types';
+import { audioManager } from '../core/AudioManager';
 
 /** Maximum cumulative hits before an asteroid is destroyed. */
 const MAX_HIT_COUNT = 20;
@@ -360,6 +361,7 @@ export class AsteroidSystem {
     };
 
     state.asteroids.push(asteroid);
+    audioManager.playAsteroidEnter();
   }
 
   /** Returns a random spawn point 50 px outside a random world edge. */
