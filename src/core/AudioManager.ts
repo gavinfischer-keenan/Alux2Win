@@ -18,6 +18,7 @@ class AudioManager {
   private _ohNoBuffer: AudioBuffer | null = null;
   private _captureBuffer: AudioBuffer | null = null;
   private _shieldDamageBuffer: AudioBuffer | null = null;
+  private _blackholeTrapBuffer: AudioBuffer | null = null;
 
   // ── Init ─────────────────────────────────────────────────
 
@@ -58,6 +59,15 @@ class AudioManager {
       this._shieldDamageBuffer = await this._ctx.decodeAudioData(arrayBuffer);
     } catch (err) {
       console.warn('Failed to load shield damage audio', err);
+    }
+
+    // Load blackhole trap MP3
+    try {
+      const response = await fetch('/assets/audio/blackhole_trap.mp3');
+      const arrayBuffer = await response.arrayBuffer();
+      this._blackholeTrapBuffer = await this._ctx.decodeAudioData(arrayBuffer);
+    } catch (err) {
+      console.warn('Failed to load blackhole trap audio', err);
     }
 
     if (this._ctx.state === 'suspended') {
@@ -468,6 +478,27 @@ class AudioManager {
 
     const source = ctx.createBufferSource();
     source.buffer = this._shieldDamageBuffer;
+    
+    const g = ctx.createGain();
+    g.gain.value = 1.0;
+    source.connect(g);
+    g.connect(master);
+    
+    source.start();
+  }
+
+  /** Played when particles fall into a black hole or trapping black hole. */
+  private _lastBlackholeTrapTime = -Infinity;
+
+  playBlackholeTrap(): void {
+    const ctx = this._ctx;
+    const master = this._masterGain;
+    if (!ctx || !master || !this._blackholeTrapBuffer) return;
+    if (ctx.currentTime - this._lastBlackholeTrapTime < 3.0) return; // 3s cooldown
+    this._lastBlackholeTrapTime = ctx.currentTime;
+
+    const source = ctx.createBufferSource();
+    source.buffer = this._blackholeTrapBuffer;
     
     const g = ctx.createGain();
     g.gain.value = 1.0;

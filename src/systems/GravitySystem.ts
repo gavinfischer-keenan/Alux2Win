@@ -4,6 +4,7 @@
 
 import type { GameState } from '../types';
 import { clamp } from '../utils/MathUtils';
+import { audioManager } from '../core/AudioManager';
 
 /** Maximum gravitational acceleration applied per frame (px/s²). */
 const MAX_GRAV_ACCEL = 500;
@@ -32,6 +33,9 @@ export class GravitySystem {
         if (dist < bh.radius) {
           particle.alive = false;
           anyDied = true;
+          if (particle.faction === 'player') {
+            audioManager.playBlackholeTrap();
+          }
           break; // No need to check other black holes.
         }
 

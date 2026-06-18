@@ -13,6 +13,7 @@
 // ============================================================
 
 import type { GameState, TrappingBlackHoleData, ParticleData } from '../types';
+import { audioManager } from '../core/AudioManager';
 
 /** Distance threshold (px) at which a particle is considered "at the core". */
 const CORE_DISTANCE = 8;
@@ -69,6 +70,9 @@ export class TrappingBlackHoleSystem {
               // -- Reached the core: particle is instantly killed --
               p.alive = false;
               anyDied = true;
+              if (p.faction === 'player') {
+                audioManager.playBlackholeTrap();
+              }
             }
 
             // Only one BH can act on a particle per tick.
