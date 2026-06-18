@@ -1,66 +1,69 @@
-# LUX
+# LUX: Cosmic Conquest 🌌
 
-LUX is a high-performance, minimalist Real-Time Strategy (RTS) game heavily inspired by LUX. It features massive swarms of boid-driven particles, dynamic generative audio, and a challenging heuristic-based AI, all running beautifully in the browser at 60+ FPS.
+> **LUX** is an ambient real-time strategy game built with TypeScript and PixiJS. Command glowing particle swarms to conquer star systems, avoid cosmic hazards, and outsmart dynamic AI opponents.
 
-## 🚀 Features
+---
 
-- **Massive Swarm Physics:** Thousands of particles driven by boids-style flocking (separation, cohesion, alignment) mixed with aggressive seek-and-destroy combat mechanics.
-- **O(1) Spatial Hashing:** The core physics engine leverages a highly optimized spatial hash grid to perform collision and proximity checks, completely eliminating O(N²) bottlenecks.
-- **Generative Audio:** A fully procedural, Web Audio API-driven ambient soundtrack that dynamically responds to the game state, featuring pentatonic scales, deep drone bass, and procedural reverb.
-- **Dynamic AI State Machine:** A heuristic-driven AI controller that analyzes the board state, evaluates planet values, manages upgrade priorities, and coordinates attacks and defenses based on varying strategic personalities.
-- **Modern Tech Stack:** Built purely with **TypeScript**, rendered using **PixiJS v8** for lightning-fast WebGL/WebGPU graphics, and bundled with **Vite**.
+## 🎮 Gameplay Features
 
-## 🛠️ Installation & Setup
+- **Ambient RTS:** No micromanagement, no build queues. Direct your particle swarms with simple click-and-drag controls.
+- **Dynamic AI Sub-Roles:** Face off against various AI personalities (`fortress`, `berserker`, `blitzkrieg`, `expander`, etc.) that dynamically adjust their strategies and behaviors.
+- **Advanced Hazard Navigation:** The galaxy is fraught with dangers:
+  - 🕳️ **Black Holes & Trapping Black Holes:** Lethal gravity wells that destroy particles and planets alike.
+  - 🌩️ **Plasma Storms:** Slow-moving anomalies that scramble navigation and trap units.
+  - ⚛️ **Speed Zones:** Temporary gravitational anomalies that can either boost or slow down your fleets.
+  - 📡 **Gamma Ray Bursts:** Devastating directional beams that require careful timing.
+  - 🪐 **White Holes:** Charge them up to unleash massive particle shockwaves.
+- **Intelligent Route Planning:** The AI calculates safe waypoints to route its waves around dangerous hazards rather than flying blindly into black holes.
+- **Level Editor:** Build, play, and share your own custom galaxies with intuitive drag-and-drop tools and orbit configuration.
+- **Leaderboards:** Track your top-5 fastest completion times for every system.
 
-1. **Clone the repository:**
-   \`\`\`bash
-   git clone https://github.com/gavinfischer-keenan/LUX.git
-   cd LUX
-   \`\`\`
+## 🚀 Getting Started
 
-2. **Install dependencies:**
-   \`\`\`bash
+### Prerequisites
+
+You need [Node.js](https://nodejs.org/) installed on your machine.
+
+### Installation
+
+1. Clone the repository
+2. Install dependencies:
+   ```bash
    npm install
-   \`\`\`
+   ```
 
-3. **Run the development server:**
-   \`\`\`bash
-   npm run dev
-   \`\`\`
-   *The game will be available at \`http://localhost:5173\`.*
+### Development
 
-4. **Build for production:**
-   \`\`\`bash
-   npm run build
-   \`\`\`
-   *The optimized static files will be generated in the \`dist/\` directory.*
+Start the Vite development server:
+```bash
+npm run dev
+```
 
-## 🎮 How to Play
+### Production Build
 
-- **Objective:** Conquer all planets on the map.
-- **Mechanics:** 
-  - Planets you own automatically produce particles.
-  - Left-click and drag a box to select your particles.
-  - Right-click anywhere in space to command them to travel.
-  - Right-click on a planet to send them there.
-  - If they are sent to an enemy planet, they will attack it.
-  - If they are sent to your own planet, they will heal its defenses or upgrade its capacity!
+Build the project for production:
+```bash
+npm run build
+```
+You can then preview the build with:
+```bash
+npm run preview
+```
 
-## 📜 Version History
+## 🧠 AI Intelligence Overhaul
 
-### v0.3.0
-- **Spatial Hash Optimization:** Rewrote particle flocking to use an O(1) grid, fixing performance bottlenecks and right-click regressions.
-- **Advanced Healing Mechanics:** Friendly particles now intelligently heal a planet's stationed particle count and bonus-health shield before contributing to upgrades.
-- **Galaxies UI System:** Complete overhaul of the Main Menu, introducing Galaxy categories and nested System boards.
-- **AI Controller:** Fully functional AI that expands, upgrades, and relentlessly attacks.
+LUX features a custom-built, highly dynamic AI system (`AIController`):
+- **Hazard Awareness:** The AI evaluates the flight path of every particle wave it sends. If the path crosses a lethal hazard, the AI will compute a detour waypoint to navigate around it.
+- **In-Flight Re-Evaluation:** When a planet changes hands, the AI re-evaluates all waves currently in flight toward that planet. Depending on the AI's sub-role and whether the wave is past the "point of no return," it may recall its units, press the attack, or redirect to a new target.
+- **Temporal Suppression:** The AI knows better than to launch a wave straight through an actively firing Gamma Ray Burst.
 
-### v0.2.0
-- **Generative Audio:** Introduced the dynamic Web Audio engine.
-- **Settings UI:** Added volume controls, game speed modifiers, and placeholder AI personality toggles.
-- **Composite Particles:** Added 5X composite particles to reduce render overhead while maintaining massive damage output.
+## 🛠️ Tech Stack
 
-### v0.1.0
-- **Initial Prototyping:** Core game loop, rendering engine, boid mechanics, and basic planet upgrades.
+- **Engine:** [PixiJS v8](https://pixijs.com/) — High-performance 2D WebGL rendering.
+- **Language:** TypeScript — Fully typed architecture.
+- **Build Tool:** Vite — Lightning fast HMR and optimized builds.
+- **UI:** Custom DOM overlays integrated with the PixiJS canvas.
 
-## 📄 License
-MIT License.
+## 📝 License
+
+All rights reserved.
