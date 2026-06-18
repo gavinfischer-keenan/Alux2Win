@@ -193,6 +193,7 @@ export class CombatSystem {
     eventBus.emit('planet:captured', {
       planetId:   planet.id,
       newFaction: planet.faction,
+      oldFaction: oldFaction,
     });
   }
 

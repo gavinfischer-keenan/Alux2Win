@@ -73,6 +73,27 @@ export class MovementSystem {
   ): void {
     // Resolve target: planet (dynamic chase) or empty space coordinate
     const targetPlanet = p.targetPlanetId ? planets.get(p.targetPlanetId) : null;
+
+    // ---- Waypoint: if set, navigate here first before real target ----
+    if (p.waypointX !== undefined && p.waypointY !== undefined) {
+      const wx = p.waypointX - p.x;
+      const wy = p.waypointY - p.y;
+      const wDist = Math.sqrt(wx * wx + wy * wy);
+      if (wDist <= ARRIVE_THRESHOLD) {
+        // Arrived at waypoint — clear it and resume toward real target
+        p.waypointX = undefined;
+        p.waypointY = undefined;
+      } else {
+        // Steer toward waypoint
+        const wSpeed = PARTICLE_SPEED;
+        p.vx = (wx / wDist) * wSpeed;
+        p.vy = (wy / wDist) * wSpeed;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        return; // Skip rest of traveling logic this frame
+      }
+    }
+
     const destX = targetPlanet ? targetPlanet.x : (p.targetX ?? null);
     const destY = targetPlanet ? targetPlanet.y : (p.targetY ?? null);
 

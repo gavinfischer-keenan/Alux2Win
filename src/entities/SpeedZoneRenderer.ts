@@ -56,39 +56,36 @@ export class SpeedZoneRenderer {
       const cOuter = isSpeedup ? SPEEDUP_OUTER : SLOWDOWN_OUTER;
       const cCore  = isSpeedup ? SPEEDUP_CORE  : SLOWDOWN_CORE;
 
-      // Breathing scale
-      const breath = 1.0 + 0.07 * Math.sin(pulseAngle * 1.1);
+      // -- Box Background -----------------------------------------------
+      g.rect(x - radius, y - radius, radius * 2, radius * 2)
+        .fill({ color: cOuter, alpha: 0.15 })
+        .stroke({ color: cCore, width: 2, alpha: 0.6 });
 
-      // -- 5 concentric soft nebula layers (no strokes, no dots) --------
-      // Layer 1: 1.0x — outermost, very faint
-      g.circle(x, y, radius * breath * 1.0)
-        .fill({ color: cOuter, alpha: 0.04 });
+      // -- Wavy Lines (flowing horizontal) -----------------------------
+      const numLines = 6;
+      const spacing = (radius * 2) / numLines;
+      const amplitude = radius * 0.08;
+      const frequency = 0.05;
+      
+      // Speed up zones flow faster and rightwards, slow down flow slower and leftwards
+      const flowSpeed = isSpeedup ? 8.0 : -2.0; 
+      const phaseOffset = pulseAngle * flowSpeed;
 
-      // Layer 2: 0.75x
-      g.circle(x, y, radius * breath * 0.75)
-        .fill({ color: cOuter, alpha: 0.07 });
-
-      // Layer 3: 0.55x
-      g.circle(x, y, radius * breath * 0.55)
-        .fill({ color: cCore, alpha: 0.11 });
-
-      // Layer 4: 0.35x
-      g.circle(x, y, radius * breath * 0.35)
-        .fill({ color: cCore, alpha: 0.14 });
-
-      // Layer 5: 0.15x — dense core
-      g.circle(x, y, radius * breath * 0.15)
-        .fill({ color: cCore, alpha: 0.18 });
-
-      // -- 3 wisp tendrils at 120° apart, rotating slowly ---------------
-      const wispBaseAngle = pulseAngle / 10;
-      for (let i = 0; i < 3; i++) {
-        const wispAngle = wispBaseAngle + i * ((Math.PI * 2) / 3);
-        const wispDist  = radius * breath * 0.65;
-        const wx = x + Math.cos(wispAngle) * wispDist;
-        const wy = y + Math.sin(wispAngle) * wispDist;
-        g.ellipse(wx, wy, radius * 0.4, radius * 0.08)
-          .fill({ color: cCore, alpha: 0.12 });
+      for (let i = 0; i < numLines; i++) {
+        const lineY = (y - radius) + spacing * (i + 0.5);
+        const startX = x - radius;
+        
+        g.moveTo(startX, lineY + Math.sin(phaseOffset + startX * frequency) * amplitude);
+        
+        // draw smooth wave across the box
+        const segments = 15;
+        const segmentWidth = (radius * 2) / segments;
+        for (let j = 1; j <= segments; j++) {
+          const px = startX + j * segmentWidth;
+          const py = lineY + Math.sin(phaseOffset + px * frequency) * amplitude;
+          g.lineTo(px, py);
+        }
+        g.stroke({ color: cCore, width: 2.5, alpha: 0.4 });
       }
     }
   }

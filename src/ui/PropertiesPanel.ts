@@ -588,21 +588,74 @@ export class PropertiesPanel {
       border-left: 2px solid rgba(79,195,247,0.25);
     `;
 
-    // Orbit Radius slider
-    const radiusLabel = this.buildLabel('Orbit Radius');
+    // Orbit Shape dropdown
+    const shapeLabel = this.buildLabel('Orbit Shape');
+    orbitControls.appendChild(shapeLabel);
+    const shapeSelect = document.createElement('select');
+    shapeSelect.style.cssText = `
+      background: rgba(0,0,0,0.5);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 4px;
+      font-size: 12px;
+      border-radius: 3px;
+      outline: none;
+    `;
+    const optionCircle = document.createElement('option');
+    optionCircle.value = 'circle';
+    optionCircle.text = 'Circle';
+    const optionEllipse = document.createElement('option');
+    optionEllipse.value = 'ellipse';
+    optionEllipse.text = 'Ellipse';
+    shapeSelect.appendChild(optionCircle);
+    shapeSelect.appendChild(optionEllipse);
+    shapeSelect.value = planet.orbitShape ?? 'circle';
+    orbitControls.appendChild(shapeSelect);
+
+    // Orbit Width (X Radius) slider
+    const radiusLabel = this.buildLabel('Width (Radius X)');
     orbitControls.appendChild(radiusLabel);
     const radiusWrapper = document.createElement('div');
     radiusWrapper.style.cssText = 'display: flex; flex-direction: column; gap: 4px;';
     const radiusVal = document.createElement('span');
     radiusVal.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.5); text-align: right;';
     radiusVal.textContent = String(Math.round(planet.orbitRadius ?? 120));
-    const radiusSlider = this.buildSlider(planet.orbitRadius ?? 120, 50, 400, (v) => {
+    const radiusSlider = this.buildSlider(planet.orbitRadius ?? 120, 50, 1500, (v) => {
       radiusVal.textContent = String(v);
       onChange({ orbitRadius: v });
     });
     radiusWrapper.appendChild(radiusSlider);
     radiusWrapper.appendChild(radiusVal);
     orbitControls.appendChild(radiusWrapper);
+
+    // Orbit Length (Y Radius) slider
+    const radiusYLabel = this.buildLabel('Length (Radius Y)');
+    orbitControls.appendChild(radiusYLabel);
+    const radiusYWrapper = document.createElement('div');
+    radiusYWrapper.style.cssText = 'display: flex; flex-direction: column; gap: 4px;';
+    const radiusYVal = document.createElement('span');
+    radiusYVal.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.5); text-align: right;';
+    radiusYVal.textContent = String(Math.round(planet.orbitRadiusY ?? planet.orbitRadius ?? 120));
+    const radiusYSlider = this.buildSlider(planet.orbitRadiusY ?? planet.orbitRadius ?? 120, 50, 1500, (v) => {
+      radiusYVal.textContent = String(v);
+      onChange({ orbitRadiusY: v });
+    });
+    radiusYWrapper.appendChild(radiusYSlider);
+    radiusYWrapper.appendChild(radiusYVal);
+    orbitControls.appendChild(radiusYWrapper);
+
+    // Toggle Y Radius visibility based on shape
+    const updateShapeVisibility = () => {
+      const isEllipse = shapeSelect.value === 'ellipse';
+      radiusYLabel.style.display = isEllipse ? 'block' : 'none';
+      radiusYWrapper.style.display = isEllipse ? 'flex' : 'none';
+      radiusLabel.textContent = isEllipse ? 'Width (Radius X)' : 'Diameter (Radius)';
+    };
+    updateShapeVisibility();
+    shapeSelect.addEventListener('change', () => {
+      onChange({ orbitShape: shapeSelect.value as 'circle' | 'ellipse' });
+      updateShapeVisibility();
+    });
 
     // Orbit Speed slider
     const speedLabel = this.buildLabel('Orbit Speed');
@@ -612,7 +665,7 @@ export class PropertiesPanel {
     const speedVal = document.createElement('span');
     speedVal.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.5); text-align: right;';
     speedVal.textContent = (planet.orbitSpeed ?? 0.3).toFixed(2);
-    const speedSlider = this.buildSlider((planet.orbitSpeed ?? 0.3) * 100, 10, 100, (v) => {
+    const speedSlider = this.buildSlider((planet.orbitSpeed ?? 0.3) * 100, 5, 200, (v) => {
       const s = v / 100;
       speedVal.textContent = s.toFixed(2);
       onChange({ orbitSpeed: s });

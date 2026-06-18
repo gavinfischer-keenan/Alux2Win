@@ -1181,21 +1181,10 @@ export class MainMenuScene {
       margin-top: 4px;
     `;
 
-    // Show best time if available
+    // Show best times if available
     if (commanderLevel?.id) {
       const top = HighScoreStore.getTop(commanderLevel.id);
-      if (top.length > 0) {
-        const timeLabel = document.createElement('div');
-        timeLabel.textContent = `BEST: ${HighScoreStore.formatTime(top[0].bestTime)}`;
-        timeLabel.style.cssText = `
-          font-family: 'Rajdhani', sans-serif;
-          font-size: 0.85rem;
-          color: rgba(255, 215, 0, 0.9);
-          letter-spacing: 0.1em;
-          margin-top: 2px;
-        `;
-        featuredText.appendChild(timeLabel);
-      }
+      this.buildTopTimesBlock(top, featuredText);
     }
 
     featuredTile.appendChild(featuredBadge);
@@ -1311,18 +1300,7 @@ export class MainMenuScene {
 
       if (level?.id) {
         const top = HighScoreStore.getTop(level.id);
-        if (top.length > 0) {
-          const timeLabel = document.createElement('div');
-          timeLabel.textContent = `BEST: ${HighScoreStore.formatTime(top[0].bestTime)}`;
-          timeLabel.style.cssText = `
-            font-family: 'Rajdhani', sans-serif;
-            font-size: 0.8rem;
-            color: rgba(255,215,0,0.9);
-            margin-top: 6px;
-            letter-spacing: 0.1em;
-          `;
-          tile.appendChild(timeLabel);
-        }
+        this.buildTopTimesBlock(top, tile);
       }
 
       const startTag = document.createElement('div');
@@ -1465,18 +1443,7 @@ export class MainMenuScene {
 
       if (level) {
         const top = HighScoreStore.getTop(level.id!);
-        if (top.length > 0) {
-          const timeLabel = document.createElement('div');
-          timeLabel.textContent = `BEST: ${HighScoreStore.formatTime(top[0].bestTime)}`;
-          timeLabel.style.cssText = `
-            font-family: 'Rajdhani', sans-serif;
-            font-size: 0.85rem;
-            color: rgba(255, 215, 0, 0.9);
-            margin-top: 8px;
-            letter-spacing: 0.1em;
-          `;
-          tile.appendChild(timeLabel);
-        }
+        this.buildTopTimesBlock(top, tile);
       }
 
       if (isLocked) {
@@ -1577,5 +1544,55 @@ export class MainMenuScene {
 
       grid.appendChild(tile);
     }
+  }
+
+  private buildTopTimesBlock(top: any[], appendTo: HTMLElement): void {
+    if (top.length === 0) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = `
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    `;
+
+    const header = document.createElement('div');
+    header.textContent = 'TIMES';
+    header.style.cssText = `
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.6rem;
+      color: rgba(255,255,255,0.25);
+      letter-spacing: 0.2em;
+      margin-bottom: 2px;
+    `;
+    wrapper.appendChild(header);
+
+    const entries = top.slice(0, 5);
+    entries.forEach((entry, idx) => {
+      const rank = idx + 1;
+      const row = document.createElement('div');
+      row.textContent = `${rank}. ${HighScoreStore.formatTime(entry.bestTime)}`;
+      if (rank === 1) {
+        row.style.cssText = `
+          font-family: 'Rajdhani', sans-serif;
+          font-size: 0.72rem;
+          font-weight: 700;
+          color: rgba(255,215,0,0.95);
+          letter-spacing: 0.05em;
+        `;
+      } else {
+        row.style.cssText = `
+          font-family: 'Rajdhani', sans-serif;
+          font-size: 0.65rem;
+          font-weight: 400;
+          color: rgba(255,255,255,0.4);
+          letter-spacing: 0.05em;
+        `;
+      }
+      wrapper.appendChild(row);
+    });
+
+    appendTo.appendChild(wrapper);
   }
 }

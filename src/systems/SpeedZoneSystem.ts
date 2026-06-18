@@ -28,13 +28,13 @@ export class SpeedZoneSystem {
       if (!p.alive) continue;
 
       for (const zone of speedZones) {
-        const dx   = p.x - zone.x;
-        const dy   = p.y - zone.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const dx = Math.abs(p.x - zone.x);
+        const dy = Math.abs(p.y - zone.y);
 
-        if (dist <= zone.radius) {
+        // Treat zone.radius as half-width and half-height for the box
+        if (dx <= zone.radius && dy <= zone.radius) {
           if (zone.type === 'speedup') {
-            p.speedMod = 2.0; // further 50% increase from original 1.5
+            p.speedMod = 4.0; // 2x what it was previously (2.0)
           } else {
             // 'slowdown'
             p.speedMod = 0.3;

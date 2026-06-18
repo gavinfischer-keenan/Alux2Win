@@ -11,12 +11,14 @@ import {
   UpgradeLevel,
 } from '../types';
 import type { AIDifficulty } from '../core/SettingsStore';
+import { scoreRoute, isGammaDangerous, computeWaypoint } from './HazardPathChecker';
+import type { EventBus } from '../core/EventBus';
 
 /** The four mutually exclusive high-level intentions the AI can be in. */
 type AIState = 'defend' | 'conquer_neutral' | 'upgrade' | 'attack';
 
 /** Callback signature for deploying particles from one set of planets to a target. */
-export type DeployCallback = (fromIds: string[], targetPlanetId: string) => void;
+export type DeployCallback = (fromIds: string[], targetPlanetId: string, stationedParticleIds?: number[], waypointX?: number, waypointY?: number) => void;
 
 // ---------------------------------------------------------------------------
 // Sub-roles
@@ -78,12 +80,35 @@ interface AIStrategy {
    */
   upgradeWeight: number;
   /**
+   * Hazard route score threshold. Routes scoring below this are considered
+   * dangerous and the AI will try to reroute or find a different target.
+   * −1000 = lethal hazard; −500 = storm; 0 = no hazards.
+   * Set to a very negative value to effectively disable hazard avoidance.
+   */
+  hazardToleranceThreshold: number;
+  /** Whether this sub-role will compute a waypoint to route around hazards. */
+  usesWaypoints: boolean;
+  /**
    * Weight: how strongly the AI prioritises expanding (neutral captures) over
    * attacking enemy planets (0–1).
    */
   expandWeight: number;
   /** Max upgrade level the AI will pursue. */
   maxUpgrade: UpgradeLevel;
+}
+
+// ---------------------------------------------------------------------------
+// AIWave — a tracked group of in-flight particles bound for a target
+// ---------------------------------------------------------------------------
+
+interface AIWave {
+  faction: Faction;
+  targetPlanetId: string;
+  particleIds: number[];
+  originalTargetFaction: Faction;
+  sentAt: number;         // performance.now() when dispatched
+  waypointX?: number;
+  waypointY?: number;
 }
 
 const STRATEGIES: Record<AISubRole, AIStrategy> = {
@@ -93,7 +118,7 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     evalJitter:       1.5,
     minToDeploy:      18,
     reserveParticles: 15,
-    aggressionRatio:  2.5,    // needs to be 2.5× the player before attacking
+    aggressionRatio:  2.5,
     upgradeTrigger:   80,
     neutralAttackCap: 3,
     upgradeFraction:  0.35,
@@ -102,6 +127,8 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     upgradeWeight:    0.6,
     expandWeight:     0.7,
     maxUpgrade:       2,
+    hazardToleranceThreshold: -999,  // only avoids BHs (lethal = -1000)
+    usesWaypoints:    false,
   },
 
   // ── NORMAL ──────────────────────────────────────────────────────────────────
@@ -110,60 +137,68 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     evalJitter:       1.0,
     minToDeploy:      12,
     reserveParticles: 10,
-    aggressionRatio:  1.4,    // was 2.0 — more willing to fight
+    aggressionRatio:  1.4,
     upgradeTrigger:   40,
-    neutralAttackCap: 8,      // was 4 — grab bigger neutral planets
+    neutralAttackCap: 8,
     upgradeFraction:  0.55,
     neutralFraction:  0.55,
     attackFraction:   0.45,
     upgradeWeight:    0.75,
     expandWeight:     0.65,
     maxUpgrade:       3,
+    hazardToleranceThreshold: -79,   // avoids BHs, storms, and slow zones
+    usesWaypoints:    true,
   },
   balanced: {
     evalInterval:     2.8,
     evalJitter:       0.8,
     minToDeploy:      8,
     reserveParticles: 5,
-    aggressionRatio:  1.2,    // was 1.4 — attacks more readily
+    aggressionRatio:  1.2,
     upgradeTrigger:   30,
-    neutralAttackCap: 8,      // was 5
+    neutralAttackCap: 8,
     upgradeFraction:  0.50,
     neutralFraction:  0.65,
     attackFraction:   0.60,
     upgradeWeight:    0.60,
     expandWeight:     0.75,
     maxUpgrade:       3,
+    hazardToleranceThreshold: -499,  // avoids BHs and storms; ignores slow zones
+    usesWaypoints:    true,
   },
   opportunist: {
     evalInterval:     2.0,
     evalJitter:       0.6,
     minToDeploy:      8,
     reserveParticles: 4,
-    aggressionRatio:  1.0,    // was 1.3 — strikes at rough parity
+    aggressionRatio:  1.0,
     upgradeTrigger:   25,
-    neutralAttackCap: 10,     // was 6
+    neutralAttackCap: 10,
     upgradeFraction:  0.35,
     neutralFraction:  0.70,
     attackFraction:   0.75,
     upgradeWeight:    0.40,
     expandWeight:     0.80,
     maxUpgrade:       3,
+    hazardToleranceThreshold: -499,  // avoids BHs and storms
+    usesWaypoints:    true,
   },
   expander: {
     evalInterval:     2.4,
     evalJitter:       0.6,
     minToDeploy:      7,
     reserveParticles: 3,
-    aggressionRatio:  1.5,    // was 1.8
+    aggressionRatio:  1.5,
     upgradeTrigger:   35,
-    neutralAttackCap: 20,     // was 12 — attacks ANY neutral planet
+    neutralAttackCap: 20,
     upgradeFraction:  0.30,
     neutralFraction:  0.85,
     attackFraction:   0.50,
     upgradeWeight:    0.25,
     expandWeight:     0.98,
     maxUpgrade:       3,
+    hazardToleranceThreshold: -999,  // avoids BHs; ignores storms
+    usesWaypoints:    true,
   },
 
   // ── HARD ────────────────────────────────────────────────────────────────────
@@ -172,7 +207,7 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     evalJitter:       0.5,
     minToDeploy:      6,
     reserveParticles: 2,
-    aggressionRatio:  0.9,    // attacks even when behind
+    aggressionRatio:  0.9,
     upgradeTrigger:   20,
     neutralAttackCap: 20,
     upgradeFraction:  0.25,
@@ -181,6 +216,8 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     upgradeWeight:    0.20,
     expandWeight:     0.50,
     maxUpgrade:       3,
+    hazardToleranceThreshold: -9999, // charges through everything — no avoidance
+    usesWaypoints:    false,
   },
   economic: {
     evalInterval:     2.5,
@@ -190,12 +227,14 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     aggressionRatio:  1.6,
     upgradeTrigger:   25,
     neutralAttackCap: 5,
-    upgradeFraction:  0.75,   // almost always upgrading
+    upgradeFraction:  0.75,
     neutralFraction:  0.50,
     attackFraction:   0.65,
     upgradeWeight:    0.90,
     expandWeight:     0.55,
     maxUpgrade:       3,
+    hazardToleranceThreshold: -499,  // avoids BHs and storms
+    usesWaypoints:    true,
   },
   blitzkrieg: {
     evalInterval:     1.8,
@@ -206,11 +245,13 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     upgradeTrigger:   20,
     neutralAttackCap: 15,
     upgradeFraction:  0.30,
-    neutralFraction:  0.90,   // rush expansion ultra-aggressively
+    neutralFraction:  0.90,
     attackFraction:   0.80,
     upgradeWeight:    0.25,
     expandWeight:     0.90,
-    maxUpgrade:       2,      // doesn't bother with full upgrades — speed wins
+    maxUpgrade:       2,
+    hazardToleranceThreshold: -999,  // avoids only BHs, ignores storms
+    usesWaypoints:    true,
   },
   dominator: {
     evalInterval:     2.0,
@@ -226,6 +267,8 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     upgradeWeight:    0.60,
     expandWeight:     0.65,
     maxUpgrade:       3,
+    hazardToleranceThreshold: -499,  // avoids BHs and storms
+    usesWaypoints:    true,
   },
 };
 
@@ -276,6 +319,15 @@ export class AIController {
   /** Per-faction: planet IDs recently deployed FROM (with cooldown). */
   private aggressorCooldowns: Map<string, number> = new Map(); // planetId -> seconds remaining
 
+  /** Active waves: groups of particles in flight toward a tracked target. */
+  private activeWaves: AIWave[] = [];
+
+  /** Planet capture events queued for re-evaluation on next update tick. */
+  private _pendingCaptureEvals: Array<{ planetId: string; newFaction: Faction; oldFaction: Faction }> = [];
+
+  /** Unsubscribe handle for the planet:captured event. */
+  private _unsubCapture: (() => void) | null = null;
+
   constructor(factions: Faction[], difficulty: AIDifficulty = 'normal') {
     this.factions   = factions;
     this.timers     = new Map();
@@ -300,6 +352,22 @@ export class AIController {
     }
   }
 
+  /**
+   * Subscribe to EventBus events needed by the AI.
+   * Call this once after construction, before the first update().
+   */
+  subscribeEvents(eventBus: EventBus): void {
+    this._unsubCapture = eventBus.on('planet:captured', (payload) => {
+      this._pendingCaptureEvals.push(payload);
+    });
+  }
+
+  /** Unsubscribe all EventBus listeners (call when the game ends / AI is torn down). */
+  destroy(): void {
+    this._unsubCapture?.();
+    this._unsubCapture = null;
+  }
+
   // -------------------------------------------------------------------------
   // Public update — called every frame from GameScene
   // -------------------------------------------------------------------------
@@ -317,6 +385,21 @@ export class AIController {
     // Expire old deploy events (> 12s)
     const cutoff = performance.now() - 12000;
     this.recentDeployEvents = this.recentDeployEvents.filter(e => e.time > cutoff);
+
+    // Prune completed waves (particles that are dead or no longer traveling)
+    this.activeWaves = this.activeWaves.filter(wave => {
+      const alive = wave.particleIds.some(id => {
+        const p = state.particles.find(p => p.id === id);
+        return p && p.alive && (p.mode === 'traveling' || p.mode === 'combat');
+      });
+      return alive;
+    });
+
+    // Process planet-captured events for wave re-evaluation
+    for (const captureEvent of this._pendingCaptureEvals) {
+      this._reevaluateWavesForCapture(captureEvent, state, deployCallback);
+    }
+    this._pendingCaptureEvals = [];
 
     for (const faction of this.factions) {
       const elapsed  = (this.timers.get(faction) ?? 0) + dt;
@@ -358,6 +441,11 @@ export class AIController {
     const strategy = this.strategies.get(faction)!;
     const ownPlanets = this.getOwnPlanets(faction, state);
 
+    // Gather any stationed particles belonging to this faction
+    const stationedParticleIds = state.particles
+      .filter((p) => p.alive && p.faction === faction && p.mode === 'stationed')
+      .map((p) => p.id);
+
     if (ownPlanets.length === 0) {
       this.states.set(faction, 'defend');
       return;
@@ -383,16 +471,16 @@ export class AIController {
     );
 
     // --- Branch 0: Backcap — opportunistically attack a just-vacated planet ---
-    if (sourcePlanets.length > 0) {
+    if (sourcePlanets.length > 0 || stationedParticleIds.length > 0) {
       const backcapTarget = this._findBackcapTarget(faction, state);
       if (backcapTarget !== null) {
         const localSource = this.nearestPlanet(sourcePlanets, backcapTarget);
-        if (localSource !== null) {
-          const localOrbit = this.getOrbitingCount(localSource.id, state);
-          if (localOrbit > backcapTarget.health + strategy.reserveParticles) {
+        if (localSource !== null || stationedParticleIds.length > 0) {
+          const localOrbit = localSource ? this.getOrbitingCount(localSource.id, state) : 0;
+          if (localOrbit + stationedParticleIds.length > backcapTarget.health + strategy.reserveParticles) {
             this.states.set(faction, 'attack');
-            this.deployParticles([localSource], backcapTarget, deployCallback, strategy.attackFraction);
-            this.aggressorCooldowns.set(localSource.id, 8);
+            this.deployParticles(localSource ? [localSource] : [], backcapTarget, deployCallback, strategy.attackFraction, stationedParticleIds, state);
+            if (localSource) this.aggressorCooldowns.set(localSource.id, 8);
             return;
           }
         }
@@ -401,20 +489,24 @@ export class AIController {
 
     // --- Branch 1: Upgrade ---
     const wantsUpgrade = Math.random() < strategy.upgradeWeight;
-    if (wantsUpgrade && sourcePlanets.length > 0 && totalParticles >= strategy.upgradeTrigger) {
+    if (wantsUpgrade && (sourcePlanets.length > 0 || stationedParticleIds.length > 0) && totalParticles >= strategy.upgradeTrigger) {
       const bestUpgradePlanet = this.findBestPlanetToUpgrade(ownPlanets, strategy.maxUpgrade);
       if (bestUpgradePlanet !== null) {
         this.states.set(faction, 'upgrade');
         const nearest = this.nearestPlanet(sourcePlanets, bestUpgradePlanet);
         if (nearest !== null && nearest.id !== bestUpgradePlanet.id) {
-          this.deployParticles([nearest], bestUpgradePlanet, deployCallback, strategy.upgradeFraction);
+          this.deployParticles([nearest], bestUpgradePlanet, deployCallback, strategy.upgradeFraction, stationedParticleIds, state);
           this.aggressorCooldowns.set(nearest.id, 5);
         } else if (nearest !== null) {
           const alt = sourcePlanets.find((p) => p.id !== nearest.id) ?? null;
           if (alt !== null) {
-            this.deployParticles([alt], bestUpgradePlanet, deployCallback, strategy.upgradeFraction);
+            this.deployParticles([alt], bestUpgradePlanet, deployCallback, strategy.upgradeFraction, stationedParticleIds, state);
             this.aggressorCooldowns.set(alt.id, 5);
+          } else if (stationedParticleIds.length > 0) {
+            this.deployParticles([], bestUpgradePlanet, deployCallback, strategy.upgradeFraction, stationedParticleIds, state);
           }
+        } else if (stationedParticleIds.length > 0) {
+          this.deployParticles([], bestUpgradePlanet, deployCallback, strategy.upgradeFraction, stationedParticleIds, state);
         }
         return;
       }
@@ -427,45 +519,43 @@ export class AIController {
       wantsExpand &&
       weakestNeutral !== null &&
       weakestNeutral.health < strategy.neutralAttackCap &&
-      sourcePlanets.length > 0
+      (sourcePlanets.length > 0 || stationedParticleIds.length > 0)
     ) {
       this.states.set(faction, 'conquer_neutral');
       const nearest = this.nearestPlanet(sourcePlanets, weakestNeutral);
       if (nearest !== null) {
-        this.deployParticles([nearest], weakestNeutral, deployCallback, strategy.neutralFraction);
+        this.deployParticles([nearest], weakestNeutral, deployCallback, strategy.neutralFraction, stationedParticleIds, state);
         this.aggressorCooldowns.set(nearest.id, 6);
+      } else if (stationedParticleIds.length > 0) {
+        this.deployParticles([], weakestNeutral, deployCallback, strategy.neutralFraction, stationedParticleIds, state);
       }
       return;
     }
 
     // --- Branch 2.5: Opportunity Attack (local advantage) ---
     // Attack a nearby enemy planet even if globally behind, if locally strong enough
-    if (sourcePlanets.length > 0) {
-      const opportunityTarget = this._findOpportunityTarget(faction, sourcePlanets, state);
+    if (sourcePlanets.length > 0 || stationedParticleIds.length > 0) {
+      const opportunityTarget = this._findOpportunityTarget(faction, sourcePlanets, state, stationedParticleIds.length);
       if (opportunityTarget !== null) {
         const src = this.nearestPlanet(sourcePlanets, opportunityTarget);
-        if (src !== null) {
-          this.states.set(faction, 'attack');
-          this.deployParticles([src], opportunityTarget, deployCallback, strategy.attackFraction);
-          this.aggressorCooldowns.set(src.id, 8);
-          return;
-        }
+        this.states.set(faction, 'attack');
+        this.deployParticles(src ? [src] : [], opportunityTarget, deployCallback, strategy.attackFraction, stationedParticleIds, state);
+        if (src) this.aggressorCooldowns.set(src.id, 8);
+        return;
       }
     }
 
     // --- Branch 3: Attack (global advantage) ---
     if (
       totalParticles > strongestEnemyParticles * strategy.aggressionRatio &&
-      sourcePlanets.length > 0
+      (sourcePlanets.length > 0 || stationedParticleIds.length > 0)
     ) {
       const target = this.findAttackTarget(state, faction);
       if (target !== null) {
         this.states.set(faction, 'attack');
         const src = this.nearestPlanet(sourcePlanets, target);
-        if (src !== null) {
-          this.deployParticles([src], target, deployCallback, strategy.attackFraction);
-          this.aggressorCooldowns.set(src.id, 8);
-        }
+        this.deployParticles(src ? [src] : [], target, deployCallback, strategy.attackFraction, stationedParticleIds, state);
+        if (src) this.aggressorCooldowns.set(src.id, 8);
         return;
       }
     }
@@ -473,22 +563,22 @@ export class AIController {
     // --- Branch 4: Defend timeout pressure valve ---
     // If stuck in defend for 15+ seconds, force an action regardless of ratios
     const defendTime = this.defendTimers.get(faction) ?? 0;
-    if (defendTime >= 15 && sourcePlanets.length > 0) {
+    if (defendTime >= 15 && (sourcePlanets.length > 0 || stationedParticleIds.length > 0)) {
       this.defendTimers.set(faction, 0);
       // Try neutral first; if none, attack weakest enemy
       const neutral = this.findWeakestNeutral(state);
       const forceSrc = this.nearestPlanet(sourcePlanets, neutral ?? ownPlanets[0]);
-      if (forceSrc !== null) {
+      if (forceSrc !== null || stationedParticleIds.length > 0) {
         if (neutral !== null) {
           this.states.set(faction, 'conquer_neutral');
-          this.deployParticles([forceSrc], neutral, deployCallback, strategy.neutralFraction);
-          this.aggressorCooldowns.set(forceSrc.id, 6);
+          this.deployParticles(forceSrc ? [forceSrc] : [], neutral, deployCallback, strategy.neutralFraction, stationedParticleIds, state);
+          if (forceSrc) this.aggressorCooldowns.set(forceSrc.id, 6);
         } else {
           const anyEnemy = this.findAttackTarget(state, faction);
           if (anyEnemy !== null) {
             this.states.set(faction, 'attack');
-            this.deployParticles([forceSrc], anyEnemy, deployCallback, strategy.attackFraction * 0.5);
-            this.aggressorCooldowns.set(forceSrc.id, 8);
+            this.deployParticles(forceSrc ? [forceSrc] : [], anyEnemy, deployCallback, strategy.attackFraction * 0.5, stationedParticleIds, state);
+            if (forceSrc) this.aggressorCooldowns.set(forceSrc.id, 8);
           }
         }
         return;
@@ -590,12 +680,128 @@ export class AIController {
     target: PlanetData,
     deployCallback: DeployCallback,
     _fraction: number,
+    stationedParticleIds?: number[],
+    state?: GameState
   ): void {
-    const strategy = this.strategies.get(this.factions[0])!; // fraction logged only
-    // Minimal check to avoid sending from empty planets
-    const validSources = sources;
-    if (validSources.length === 0) return;
-    deployCallback(validSources.map((p) => p.id), target.id);
+    if (sources.length === 0 && (!stationedParticleIds || stationedParticleIds.length === 0)) return;
+
+    let waypointX: number | undefined;
+    let waypointY: number | undefined;
+
+    if (state && sources.length > 0) {
+      const faction = sources[0].faction;
+      const strategy = this.strategies.get(faction)!;
+      const src = sources[0];
+
+      // Gamma ray temporal suppression
+      if (isGammaDangerous(state, target.x, target.y)) return;
+
+      const routeScore = scoreRoute(state, src.x, src.y, target.x, target.y);
+      if (routeScore < strategy.hazardToleranceThreshold) {
+        if (strategy.usesWaypoints) {
+          const wp = computeWaypoint(
+            src.x, src.y, target.x, target.y,
+            state, state.worldWidth, state.worldHeight, 50
+          );
+          if (wp) { waypointX = wp.wpx; waypointY = wp.wpy; }
+        }
+        // No waypoint found or role doesn't use them — deploy straight (graceful degradation)
+      }
+    }
+
+    deployCallback(sources.map((p) => p.id), target.id, stationedParticleIds, waypointX, waypointY);
+  }
+
+  // -------------------------------------------------------------------------
+  // Wave re-evaluation (Part 1: in-flight re-evaluation on planet capture)
+  // -------------------------------------------------------------------------
+
+  private _reevaluateWavesForCapture(
+    event: { planetId: string; newFaction: Faction; oldFaction: Faction },
+    state: GameState,
+    deployCallback: DeployCallback,
+  ): void {
+    const affected = this.activeWaves.filter(w => w.targetPlanetId === event.planetId);
+    if (affected.length === 0) return;
+
+    const capturedPlanet = state.planets.get(event.planetId);
+
+    for (const wave of affected) {
+      if (wave.faction === event.newFaction) {
+        // We captured our own target — wave will orbit on arrival, no action needed
+        continue;
+      }
+
+      const strategy = this.strategies.get(wave.faction)!;
+      const waveParticles = state.particles.filter(
+        p => p.alive && wave.particleIds.includes(p.id) && (p.mode === 'traveling' || p.mode === 'combat')
+      );
+      if (waveParticles.length === 0) continue;
+
+      // Evaluate "point of no return": are particles closer to target or to a friendly planet?
+      const ownPlanets = this.getOwnPlanets(wave.faction, state);
+      const avgX = waveParticles.reduce((s, p) => s + p.x, 0) / waveParticles.length;
+      const avgY = waveParticles.reduce((s, p) => s + p.y, 0) / waveParticles.length;
+
+      const targetPlanet = capturedPlanet;
+      const distToTarget = targetPlanet
+        ? Math.sqrt((targetPlanet.x - avgX) ** 2 + (targetPlanet.y - avgY) ** 2)
+        : Infinity;
+
+      const nearestFriendly = this.nearestPlanet(ownPlanets, { x: avgX, y: avgY } as PlanetData);
+      const distToFriend = nearestFriendly
+        ? Math.sqrt((nearestFriendly.x - avgX) ** 2 + (nearestFriendly.y - avgY) ** 2)
+        : Infinity;
+
+      const isPastPointOfNoReturn = distToTarget <= distToFriend;
+
+      // Compute new defense strength at captured planet
+      const newDefense = capturedPlanet
+        ? (capturedPlanet.health + this.getOrbitingCount(capturedPlanet.id, state))
+        : 0;
+      const waveStrength = waveParticles.length;
+      const subRole = this.subRoles.get(wave.faction)!;
+
+      if (isPastPointOfNoReturn) {
+        // Can't turn back — commit or accept as sacrifice
+        // berserker, blitzkrieg: always commit (do nothing)
+        // others: only commit if we can still win
+        if (subRole !== 'berserker' && subRole !== 'blitzkrieg' && subRole !== 'easy_turtle') {
+          if (waveStrength < newDefense * 0.8) {
+            // Sacrifice — accept loss, let them fly in — nothing to do
+          }
+          // else: still a winnable fight, commit silently
+        }
+      } else {
+        // Can still redirect — decide what to do
+        const waveParticleIds = waveParticles.map(p => p.id);
+
+        if (subRole === 'fortress' || subRole === 'economic' || subRole === 'dominator') {
+          // Recall to nearest friendly planet
+          if (nearestFriendly) {
+            deployCallback([], nearestFriendly.id, waveParticleIds);
+          }
+        } else if (subRole === 'opportunist' || subRole === 'expander' || subRole === 'blitzkrieg') {
+          // Redirect to best available neutral or weakest enemy
+          const altNeutral = this.findWeakestNeutral(state);
+          const altEnemy = altNeutral ? null : this.findAttackTarget(state, wave.faction);
+          const altTarget = altNeutral ?? altEnemy;
+          if (altTarget) {
+            deployCallback([], altTarget.id, waveParticleIds);
+          } else if (nearestFriendly) {
+            deployCallback([], nearestFriendly.id, waveParticleIds);
+          }
+        } else if (subRole === 'balanced') {
+          // Commit if odds are decent, else recall
+          if (waveStrength >= newDefense * 1.0) {
+            // Keep going — do nothing
+          } else if (nearestFriendly) {
+            deployCallback([], nearestFriendly.id, waveParticleIds);
+          }
+        }
+        // easy_turtle: do nothing (too dumb to redirect)
+      }
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -662,7 +868,7 @@ export class AIController {
    * Opportunity attack: find an enemy planet that is locally weak enough
    * for one of our source planets to take it on, even without global advantage.
    */
-  private _findOpportunityTarget(faction: Faction, sourcePlanets: PlanetData[], state: GameState): PlanetData | null {
+  private _findOpportunityTarget(faction: Faction, sourcePlanets: PlanetData[], state: GameState, stationedCount: number): PlanetData | null {
     const OPPORTUNITY_RANGE_SQ = 350 * 350; // within 350px
     let best: PlanetData | null = null;
     let bestScore = Infinity;
@@ -672,12 +878,24 @@ export class AIController {
       const enemyOrbit = this.getOrbitingCount(planet.id, state);
       const totalDefense = enemyOrbit + planet.health;
 
+      // If we have no source planets, but we have stationed particles, check if stationed is enough
+      if (sourcePlanets.length === 0) {
+        if (stationedCount > totalDefense * 1.5) {
+          const score = totalDefense;
+          if (score < bestScore) {
+            bestScore = score;
+            best = planet;
+          }
+        }
+        continue;
+      }
+
       for (const src of sourcePlanets) {
         const dSq = this.distSq(src, planet);
         if (dSq > OPPORTUNITY_RANGE_SQ) continue;
         const myOrbit = this.getOrbitingCount(src.id, state);
         // Only attack if we have a meaningful local advantage
-        if (myOrbit > totalDefense * 1.5) {
+        if (myOrbit + stationedCount > totalDefense * 1.5) {
           if (totalDefense < bestScore) {
             bestScore = totalDefense;
             best = planet;

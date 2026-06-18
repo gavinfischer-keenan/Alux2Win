@@ -33,9 +33,11 @@ export interface PlanetData {
   productionRate: number;
   absorbedCount: number;
   isOrbiting: boolean;
+  orbitShape?: 'circle' | 'ellipse';
   orbitCenterX?: number;
   orbitCenterY?: number;
-  orbitRadius?: number;
+  orbitRadius?: number;   // Acts as width/X radius for ellipse
+  orbitRadiusY?: number;  // Height/Y radius for ellipse
   orbitSpeed?: number;
   orbitAngle?: number;
   // hazard state
@@ -61,6 +63,8 @@ export interface ParticleData {
   targetPlanetId?: string;
   targetX?: number;
   targetY?: number;
+  waypointX?: number;   // AI-set intermediate waypoint (cleared on arrival)
+  waypointY?: number;
   orbitAngle?: number;
   orbitRadius?: number;
   deployTimer?: number;
@@ -221,9 +225,11 @@ export interface PlanetDef {
   upgradeLevel: UpgradeLevel;
   startingParticles: number;
   isOrbiting: boolean;
+  orbitShape?: 'circle' | 'ellipse';
   orbitCenterX?: number;
   orbitCenterY?: number;
   orbitRadius?: number;
+  orbitRadiusY?: number;
   orbitSpeed?: number;
   orbitStartAngle?: number;
 }
@@ -319,7 +325,7 @@ export const FACTION_COLORS_HEX: Record<Faction, string> = {
 export const WORLD_WIDTH  = 2048;
 export const WORLD_HEIGHT = 2048;
 export const PARTICLE_RADIUS = 4;
-export const PARTICLE_SPEED  = 60;   // px/sec world units
+export const PARTICLE_SPEED  = 70;   // px/sec world units
 export const COLLISION_DISTANCE = 10; // px, particle-particle annihilation
 
 /** Seconds an orbiting particle may idle before auto-absorbing into its planet. */

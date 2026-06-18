@@ -254,6 +254,7 @@ export class GameScene {
       isTutorial ? [] : Array.from(aiFactions),
       SettingsStore.get().difficulty
     );
+    this.aiController.subscribeEvents(this.eventBus);
     this.spatialHash = new SpatialHash(64);
 
     // Create tutorial controller if needed (after hudContainer is set up below)
@@ -387,13 +388,20 @@ export class GameScene {
     levelData.planets.forEach((def: PlanetDef) => {
       const lvl = def.upgradeLevel as UpgradeLevel;
       const maxHealth = PLANET_MAX_HEALTH[lvl];
+      
+      // Neutral planets use startingParticles for their initial health barrier.
+      // Owned planets start fully healed (maxHealth) and use startingParticles for their initial orbiting units.
+      const initialHealth = def.faction === 'neutral' 
+        ? (def.startingParticles !== undefined && def.startingParticles > 0 ? def.startingParticles : 10)
+        : maxHealth;
+
       const data: PlanetData = {
         id: def.id,
         x: def.x,
         y: def.y,
         faction: def.faction,
         upgradeLevel: lvl,
-        health: maxHealth,
+        health: initialHealth,
         maxHealth,
         productionRate: PLANET_PRODUCTION[lvl],
         absorbedCount: 0,
@@ -421,7 +429,7 @@ export class GameScene {
       blackHoles.set(def.id, data);
     });
 
-    return {
+    const state: GameState = {
       planets,
       particles: [],
       blackHoles,
@@ -462,6 +470,42 @@ export class GameScene {
       hazardEffects:         [],
       hazardEffectIdCounter: 0,
     };
+
+    // Spawn default starting particles around home planets
+    levelData.planets.forEach(def => {
+      if (def.faction !== 'neutral') {
+        const count = def.startingParticles || 20;
+        const lvl = def.upgradeLevel as UpgradeLevel;
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const orbitRadius = PLANET_RADIUS[lvl] + 8 + Math.random() * 10;
+          state.particles.push({
+            id:             state.particleIdCounter++,
+            x:              def.x + Math.cos(angle) * orbitRadius,
+            y:              def.y + Math.sin(angle) * orbitRadius,
+            vx:             0,
+            vy:             0,
+            faction:        def.faction,
+            mode:           'orbiting',
+            strength:       1,
+            orbitTimer:     (Math.random() * -5), // slight negative offset so they don't immediately absorb
+            damage:         0,
+            homePlanetId:   def.id,
+            orbitAngle:     angle,
+            orbitRadius:    orbitRadius,
+            deployTimer:    0,
+            alive:          true,
+            stormTimer:     0,
+            inStorm:        false,
+            speedMod:       1.0,
+            portalCooldown: 0,
+            trappedByBH:    null,
+          });
+        }
+      }
+    });
+
+    return state;
   }
 
   // ── Update (Fixed-tick) ───────────────────────────────────
@@ -491,6 +535,54 @@ export class GameScene {
 
     // Systems in order
     this.systems.orbit.update(dt, this.state);
+
+    // -- Planet Collision Check --
+    const planetsArr = Array.from(this.state.planets.values());
+    const destroyedPlanetIds = new Set<string>();
+
+    for (let i = 0; i < planetsArr.length; i++) {
+      for (let j = i + 1; j < planetsArr.length; j++) {
+        const p1 = planetsArr[i];
+        const p2 = planetsArr[j];
+        if (!p1.isOrbiting && !p2.isOrbiting) continue; // If both are stationary, they can't collide
+
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const distSq = dx * dx + dy * dy;
+        const r1 = PLANET_RADIUS[p1.upgradeLevel];
+        const r2 = PLANET_RADIUS[p2.upgradeLevel];
+        const minDist = r1 + r2;
+
+        if (distSq < minDist * minDist) {
+          destroyedPlanetIds.add(p1.id);
+          destroyedPlanetIds.add(p2.id);
+        }
+      }
+    }
+
+    if (destroyedPlanetIds.size > 0) {
+      // Trigger death effects
+      for (let i = 0; i < destroyedPlanetIds.size; i++) {
+        (this.state as any)._pendingPlanetHazardDeaths = ((this.state as any)._pendingPlanetHazardDeaths ?? 0) + 1;
+      }
+      
+      // Remove destroyed planets
+      for (const id of destroyedPlanetIds) {
+        this.state.planets.delete(id);
+        this.state.selectedPlanetIds.delete(id);
+      }
+
+      // Strand orbiting/traveling particles assigned to these planets
+      this.state.particles.forEach(p => {
+        if (p.alive && p.homePlanetId && destroyedPlanetIds.has(p.homePlanetId)) {
+          p.mode = 'stationed';
+          // p.homePlanetId = null; // Wait, homePlanetId is string type, 'stationed' particles might need it null. We'll leave it as is or assign it to something invalid. Since they are stationed, the MovementSystem will just stop them.
+          p.vx = 0;
+          p.vy = 0;
+        }
+      });
+    }
+
     this.systems.production.update(dt, this.state);
     this.systems.movement.update(dt, this.state, this.spatialHash);
     this.systems.gravity.update(dt, this.state);
@@ -535,9 +627,9 @@ export class GameScene {
     // Prune dead particles
     this.state.particles = this.state.particles.filter(p => p.alive);
 
-    // AI — callback matches DeployCallback = (fromIds, targetPlanetId) => void
-    this.aiController.update(dt, this.state, (fromIds, targetPlanetId) => {
-      this._deployParticles(fromIds, targetPlanetId, undefined, undefined);
+    // AI - callback matches DeployCallback signature
+    this.aiController.update(dt, this.state, (fromIds, targetPlanetId, stationedParticleIds, waypointX, waypointY) => {
+      this._deployParticles(fromIds, targetPlanetId, stationedParticleIds, undefined, waypointX, waypointY);
     });
 
     // Tutorial controller (scripted enemy + overlay steps)
@@ -842,31 +934,43 @@ export class GameScene {
     targetX?: number,
     targetY?: number
   ): void {
+    this._deploySpecificParticles(Array.from(this.state.selectedParticleIds), targetPlanetId, targetX, targetY);
+    this.state.selectedParticleIds.clear();
+  }
+
+  private _deploySpecificParticles(
+    particleIds: number[],
+    targetPlanetId?: string,
+    targetX?: number,
+    targetY?: number,
+    waypointX?: number,
+    waypointY?: number
+  ): void {
+    const idSet = new Set(particleIds);
     for (const p of this.state.particles) {
-      if (!p.alive || !this.state.selectedParticleIds.has(p.id)) continue;
+      if (!p.alive || !idSet.has(p.id)) continue;
 
-
-
-      p.mode          = 'traveling';
+      p.mode           = 'traveling';
       p.targetPlanetId = targetPlanetId;
       p.targetX        = targetX;
       p.targetY        = targetY;
+      p.waypointX      = waypointX;
+      p.waypointY      = waypointY;
       p.orbitTimer     = 0;
       p.deployTimer    = 0;
-      // Set initial velocity toward target
-      const destX = targetPlanetId
+      // Steer toward waypoint first if set, else toward real target
+      const destX = waypointX ?? (targetPlanetId
         ? (this.state.planets.get(targetPlanetId)?.x ?? p.x)
-        : (targetX ?? p.x);
-      const destY = targetPlanetId
+        : (targetX ?? p.x));
+      const destY = waypointY ?? (targetPlanetId
         ? (this.state.planets.get(targetPlanetId)?.y ?? p.y)
-        : (targetY ?? p.y);
+        : (targetY ?? p.y));
       const dx = destX - p.x;
       const dy = destY - p.y;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
       p.vx = (dx / len) * PARTICLE_SPEED;
       p.vy = (dy / len) * PARTICLE_SPEED;
     }
-    this.state.selectedParticleIds.clear();
   }
 
   private deployFromSelected(targetPlanetId?: string, targetX?: number, targetY?: number): void {
@@ -876,6 +980,7 @@ export class GameScene {
     this._deployParticles(
       fromIds,
       targetPlanetId,
+      undefined,  // stationedParticleIds
       targetX,
       targetY
     );
@@ -885,8 +990,11 @@ export class GameScene {
   private _deployParticles(
     sourcePlanetIds: string[],
     targetPlanetId?: string,
+    stationedParticleIds?: number[],
     targetX?: number,
-    targetY?: number
+    targetY?: number,
+    waypointX?: number,
+    waypointY?: number
   ): void {
     let targetPlanet: PlanetData | undefined;
     if (targetPlanetId) targetPlanet = this.state.planets.get(targetPlanetId);
@@ -912,17 +1020,24 @@ export class GameScene {
         p.targetPlanetId = targetPlanetId;
         p.targetX        = targetX;
         p.targetY        = targetY;
+        p.waypointX      = waypointX;
+        p.waypointY      = waypointY;
         p.orbitTimer     = 0;
         p.deployTimer    = 0;
 
-        const destX = targetPlanet ? targetPlanet.x : (targetX ?? p.x);
-        const destY = targetPlanet ? targetPlanet.y : (targetY ?? p.y);
+        const destX = waypointX ?? (targetPlanet ? targetPlanet.x : (targetX ?? p.x));
+        const destY = waypointY ?? (targetPlanet ? targetPlanet.y : (targetY ?? p.y));
         const dx    = destX - p.x;
         const dy    = destY - p.y;
         const len   = Math.sqrt(dx * dx + dy * dy) || 1;
 
         p.vx = (dx / len) * PARTICLE_SPEED;
         p.vy = (dy / len) * PARTICLE_SPEED;
+      }
+
+      // Also redeploy any stationed particles from AI
+      if (stationedParticleIds && stationedParticleIds.length > 0) {
+        this._deploySpecificParticles(stationedParticleIds, targetPlanetId, targetX, targetY, waypointX, waypointY);
       }
 
       // Fallback: spawn new particles if we somehow didn't have enough orbiting ones

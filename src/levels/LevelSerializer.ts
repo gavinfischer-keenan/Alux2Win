@@ -63,6 +63,8 @@ function isPlanetDef(value: unknown): value is PlanetDef {
     if (!isNumber(v['orbitCenterX'])) return false;
     if (!isNumber(v['orbitCenterY'])) return false;
     if (!isNumber(v['orbitRadius'])) return false;
+    if (v['orbitShape'] !== undefined && v['orbitShape'] !== 'circle' && v['orbitShape'] !== 'ellipse') return false;
+    if (v['orbitRadiusY'] !== undefined && !isNumber(v['orbitRadiusY'])) return false;
     if (!isNumber(v['orbitSpeed'])) return false;
   }
   return true;
@@ -107,6 +109,8 @@ export class LevelSerializer {
         def.orbitCenterX = planet.orbitCenterX;
         def.orbitCenterY = planet.orbitCenterY;
         def.orbitRadius = planet.orbitRadius;
+        if (planet.orbitShape) def.orbitShape = planet.orbitShape;
+        if (planet.orbitRadiusY) def.orbitRadiusY = planet.orbitRadiusY;
         def.orbitSpeed = planet.orbitSpeed;
         // Persist the current angle so the level re-opens at the same orbital position.
         def.orbitStartAngle = planet.orbitAngle ?? 0;
@@ -168,18 +172,21 @@ export class LevelSerializer {
         planet.orbitCenterX = def.orbitCenterX;
         planet.orbitCenterY = def.orbitCenterY;
         planet.orbitRadius = def.orbitRadius;
+        planet.orbitShape = def.orbitShape ?? 'circle';
+        planet.orbitRadiusY = def.orbitRadiusY ?? def.orbitRadius;
         planet.orbitSpeed = def.orbitSpeed;
         planet.orbitAngle = def.orbitStartAngle ?? 0;
 
-        // Set initial position from orbit parameters.
         if (
           isNumber(planet.orbitCenterX) &&
           isNumber(planet.orbitCenterY) &&
           isNumber(planet.orbitRadius) &&
           isNumber(planet.orbitAngle)
         ) {
-          planet.x = planet.orbitCenterX + planet.orbitRadius * Math.cos(planet.orbitAngle);
-          planet.y = planet.orbitCenterY + planet.orbitRadius * Math.sin(planet.orbitAngle);
+          const rx = planet.orbitRadius;
+          const ry = planet.orbitShape === 'ellipse' ? (planet.orbitRadiusY ?? rx) : rx;
+          planet.x = planet.orbitCenterX + rx * Math.cos(planet.orbitAngle);
+          planet.y = planet.orbitCenterY + ry * Math.sin(planet.orbitAngle);
         }
       }
 

@@ -280,7 +280,9 @@ export class EditorScene {
 
     // Orbit path (dashed approximation)
     if (planet.isOrbiting && planet.orbitCenterX !== undefined && planet.orbitRadius !== undefined) {
-      this.drawDashedCircle(gfx, planet.orbitCenterX, planet.orbitCenterY!, planet.orbitRadius, 32, 0x4fc3f7, 0.2);
+      const rx = planet.orbitRadius;
+      const ry = planet.orbitShape === 'ellipse' ? (planet.orbitRadiusY ?? rx) : rx;
+      this.drawDashedOrbit(gfx, planet.orbitCenterX, planet.orbitCenterY!, rx, ry, 32, 0x4fc3f7, 0.2);
     }
 
     // Planet body
@@ -419,9 +421,9 @@ export class EditorScene {
     }
   }
 
-  private drawDashedCircle(
+  private drawDashedOrbit(
     gfx: Graphics,
-    cx: number, cy: number, radius: number,
+    cx: number, cy: number, radiusX: number, radiusY: number,
     segments: number,
     color: number, alpha: number
   ): void {
@@ -430,8 +432,8 @@ export class EditorScene {
       if (i % 2 === 0) continue; // skip every other for dash effect
       const a1 = i * step;
       const a2 = (i + 1) * step;
-      gfx.moveTo(cx + Math.cos(a1) * radius, cy + Math.sin(a1) * radius);
-      gfx.lineTo(cx + Math.cos(a2) * radius, cy + Math.sin(a2) * radius);
+      gfx.moveTo(cx + Math.cos(a1) * radiusX, cy + Math.sin(a1) * radiusY);
+      gfx.lineTo(cx + Math.cos(a2) * radiusX, cy + Math.sin(a2) * radiusY);
       gfx.stroke({ color, alpha, width: 1 });
     }
   }
@@ -830,10 +832,30 @@ export class EditorScene {
     }
     if (changes.startingParticles !== undefined) planet.health = changes.startingParticles;
     if (changes.isOrbiting !== undefined)        planet.isOrbiting = changes.isOrbiting;
-    if (changes.orbitRadius !== undefined)       planet.orbitRadius = changes.orbitRadius;
+    if (changes.orbitShape !== undefined)        planet.orbitShape = changes.orbitShape;
     if (changes.orbitSpeed !== undefined)        planet.orbitSpeed = changes.orbitSpeed;
     if (changes.orbitCenterX !== undefined)      planet.orbitCenterX = changes.orbitCenterX;
     if (changes.orbitCenterY !== undefined)      planet.orbitCenterY = changes.orbitCenterY;
+
+    // Radius setting + clamping
+    if (changes.orbitRadius !== undefined || changes.orbitRadiusY !== undefined) {
+      if (changes.orbitRadius !== undefined) planet.orbitRadius = changes.orbitRadius;
+      if (changes.orbitRadiusY !== undefined) planet.orbitRadiusY = changes.orbitRadiusY;
+
+      // Clamp to keep within world bounds
+      if (planet.orbitCenterX !== undefined && planet.orbitCenterY !== undefined) {
+        if (planet.orbitRadius !== undefined) {
+          const maxRx1 = planet.orbitCenterX;
+          const maxRx2 = this.editState.worldWidth - planet.orbitCenterX;
+          planet.orbitRadius = Math.min(planet.orbitRadius, Math.max(50, Math.min(maxRx1, maxRx2)));
+        }
+        if (planet.orbitRadiusY !== undefined) {
+          const maxRy1 = planet.orbitCenterY;
+          const maxRy2 = this.editState.worldHeight - planet.orbitCenterY;
+          planet.orbitRadiusY = Math.min(planet.orbitRadiusY, Math.max(50, Math.min(maxRy1, maxRy2)));
+        }
+      }
+    }
   }
 
   private updateBlackHoleProperty(bhId: string, changes: Partial<BlackHoleData>): void {
