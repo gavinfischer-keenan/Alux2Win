@@ -536,7 +536,7 @@ export class EditorScene {
   // ── Canvas Event Binding ───────────────────────────────────
 
   private bindCanvasEvents(): void {
-    const canvas = this.renderer.canvas;
+    const target = this.uiContainer;
 
     this._onMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
@@ -565,18 +565,18 @@ export class EditorScene {
       this.handleCanvasRightClick(x, y);
     };
 
-    canvas.addEventListener('mousedown',   this._onMouseDown);
-    canvas.addEventListener('mousemove',   this._onMouseMove);
-    canvas.addEventListener('mouseup',     this._onMouseUp);
-    canvas.addEventListener('contextmenu', this._onContextMenu);
+    target.addEventListener('mousedown',   this._onMouseDown);
+    target.addEventListener('mousemove',   this._onMouseMove);
+    target.addEventListener('mouseup',     this._onMouseUp);
+    target.addEventListener('contextmenu', this._onContextMenu);
   }
 
   private unbindCanvasEvents(): void {
-    const canvas = this.renderer.canvas;
-    canvas.removeEventListener('mousedown',   this._onMouseDown);
-    canvas.removeEventListener('mousemove',   this._onMouseMove);
-    canvas.removeEventListener('mouseup',     this._onMouseUp);
-    canvas.removeEventListener('contextmenu', this._onContextMenu);
+    const target = this.uiContainer;
+    target.removeEventListener('mousedown',   this._onMouseDown);
+    target.removeEventListener('mousemove',   this._onMouseMove);
+    target.removeEventListener('mouseup',     this._onMouseUp);
+    target.removeEventListener('contextmenu', this._onContextMenu);
   }
 
   private canvasToWorld(e: MouseEvent): { x: number; y: number } {
@@ -597,7 +597,7 @@ export class EditorScene {
       place_whitehole:  'crosshair',
       delete:           'not-allowed',
     };
-    this.renderer.canvas.style.cursor = cursors[this.editState.tool];
+    this.uiContainer.style.cursor = cursors[this.editState.tool];
   }
 
   // ── Click Handlers ─────────────────────────────────────────
