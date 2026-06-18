@@ -161,7 +161,7 @@ describe('MovementSystem', () => {
     system.update(1.0, state, mockSpatialHash);
     
     // The integration limits speed to PARTICLE_SPEED * p.speedMod
-    // PARTICLE_SPEED = 60, speedMod = 2.0 => max speed = 120
-    expect(state.particles[0].vx).toBeCloseTo(120);
+    // PARTICLE_SPEED = 70, speedMod = 2.0 => max speed = 140
+    expect(state.particles[0].vx).toBeCloseTo(PARTICLE_SPEED * 2.0);
   });
 });
