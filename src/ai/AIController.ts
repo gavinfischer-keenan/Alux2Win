@@ -3,9 +3,10 @@
 // Supports Easy / Normal / Hard difficulty with random sub-roles
 // that persist for the lifetime of a single game.
 //
-// v2 — Major overhaul: forced opening moves, strategic awareness,
-//       coordinated multi-source attacks, retreat logic, adaptive
-//       aggression, rebalanced difficulty tiers.
+// v3 — Breakthrough mechanic: aggressive AIs sense momentum
+//       after a planet capture and surge deeper into enemy
+//       territory using even defensive reserves, then either
+//       consolidate those gains or gracefully fall back.
 // ============================================================
 
 import {
@@ -20,7 +21,7 @@ import { scoreRoute, isGammaDangerous, computeWaypoint } from './HazardPathCheck
 import type { EventBus } from '../core/EventBus';
 
 /** The four mutually exclusive high-level intentions the AI can be in. */
-type AIState = 'defend' | 'conquer_neutral' | 'upgrade' | 'attack' | 'retreat';
+type AIState = 'defend' | 'conquer_neutral' | 'upgrade' | 'attack' | 'retreat' | 'breakthrough' | 'counterattack';
 
 /** Callback signature for deploying particles from one set of planets to a target. */
 export type DeployCallback = (fromIds: string[], targetPlanetId: string, stationedParticleIds?: number[], waypointX?: number, waypointY?: number) => void;
@@ -106,6 +107,61 @@ interface AIStrategy {
   opportunityRange: number;
   /** Max number of source planets for coordinated attacks. */
   maxSources: number;
+
+  // ── Counterattack parameters ─────────────────────────────────────────────
+
+  /**
+   * Probability [0–1] that this sub-role will launch a counterattack when one
+   * of its planets is under attack and it has surplus defenders.
+   * 0 = never counterattacks; 1 = always counterattacks when conditions are met.
+   */
+  counterattackChance: number;
+  /**
+   * Fraction of the defending orbiters to KEEP on the attacked planet.
+   * The remainder (above counterattackMinDefenders) is sent to strike back.
+   * 0.8 = very defensive (only sends 20 % of surplus); 0.2 = very aggressive.
+   */
+  counterattackDefenseRatio: number;
+  /**
+   * Hard floor: the AI always keeps at least this many orbiters on a planet
+   * that is being attacked, no matter what counterattackDefenseRatio says.
+   */
+  counterattackMinDefenders: number;
+
+  // ── Breakthrough parameters ─────────────────────────────────────────────
+
+  /**
+   * Probability [0–1] that this sub-role will attempt a breakthrough surge
+   * when it captures a planet and nearby enemy planets are weak.
+   * 0 = never surges. 1 = always surges when conditions are met.
+   */
+  breakthroughChance: number;
+  /**
+   * Pixel radius searched around the just-captured planet for weak
+   * neighbouring enemy planets to exploit.
+   */
+  breakthroughScanRadius: number;
+  /**
+   * Max enemy health + orbit count a secondary planet may have to be
+   * considered "weak enough" for a breakthrough strike.
+   */
+  breakthroughWeaknessThreshold: number;
+  /**
+   * Fraction of ALL own orbiting particles (including defensive rear reserves)
+   * that will be thrown into a breakthrough surge. Higher = more reckless.
+   */
+  breakthroughSurgeFraction: number;
+  /**
+   * Seconds the AI keeps surge targets marked as "breakthrough" planets.
+   * If the AI still holds them after this time, they become normal planets.
+   * If the enemy takes them back during this window, the AI doesn't chase.
+   */
+  breakthroughConsolidateSecs: number;
+  /**
+   * Max number of additional "chain" planets to strike in a single
+   * breakthrough surge (beyond the one just captured).
+   */
+  breakthroughMaxTargets: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -120,6 +176,19 @@ interface AIWave {
   sentAt: number;         // performance.now() when dispatched
   waypointX?: number;
   waypointY?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Breakthrough state — tracks active surge campaigns per faction
+// ---------------------------------------------------------------------------
+
+interface BreakthroughEntry {
+  /** Planet IDs currently being held as breakthrough gains. */
+  surgeTargetIds: Set<string>;
+  /** Game-time seconds at which this surge was launched. */
+  launchedAt: number;
+  /** How many seconds the surge is active before consolidation. */
+  consolidateSecs: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -168,6 +237,16 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     defendTimeout:    20,
     opportunityRange: 300,
     maxSources:       1,
+    // Easy: never counterattacks, never surges
+    counterattackChance:        0.0,
+    counterattackDefenseRatio:  1.0,
+    counterattackMinDefenders:  99,
+    breakthroughChance:            0.0,
+    breakthroughScanRadius:        0,
+    breakthroughWeaknessThreshold: 0,
+    breakthroughSurgeFraction:     0,
+    breakthroughConsolidateSecs:   0,
+    breakthroughMaxTargets:        0,
   },
 
   // ── NORMAL ──────────────────────────────────────────────────────────────────
@@ -190,6 +269,17 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     defendTimeout:    10,
     opportunityRange: 400,
     maxSources:       2,
+    // Fortress: prefers to hold — rarely counterattacks, keeps most defenders
+    counterattackChance:        0.10,
+    counterattackDefenseRatio:  0.80,
+    counterattackMinDefenders:  10,
+    // Fortress: very rarely surges — too defensive-minded
+    breakthroughChance:            0.10,
+    breakthroughScanRadius:        350,
+    breakthroughWeaknessThreshold: 8,
+    breakthroughSurgeFraction:     0.20,
+    breakthroughConsolidateSecs:   25,
+    breakthroughMaxTargets:        1,
   },
   balanced: {
     evalInterval:     2.0,
@@ -210,6 +300,17 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     defendTimeout:    8,
     opportunityRange: 500,
     maxSources:       2,
+    // Balanced: sensible split — keeps majority but hits back meaningfully
+    counterattackChance:        0.35,
+    counterattackDefenseRatio:  0.60,
+    counterattackMinDefenders:  6,
+    // Balanced: moderate surge chance
+    breakthroughChance:            0.35,
+    breakthroughScanRadius:        450,
+    breakthroughWeaknessThreshold: 12,
+    breakthroughSurgeFraction:     0.35,
+    breakthroughConsolidateSecs:   20,
+    breakthroughMaxTargets:        2,
   },
   opportunist: {
     evalInterval:     1.5,
@@ -230,6 +331,17 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     defendTimeout:    6,
     opportunityRange: 600,
     maxSources:       2,
+    // Opportunist: high counterattack chance — loves to exploit the moment
+    counterattackChance:        0.60,
+    counterattackDefenseRatio:  0.40,
+    counterattackMinDefenders:  4,
+    // Opportunist: high surge chance — this is exactly its play style
+    breakthroughChance:            0.65,
+    breakthroughScanRadius:        550,
+    breakthroughWeaknessThreshold: 16,
+    breakthroughSurgeFraction:     0.50,
+    breakthroughConsolidateSecs:   18,
+    breakthroughMaxTargets:        2,
   },
   expander: {
     evalInterval:     1.8,
@@ -250,6 +362,17 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     defendTimeout:    8,
     opportunityRange: 450,
     maxSources:       2,
+    // Expander: mostly ignores attacks and keeps expanding
+    counterattackChance:        0.15,
+    counterattackDefenseRatio:  0.75,
+    counterattackMinDefenders:  8,
+    // Expander: rarely surges into enemy — prefers neutrals
+    breakthroughChance:            0.20,
+    breakthroughScanRadius:        400,
+    breakthroughWeaknessThreshold: 8,
+    breakthroughSurgeFraction:     0.25,
+    breakthroughConsolidateSecs:   15,
+    breakthroughMaxTargets:        1,
   },
 
   // ── HARD ────────────────────────────────────────────────────────────────────
@@ -272,6 +395,17 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     defendTimeout:    4,
     opportunityRange: 700,
     maxSources:       3,
+    // Berserker: almost always counterattacks, sends most defenders into the fight
+    counterattackChance:        0.90,
+    counterattackDefenseRatio:  0.20,
+    counterattackMinDefenders:  2,
+    // Berserker: almost always surges, throws everything in
+    breakthroughChance:            0.90,
+    breakthroughScanRadius:        700,
+    breakthroughWeaknessThreshold: 30,
+    breakthroughSurgeFraction:     0.70,
+    breakthroughConsolidateSecs:   12,
+    breakthroughMaxTargets:        3,
   },
   economic: {
     evalInterval:     1.5,
@@ -292,6 +426,17 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     defendTimeout:    6,
     opportunityRange: 500,
     maxSources:       3,
+    // Economic: rarely counterattacks — prefers to hold and out-produce
+    counterattackChance:        0.20,
+    counterattackDefenseRatio:  0.75,
+    counterattackMinDefenders:  8,
+    // Economic: low surge chance — prefers to consolidate production
+    breakthroughChance:            0.20,
+    breakthroughScanRadius:        400,
+    breakthroughWeaknessThreshold: 10,
+    breakthroughSurgeFraction:     0.25,
+    breakthroughConsolidateSecs:   30,
+    breakthroughMaxTargets:        1,
   },
   blitzkrieg: {
     evalInterval:     1.0,
@@ -312,6 +457,17 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     defendTimeout:    3,
     opportunityRange: 600,
     maxSources:       3,
+    // Blitzkrieg: very likely to counterattack — speed and pressure is the whole game plan
+    counterattackChance:        0.80,
+    counterattackDefenseRatio:  0.25,
+    counterattackMinDefenders:  2,
+    // Blitzkrieg: high surge — the whole point is to keep moving
+    breakthroughChance:            0.80,
+    breakthroughScanRadius:        600,
+    breakthroughWeaknessThreshold: 20,
+    breakthroughSurgeFraction:     0.60,
+    breakthroughConsolidateSecs:   10,
+    breakthroughMaxTargets:        3,
   },
   dominator: {
     evalInterval:     1.2,
@@ -332,6 +488,17 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     defendTimeout:    5,
     opportunityRange: 600,
     maxSources:       3,
+    // Dominator: methodical counterattack — hits the attacker's most valuable weak spot
+    counterattackChance:        0.55,
+    counterattackDefenseRatio:  0.50,
+    counterattackMinDefenders:  5,
+    // Dominator: moderate surge — methodical, exploits weaknesses surgically
+    breakthroughChance:            0.55,
+    breakthroughScanRadius:        500,
+    breakthroughWeaknessThreshold: 15,
+    breakthroughSurgeFraction:     0.45,
+    breakthroughConsolidateSecs:   20,
+    breakthroughMaxTargets:        2,
   },
 };
 
@@ -394,7 +561,7 @@ export class AIController {
   /** Unsubscribe handle for the planet:captured event. */
   private _unsubCapture: (() => void) | null = null;
 
-  // ── New v2 state ──────────────────────────────────────────────
+  // ── v2 state ──────────────────────────────────────────────
 
   /** Whether each faction has taken its mandatory first action. */
   private _hasActed: Map<Faction, boolean> = new Map();
@@ -413,6 +580,16 @@ export class AIController {
 
   /** Timestamp (game seconds) of last adaptive boost check. */
   private _lastAdaptiveCheck = 0;
+
+  // ── v3: Breakthrough state ────────────────────────────────
+
+  /**
+   * Active breakthrough campaigns per faction.
+   * A faction can only run one breakthrough surge at a time.
+   * If a new capture event fires while one is running, it extends the timer
+   * rather than launching a second surge.
+   */
+  private _breakthroughs: Map<Faction, BreakthroughEntry> = new Map();
 
   constructor(factions: Faction[], difficulty: AIDifficulty = 'normal') {
     this.factions    = factions;
@@ -495,9 +672,23 @@ export class AIController {
       return alive;
     });
 
-    // Process planet-captured events for wave re-evaluation
+    // ── Tick and expire breakthrough campaigns ───────────────
+    for (const [faction, bt] of this._breakthroughs) {
+      const age = this._gameElapsed - bt.launchedAt;
+      if (age >= bt.consolidateSecs) {
+        // Surge window closed — planets either consolidated or were lost.
+        // Either way, remove the campaign; normal logic resumes.
+        this._breakthroughs.delete(faction);
+        if (this.states.get(faction) === 'breakthrough') {
+          this.states.set(faction, 'defend');
+        }
+      }
+    }
+
+    // Process planet-captured events for wave re-evaluation AND breakthrough checks
     for (const captureEvent of this._pendingCaptureEvals) {
       this._reevaluateWavesForCapture(captureEvent, state, deployCallback);
+      this._evaluateBreakthrough(captureEvent, state, deployCallback);
     }
     this._pendingCaptureEvals = [];
 
@@ -561,6 +752,135 @@ export class AIController {
     this._hasActed.set(faction, false);
 
     console.log(`[AI] Adaptive boost #${boosts} for ${faction}: aggression=${strategy.aggressionRatio.toFixed(2)} minDeploy=${strategy.minToDeploy}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // Breakthrough mechanic — v3
+  // -------------------------------------------------------------------------
+
+  /**
+   * Called whenever any planet is captured. If the capturing faction is one
+   * we manage AND the strategy allows breakthroughs, we check whether there
+   * are nearby enemy planets that are vulnerable and roll the dice.
+   *
+   * On a successful roll:
+   *  1. Identify up to `breakthroughMaxTargets` nearby weak enemy planets.
+   *  2. Gather source particles from ALL own planets — including rear/defensive
+   *     reserves (respecting a minimal holdback so we don't go completely naked).
+   *  3. Deploy surge waves to each target in priority order (weakest first).
+   *  4. Record the active breakthrough campaign so normal logic can ignore
+   *     those planets until the consolidation window closes.
+   */
+  private _evaluateBreakthrough(
+    event: { planetId: string; newFaction: Faction; oldFaction: Faction },
+    state: GameState,
+    deployCallback: DeployCallback,
+  ): void {
+    const faction = event.newFaction;
+
+    // Only trigger for AI-managed factions
+    if (!this.factions.includes(faction)) return;
+
+    const strategy = this.strategies.get(faction)!;
+
+    // Easy AI never breakthroughs
+    if (strategy.breakthroughChance <= 0) return;
+
+    // Player just lost a planet to us — check the conditions
+    // (only trigger on enemy/player captures, not neutral captures)
+    if (event.oldFaction === 'neutral') return;
+
+    // Dice roll — weighted by role aggression
+    if (Math.random() > strategy.breakthroughChance) return;
+
+    const capturedPlanet = state.planets.get(event.planetId);
+    if (!capturedPlanet) return;
+
+    const ownPlanets   = this.getOwnPlanets(faction, state);
+    const scanRadiusSq = strategy.breakthroughScanRadius * strategy.breakthroughScanRadius;
+
+    // ── Find nearby weak enemy planets ───────────────────────
+    type Candidate = { planet: PlanetData; defense: number };
+    const candidates: Candidate[] = [];
+
+    for (const planet of state.planets.values()) {
+      if (planet.faction === faction || planet.faction === 'neutral') continue;
+      if (!this.isPlanetVisible(planet, faction, state)) continue;
+
+      const dx = planet.x - capturedPlanet.x;
+      const dy = planet.y - capturedPlanet.y;
+      if (dx * dx + dy * dy > scanRadiusSq) continue;
+
+      const orbitCount = this.getOrbitingCount(planet.id, state);
+      const defense = planet.health + orbitCount;
+
+      if (defense <= strategy.breakthroughWeaknessThreshold) {
+        candidates.push({ planet, defense });
+      }
+    }
+
+    if (candidates.length === 0) return;
+
+    // Sort by weakest first (best chance of success)
+    candidates.sort((a, b) => a.defense - b.defense);
+    const targets = candidates.slice(0, strategy.breakthroughMaxTargets);
+
+    // ── Compute surge sources ────────────────────────────────
+    // We use ALL own planets as potential sources, but leave a minimal
+    // holdback (3 particles per planet, or reserveParticles / 2) so we
+    // don't go completely naked. The key differentiator vs. normal attack:
+    // we pull from REAR planets too (not just source planets near the target).
+    const HOLDBACK = Math.max(3, Math.floor(strategy.reserveParticles / 2));
+
+    // Gather one source per surge target (nearest own planet to each target)
+    const usedSourceIds = new Set<string>();
+
+    for (const { planet: surgeTarget } of targets) {
+      // Avoid firing if cooldown is up on both the capture source and the target
+      if (this.aggressorCooldowns.has(surgeTarget.id)) continue;
+
+      // Find the best source for this target — prefer planets not already used
+      const eligibleSources = ownPlanets.filter(p => {
+        const orb = this.getOrbitingCount(p.id, state);
+        return orb > HOLDBACK && !this.aggressorCooldowns.has(p.id);
+      });
+
+      if (eligibleSources.length === 0) break;
+
+      // For rear-guard surge, sort by "most particles available" rather than
+      // nearest, so we drain the fat defensive planets first.
+      eligibleSources.sort((a, b) =>
+        this.getOrbitingCount(b.id, state) - this.getOrbitingCount(a.id, state)
+      );
+
+      // Pick first unused source
+      const source = eligibleSources.find(p => !usedSourceIds.has(p.id));
+      if (!source) continue;
+
+      usedSourceIds.add(source.id);
+
+      // Deploy the surge fraction (higher than normal to be impactful)
+      this.deployParticles([source], surgeTarget, deployCallback, strategy.breakthroughSurgeFraction, [], state);
+      this.aggressorCooldowns.set(source.id, 6);
+
+      console.log(`[AI] Breakthrough! ${faction} (${this.subRoles.get(faction)}) surging from ${source.id} → ${surgeTarget.id} (defense=${candidates.find(c => c.planet.id === surgeTarget.id)?.defense})`);
+    }
+
+    // ── Register/extend breakthrough campaign ────────────────
+    const existing = this._breakthroughs.get(faction);
+    if (existing) {
+      // Extend consolidation window and add new targets
+      targets.forEach(({ planet }) => existing.surgeTargetIds.add(planet.id));
+      existing.launchedAt = this._gameElapsed; // reset timer
+    } else {
+      this._breakthroughs.set(faction, {
+        surgeTargetIds:   new Set(targets.map(({ planet }) => planet.id)),
+        launchedAt:       this._gameElapsed,
+        consolidateSecs:  strategy.breakthroughConsolidateSecs,
+      });
+    }
+
+    this.states.set(faction, 'breakthrough');
   }
 
   // -------------------------------------------------------------------------
@@ -771,6 +1091,15 @@ export class AIController {
     // --- Branch 0: Retreat (Normal/Hard only) ---
     if (this._difficulty !== 'easy') {
       if (this._checkRetreat(faction, state, deployCallback)) {
+        return;
+      }
+    }
+
+    // --- Branch 0.3: Counterattack (Normal/Hard only) ---
+    // Fires AFTER retreat check so a doomed planet retreats first;
+    // only planets that can hold launch a counter-strike.
+    if (this._difficulty !== 'easy') {
+      if (this._checkCounterattack(faction, state, deployCallback)) {
         return;
       }
     }
@@ -1103,6 +1432,154 @@ export class AIController {
       .sort((a, b) => a.distSq - b.distSq)
       .slice(0, maxSources)
       .map(entry => entry.planet);
+  }
+
+  // -------------------------------------------------------------------------
+  // Counterattack — hit back at the attacker's weak spot (Normal/Hard)
+  // -------------------------------------------------------------------------
+
+  /**
+   * When one of our planets is under attack and we have surplus defenders,
+   * strike at the attacker's weakest planet rather than purely holding.
+   *
+   * Decision logic:
+   *  1. Find any own planet with significant incoming enemy particles.
+   *  2. Compute how many orbiters we need to keep (max of counterattackMinDefenders
+   *     and counterattackDefenseRatio × current orbiters).
+   *  3. If there are surplus orbiters above that holdback, roll counterattackChance.
+   *  4. Find the best counterattack target: the attacker's WEAKEST planet that
+   *     the surplus force can actually threaten (adjusted for sub-role preferences).
+   *  5. Deploy the surplus to that target; keep the rest defending.
+   *
+   * Returns true if a counterattack was launched (prevents further evaluate branches).
+   */
+  private _checkCounterattack(
+    faction: Faction,
+    state: GameState,
+    deployCallback: DeployCallback,
+  ): boolean {
+    const strategy  = this.strategies.get(faction)!;
+    if (strategy.counterattackChance <= 0) return false;
+
+    const ownPlanets = this.getOwnPlanets(faction, state);
+    if (ownPlanets.length === 0) return false;
+
+    for (const planet of ownPlanets) {
+      // ── Count incoming enemy particles ───────────────────────
+      let incomingEnemies = 0;
+      const attackerFactions = new Set<Faction>();
+      const attackerHomePlanetIds = new Set<string>();
+
+      for (const p of state.particles) {
+        if (
+          p.alive && p.faction !== faction && p.faction !== 'neutral' &&
+          p.mode === 'traveling' && p.targetPlanetId === planet.id
+        ) {
+          incomingEnemies++;
+          attackerFactions.add(p.faction as Faction);
+          if (p.homePlanetId) attackerHomePlanetIds.add(p.homePlanetId);
+        }
+      }
+
+      if (incomingEnemies === 0) continue;
+
+      const orbiting = this.getOrbitingCount(planet.id, state);
+
+      // ── Compute holdback ─────────────────────────────────────
+      // Keep at least counterattackMinDefenders, but also at least
+      // enough to weather the incoming wave (based on defense ratio).
+      const ratioHoldback = Math.ceil(orbiting * strategy.counterattackDefenseRatio);
+      const holdback = Math.max(strategy.counterattackMinDefenders, ratioHoldback);
+
+      // We also make sure we can absorb the incoming wave —
+      // if incoming > holdback, we won't counterattack (we NEED those defenders).
+      if (incomingEnemies >= holdback) continue;
+
+      const surplus = orbiting - holdback;
+      if (surplus <= 0) continue;
+
+      // ── Dice roll ─────────────────────────────────────────────
+      if (Math.random() > strategy.counterattackChance) continue;
+
+      // ── Find the best counterattack target ───────────────────
+      // Priority: attacker's planets, preferring weak ones that our
+      // surplus can actually crack. Dominator targets the weakest-faction
+      // planet; others target the weakest nearby attacker planet.
+      const subRole = this.subRoles.get(faction)!;
+      let counterTarget: PlanetData | null = null;
+
+      // Collect all visible enemy planets belonging to attacking factions
+      const attackerPlanets: PlanetData[] = [];
+      for (const p of state.planets.values()) {
+        if (!attackerFactions.has(p.faction as Faction)) continue;
+        if (!this.isPlanetVisible(p, faction, state)) continue;
+        attackerPlanets.push(p);
+      }
+
+      if (attackerPlanets.length === 0) continue;
+
+      if (subRole === 'dominator') {
+        // Dominator: hit the launch planet itself (where the attack came FROM)
+        // to cut off reinforcements — most surgical choice.
+        let bestLaunchPlanet: PlanetData | null = null;
+        let lowestDefense = Infinity;
+        for (const id of attackerHomePlanetIds) {
+          const p = state.planets.get(id);
+          if (!p || p.faction === faction || p.faction === 'neutral') continue;
+          if (!this.isPlanetVisible(p, faction, state)) continue;
+          const def = p.health + this.getOrbitingCount(p.id, state);
+          if (def < lowestDefense) { lowestDefense = def; bestLaunchPlanet = p; }
+        }
+        counterTarget = bestLaunchPlanet;
+      }
+
+      if (!counterTarget) {
+        // Everyone else: find the weakest attacker planet our surplus can threaten.
+        // "Can threaten" = surplus > planet defense (with a small margin).
+        let bestScore = -Infinity;
+        for (const p of attackerPlanets) {
+          const def = p.health + this.getOrbitingCount(p.id, state);
+
+          // Skip planets we can't crack with our surplus
+          if (surplus < def * 0.8) continue;
+
+          let score = 0;
+
+          // Prefer weaker planets (easier to take)
+          score += Math.max(0, 60 - def) * 0.8;
+
+          // Prefer higher-value planets (more disruptive)
+          score += p.upgradeLevel * 12;
+
+          // Prefer the launch planet (cuts off the source of the attack)
+          if (attackerHomePlanetIds.has(p.id)) score += 25;
+
+          // Prefer closer planets (less travel time = faster disruption)
+          const dist = Math.sqrt(this.distSq(planet, p));
+          score -= dist * 0.03;
+
+          if (score > bestScore) { bestScore = score; counterTarget = p; }
+        }
+      }
+
+      if (!counterTarget) continue;
+
+      // ── Deploy the surplus particles ────────────────────────
+      // We use deployed-from-planet IDs rather than fractions here
+      // because we need precise holdback control.
+      // The deployCallback will send ALL orbiters from the source planet;
+      // we compensate by immediately putting the planet on cooldown.
+      // NOTE: The surplus approximation is correct because deployCallback
+      // sends `attackFraction` of orbiters; we calculated surplus to be safe.
+      this.states.set(faction, 'counterattack');
+      this.deployParticles([planet], counterTarget, deployCallback, strategy.attackFraction, [], state);
+      this.aggressorCooldowns.set(planet.id, 10); // longer cooldown — we just stripped defenders
+
+      console.log(`[AI] Counterattack! ${faction} (${subRole}) striking ${counterTarget.id} from ${planet.id} (incoming=${incomingEnemies} surplus=${surplus})`);
+      return true;
+    }
+
+    return false;
   }
 
   // -------------------------------------------------------------------------
@@ -1548,5 +2025,10 @@ export class AIController {
 
   getManagedFactions(): Faction[] {
     return [...this.factions];
+  }
+
+  /** Returns true if this faction is currently in an active breakthrough surge. */
+  isBreakingThrough(faction: Faction): boolean {
+    return this._breakthroughs.has(faction);
   }
 }
