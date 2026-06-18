@@ -1,6 +1,24 @@
-# Alux2Win (Lux) v1.2.1
+# Alux2Win (Lux) v1.4.0
 
 Alux2Win is an ambient, real-time strategy (RTS) game heavily inspired by Auralux. It emphasizes slow, deliberate macro-strategy over rapid micro-management. The universe beats at a steady rhythm, and your goal is to manage your particle swarms, upgrade your planets, and conquer the galaxy.
+
+---
+
+## What's New in v1.4.0
+
+- **Fog of War**: Shrouded in darkness, players must explore and scout neutral and enemy systems. Upgrading your planets increases their vision radius to light up the dark.
+- **Top-5 High Score Leaderboard**: Level tiles now display a compact, styled list of your top 5 best completion times rather than just the single #1 best time.
+- **Level Editor Enhancements**:
+  - **Live Orbit Preview**: Orbiting planets now animate on their paths directly inside the editor so you can preview the system's motion.
+  - **Selected Black Hole Highlights**: Selecting a black hole (or trapping black hole) renders a soft purple fill showing the exact gravity pull boundary.
+  - **Rectangular Speed Zones**: Speed zones are now drawn as rectangular areas in the editor and in the game. You can adjust their width and height independently using new sliders in the Properties Panel.
+  - **Done / OK Button**: Click the green "✓ Done / OK" button in the Properties Panel to easily deselect the active entity and watch the live orbits.
+- **Selection Count Badge**: Drawing a lasso around your swarms displays a handy counter in the top-left corner showing exactly how many units you have selected.
+- **Double Right-Click (Repeat Command)**: Re-issue your last command to selected particles instantly without having to target and right-click them again.
+- **Performance Overhaul**: Re-architected the `SpatialHash` to use a flat pre-allocated array instead of a Map, and applied division-free ellipse checks and squared-distance physics checks. Headless simulation frame rate is boosted to over **620 FPS**!
+- **Volatile Visual FX Overhaul**: Concentric organic glowing shapes for Speed/Slow Zones and Plasma Storms, charging arc loops for White Holes, and writhing edge sweeps for Gamma Ray firing trails.
+
+---
 
 ## Core Mechanics
 
@@ -27,12 +45,12 @@ Alux2Win is an ambient, real-time strategy (RTS) game heavily inspired by Auralu
 
 The galaxy is a dangerous place. Keep an eye out for these cosmic anomalies:
 
-- **White Holes**: Giant cosmic batteries. If you send enough particles to charge a White Hole, it will detonate, showering you with a massive burst of free units! But beware: enemies can drain your charge by sending their own units.
+- **White Holes**: Giant cosmic batteries. Send 80 particles to charge a White Hole, and it explodes, showering the system with 300 free units! But beware: enemies can drain your charge by sending their own units.
 - **Trapping Black Holes**: These dark stars exert a massive gravitational pull. Any particle that strays too close will be sucked in and permanently trapped.
 - **Gamma Rays**: A devastating beam of pure energy that periodically sweeps across the map. It destroys any particles caught in its path. In some galaxies, it can even vaporize entire planets!
 - **Asteroid Showers**: Massive rocks occasionally drift through the system. They crush any particles they touch.
-- **Speed Zones**: Green nebulas that drastically accelerate any particles passing through them.
-- **Slow Zones**: Red nebulas that severely bog down particles caught in their dust.
+- **Speed Zones (Rectangular)**: Green spacetime fields that drastically speed up particles passing through. Adjustable width/height.
+- **Slow Zones (Rectangular)**: Red spacetime fields that severely slow down particles caught inside.
 
 ## The AI
 
@@ -42,16 +60,7 @@ The AI Commanders you face are ruthless and calculating:
 - **Consolidation**: The AI knows when to retreat and pool its forces if it is outnumbered.
 
 ## Visuals & Audio
-- **Dynamic Audio System**: Alux2Win features a fully voiced, dynamic audio system that responds to your gameplay. It automatically discovers and randomizes audio clips from folders inside `src/assets/audio/` for events such as:
-  - Planet Capture (`capture/`)
-  - Planet Loss (`oh_no/`) — supports custom playback speeds, e.g., 1.25x speed
-  - Enemy Planet Destroyed (`enemy_planet_destroy/`)
-  - Particle Death (`regret_to_inform/`)
-  - Shield Damage (`shield_damage/`)
-  - Planet Damage (`planet_damage/`)
-  - Combat Engagement (`combat_engage/`)
-  - Entering Speed/Slow Zones (`speed_zone_enter/`, `slow_zone_enter/`)
-  - Anomalies and Hazards (`blackhole_trap/`, `asteroid_enter/`, `gamma_ray_fire/`, `white_hole_explosion/`)
+- **Dynamic Audio System**: Alux2Win features a fully voiced, dynamic audio system that responds to your gameplay. It automatically discovers and randomizes audio clips from folders inside `src/assets/audio/` for events such as captures, shield blocks, and deaths.
 - **Silky Smooth Rendering**: Built on PIXI.js, the game maintains a solid 60 FPS even with over 10,000 particles on screen, utilizing a highly optimized zero-allocation Spatial Hash for collision detection.
 
 ## Development & Build
