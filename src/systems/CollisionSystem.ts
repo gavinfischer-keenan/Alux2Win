@@ -5,6 +5,7 @@
 import type { GameState, ParticleData } from '../types';
 import { COLLISION_DISTANCE } from '../types';
 import { SpatialHash } from '../core/SpatialHash';
+import { audioManager } from '../core/AudioManager';
 
 const COLLISION_DIST_SQ = COLLISION_DISTANCE * COLLISION_DISTANCE;
 
@@ -58,6 +59,10 @@ export class CollisionSystem {
         const dx = p.x - other.x;
         const dy = p.y - other.y;
         if (dx * dx + dy * dy >= COLLISION_DIST_SQ) continue;
+
+        if (p.faction === 'player' || other.faction === 'player') {
+          audioManager.playCombatEngage();
+        }
 
         processedPairs.add(pairKey);
 

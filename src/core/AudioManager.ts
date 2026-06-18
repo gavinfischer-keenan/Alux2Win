@@ -15,15 +15,21 @@ class AudioManager {
   private _shimmerTimeout: ReturnType<typeof setTimeout> | null = null;
   private _lastWarningTime = 0;
 
-  private _ohNoBuffer: AudioBuffer | null = null;
-  private _captureBuffer: AudioBuffer | null = null;
-  private _shieldDamageBuffer: AudioBuffer | null = null;
-  private _blackholeTrapBuffer: AudioBuffer | null = null;
-  private _asteroidEnterBuffer: AudioBuffer | null = null;
-  private _gammaRayFireBuffer: AudioBuffer | null = null;
-  private _whiteHoleExplosionBuffer: AudioBuffer | null = null;
-  private _speedZoneEnterBuffer: AudioBuffer | null = null;
-  private _slowZoneEnterBuffer: AudioBuffer | null = null;
+  private _buffers: Record<string, AudioBuffer[]> = {
+    oh_no: [],
+    capture: [],
+    shield_damage: [],
+    blackhole_trap: [],
+    asteroid_enter: [],
+    gamma_ray_fire: [],
+    white_hole_explosion: [],
+    speed_zone_enter: [],
+    slow_zone_enter: [],
+    regret_to_inform: [],
+    combat_engage: [],
+    planet_damage: [],
+    enemy_planet_destroy: []
+  };
 
   // ── Init ─────────────────────────────────────────────────
 
@@ -39,85 +45,34 @@ class AudioManager {
     this._masterGain.gain.setValueAtTime(this._volume, this._ctx.currentTime);
     this._masterGain.connect(this._ctx.destination);
     
-    // Load oh_no MP3
-    try {
-      const response = await fetch('/assets/audio/oh_no.mp3');
-      const arrayBuffer = await response.arrayBuffer();
-      this._ohNoBuffer = await this._ctx.decodeAudioData(arrayBuffer);
-    } catch (err) {
-      console.warn('Failed to load oh_no audio', err);
-    }
+    // Discover all MP3 files dynamically inside src/assets/audio/
+    // This returns a mapping of filepath to imported URL
+    const audioModules = (import.meta as any).glob('../assets/audio/**/*.mp3', { eager: true, query: '?url', import: 'default' });
 
-    // Load capture MP3
-    try {
-      const response = await fetch('/assets/audio/capture.mp3');
-      const arrayBuffer = await response.arrayBuffer();
-      this._captureBuffer = await this._ctx.decodeAudioData(arrayBuffer);
-    } catch (err) {
-      console.warn('Failed to load capture audio', err);
-    }
+    for (const [filepath, url] of Object.entries(audioModules)) {
+      try {
+        const response = await fetch(url as string);
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = await this._ctx.decodeAudioData(arrayBuffer);
 
-    // Load shield damage MP3
-    try {
-      const response = await fetch('/assets/audio/shield_damage.mp3');
-      const arrayBuffer = await response.arrayBuffer();
-      this._shieldDamageBuffer = await this._ctx.decodeAudioData(arrayBuffer);
-    } catch (err) {
-      console.warn('Failed to load shield damage audio', err);
-    }
+        // Determine event type from filepath (e.g., "../assets/audio/regret_to_inform/TTSOL.mp3" -> "regret_to_inform")
+        const pathSegments = filepath.split('/');
+        const eventFolder = pathSegments[pathSegments.length - 2];
+        const filename = pathSegments[pathSegments.length - 1];
 
-    // Load blackhole trap MP3
-    try {
-      const response = await fetch('/assets/audio/blackhole_trap.mp3');
-      const arrayBuffer = await response.arrayBuffer();
-      this._blackholeTrapBuffer = await this._ctx.decodeAudioData(arrayBuffer);
-    } catch (err) {
-      console.warn('Failed to load blackhole trap audio', err);
-    }
+        // Specific file overrides (e.g. 1.25x speed for planet loss voice clip)
+        if (filename.includes('200619')) {
+          (buffer as any).customPlaybackRate = 1.25;
+        }
 
-    // Load asteroid enter MP3
-    try {
-      const response = await fetch('/assets/audio/asteroid_enter.mp3');
-      const arrayBuffer = await response.arrayBuffer();
-      this._asteroidEnterBuffer = await this._ctx.decodeAudioData(arrayBuffer);
-    } catch (err) {
-      console.warn('Failed to load asteroid enter audio', err);
-    }
-
-    // Load gamma ray fire MP3
-    try {
-      const response = await fetch('/assets/audio/gamma_ray_fire.mp3');
-      const arrayBuffer = await response.arrayBuffer();
-      this._gammaRayFireBuffer = await this._ctx.decodeAudioData(arrayBuffer);
-    } catch (err) {
-      console.warn('Failed to load gamma ray fire audio', err);
-    }
-
-    // Load white hole explosion MP3
-    try {
-      const response = await fetch('/assets/audio/white_hole_explosion.mp3');
-      const arrayBuffer = await response.arrayBuffer();
-      this._whiteHoleExplosionBuffer = await this._ctx.decodeAudioData(arrayBuffer);
-    } catch (err) {
-      console.warn('Failed to load white hole explosion audio', err);
-    }
-
-    // Load speed zone enter MP3
-    try {
-      const response = await fetch('/assets/audio/speed_zone_enter.mp3');
-      const arrayBuffer = await response.arrayBuffer();
-      this._speedZoneEnterBuffer = await this._ctx.decodeAudioData(arrayBuffer);
-    } catch (err) {
-      console.warn('Failed to load speed zone enter audio', err);
-    }
-
-    // Load slow zone enter MP3
-    try {
-      const response = await fetch('/assets/audio/slow_zone_enter.mp3');
-      const arrayBuffer = await response.arrayBuffer();
-      this._slowZoneEnterBuffer = await this._ctx.decodeAudioData(arrayBuffer);
-    } catch (err) {
-      console.warn('Failed to load slow zone enter audio', err);
+        if (this._buffers[eventFolder]) {
+          this._buffers[eventFolder].push(buffer);
+        } else {
+          console.warn(`Unknown audio event folder: ${eventFolder}`);
+        }
+      } catch (err) {
+        console.warn(`Failed to load audio: ${filepath}`, err);
+      }
     }
 
     if (this._ctx.state === 'suspended') {
@@ -482,15 +437,18 @@ class AudioManager {
 
   // ── Hazard Death Voices ───────────────────────────────────
 
-  /** "Oh Nooooo" — played once per planet destroyed by a hazard. */
-  playPlanetHazardDeath(): void {
+  private _playBuffer(buffer: AudioBuffer): void {
     const ctx = this._ctx;
     const master = this._masterGain;
-    if (!ctx || !master || !this._ohNoBuffer) return;
+    if (!ctx || !master) return;
 
     const source = ctx.createBufferSource();
-    source.buffer = this._ohNoBuffer;
+    source.buffer = buffer;
     
+    if ((buffer as any).customPlaybackRate) {
+      source.playbackRate.setValueAtTime((buffer as any).customPlaybackRate, ctx.currentTime);
+    }
+
     const g = ctx.createGain();
     g.gain.value = 1.0;
     source.connect(g);
@@ -499,21 +457,35 @@ class AudioManager {
     source.start();
   }
 
+  /** "Oh Nooooo" — played once per planet destroyed by a hazard. */
+  playPlanetHazardDeath(): void {
+    const buffers = this._buffers['oh_no'];
+    if (!buffers || buffers.length === 0) return;
+    const buffer = buffers[Math.floor(Math.random() * buffers.length)];
+    this._playBuffer(buffer);
+  }
+
   /** Played when the player successfully captures a planet. */
   playPlanetCapture(): void {
-    const ctx = this._ctx;
-    const master = this._masterGain;
-    if (!ctx || !master || !this._captureBuffer) return;
+    const buffers = this._buffers['capture'];
+    if (!buffers || buffers.length === 0) return;
+    const buffer = buffers[Math.floor(Math.random() * buffers.length)];
+    this._playBuffer(buffer);
+  }
 
-    const source = ctx.createBufferSource();
-    source.buffer = this._captureBuffer;
-    
-    const g = ctx.createGain();
-    g.gain.value = 1.0;
-    source.connect(g);
-    g.connect(master);
-    
-    source.start();
+  /** Played when a player's planet health takes damage. */
+  private _lastPlanetDamageTime = -Infinity;
+
+  playPlanetDamage(): void {
+    const ctx = this._ctx;
+    if (!ctx) return;
+    const buffers = this._buffers['planet_damage'];
+    if (!buffers || buffers.length === 0) return;
+    if (ctx.currentTime - this._lastPlanetDamageTime < 2.0) return; // 2s cooldown
+    this._lastPlanetDamageTime = ctx.currentTime;
+
+    const buffer = buffers[Math.floor(Math.random() * buffers.length)];
+    this._playBuffer(buffer);
   }
 
   /** Played when a player's shielded planet takes damage. */
@@ -521,20 +493,14 @@ class AudioManager {
 
   playShieldDamage(): void {
     const ctx = this._ctx;
-    const master = this._masterGain;
-    if (!ctx || !master || !this._shieldDamageBuffer) return;
+    if (!ctx) return;
+    const buffers = this._buffers['shield_damage'];
+    if (!buffers || buffers.length === 0) return;
     if (ctx.currentTime - this._lastShieldDamageTime < 2.0) return; // 2s cooldown
     this._lastShieldDamageTime = ctx.currentTime;
 
-    const source = ctx.createBufferSource();
-    source.buffer = this._shieldDamageBuffer;
-    
-    const g = ctx.createGain();
-    g.gain.value = 1.0;
-    source.connect(g);
-    g.connect(master);
-    
-    source.start();
+    const buffer = buffers[Math.floor(Math.random() * buffers.length)];
+    this._playBuffer(buffer);
   }
 
   /** Played when particles fall into a black hole or trapping black hole. */
@@ -542,20 +508,14 @@ class AudioManager {
 
   playBlackholeTrap(): void {
     const ctx = this._ctx;
-    const master = this._masterGain;
-    if (!ctx || !master || !this._blackholeTrapBuffer) return;
+    if (!ctx) return;
+    const buffers = this._buffers['blackhole_trap'];
+    if (!buffers || buffers.length === 0) return;
     if (ctx.currentTime - this._lastBlackholeTrapTime < 3.0) return; // 3s cooldown
     this._lastBlackholeTrapTime = ctx.currentTime;
 
-    const source = ctx.createBufferSource();
-    source.buffer = this._blackholeTrapBuffer;
-    
-    const g = ctx.createGain();
-    g.gain.value = 1.0;
-    source.connect(g);
-    g.connect(master);
-    
-    source.start();
+    const buffer = buffers[Math.floor(Math.random() * buffers.length)];
+    this._playBuffer(buffer);
   }
 
   /** Played when an asteroid spawns on screen. */
@@ -563,54 +523,30 @@ class AudioManager {
 
   playAsteroidEnter(): void {
     const ctx = this._ctx;
-    const master = this._masterGain;
-    if (!ctx || !master || !this._asteroidEnterBuffer) return;
+    if (!ctx) return;
+    const buffers = this._buffers['asteroid_enter'];
+    if (!buffers || buffers.length === 0) return;
     if (ctx.currentTime - this._lastAsteroidTime < 5.0) return; // 5s cooldown
     this._lastAsteroidTime = ctx.currentTime;
 
-    const source = ctx.createBufferSource();
-    source.buffer = this._asteroidEnterBuffer;
-    
-    const g = ctx.createGain();
-    g.gain.value = 1.0;
-    source.connect(g);
-    g.connect(master);
-    
-    source.start();
+    const buffer = buffers[Math.floor(Math.random() * buffers.length)];
+    this._playBuffer(buffer);
   }
 
   /** Played when the Gamma Ray fires. */
   playGammaRayFire(): void {
-    const ctx = this._ctx;
-    const master = this._masterGain;
-    if (!ctx || !master || !this._gammaRayFireBuffer) return;
-
-    const source = ctx.createBufferSource();
-    source.buffer = this._gammaRayFireBuffer;
-    
-    const g = ctx.createGain();
-    g.gain.value = 1.0;
-    source.connect(g);
-    g.connect(master);
-    
-    source.start();
+    const buffers = this._buffers['gamma_ray_fire'];
+    if (!buffers || buffers.length === 0) return;
+    const buffer = buffers[Math.floor(Math.random() * buffers.length)];
+    this._playBuffer(buffer);
   }
 
   /** Played when a White Hole explodes. */
   playWhiteHoleExplosion(): void {
-    const ctx = this._ctx;
-    const master = this._masterGain;
-    if (!ctx || !master || !this._whiteHoleExplosionBuffer) return;
-
-    const source = ctx.createBufferSource();
-    source.buffer = this._whiteHoleExplosionBuffer;
-    
-    const g = ctx.createGain();
-    g.gain.value = 1.0;
-    source.connect(g);
-    g.connect(master);
-    
-    source.start();
+    const buffers = this._buffers['white_hole_explosion'];
+    if (!buffers || buffers.length === 0) return;
+    const buffer = buffers[Math.floor(Math.random() * buffers.length)];
+    this._playBuffer(buffer);
   }
 
   /** Played when a player particle enters a speed up zone. */
@@ -618,20 +554,14 @@ class AudioManager {
 
   playSpeedZoneEnter(): void {
     const ctx = this._ctx;
-    const master = this._masterGain;
-    if (!ctx || !master || !this._speedZoneEnterBuffer) return;
+    if (!ctx) return;
+    const buffers = this._buffers['speed_zone_enter'];
+    if (!buffers || buffers.length === 0) return;
     if (ctx.currentTime - this._lastSpeedZoneTime < 3.0) return; // 3s cooldown
     this._lastSpeedZoneTime = ctx.currentTime;
 
-    const source = ctx.createBufferSource();
-    source.buffer = this._speedZoneEnterBuffer;
-    
-    const g = ctx.createGain();
-    g.gain.value = 1.0;
-    source.connect(g);
-    g.connect(master);
-    
-    source.start();
+    const buffer = buffers[Math.floor(Math.random() * buffers.length)];
+    this._playBuffer(buffer);
   }
 
   /** Played when a player particle enters a slow down zone. */
@@ -639,54 +569,50 @@ class AudioManager {
 
   playSlowZoneEnter(): void {
     const ctx = this._ctx;
-    const master = this._masterGain;
-    if (!ctx || !master || !this._slowZoneEnterBuffer) return;
+    if (!ctx) return;
+    const buffers = this._buffers['slow_zone_enter'];
+    if (!buffers || buffers.length === 0) return;
     if (ctx.currentTime - this._lastSlowZoneTime < 3.0) return; // 3s cooldown
     this._lastSlowZoneTime = ctx.currentTime;
 
-    const source = ctx.createBufferSource();
-    source.buffer = this._slowZoneEnterBuffer;
-    
-    const g = ctx.createGain();
-    g.gain.value = 1.0;
-    source.connect(g);
-    g.connect(master);
-    
-    source.start();
+    const buffer = buffers[Math.floor(Math.random() * buffers.length)];
+    this._playBuffer(buffer);
   }
 
+  /** Played when player particles engage enemy particles. */
+  private _lastCombatEngageTime = -Infinity;
+
+  playCombatEngage(): void {
+    const ctx = this._ctx;
+    if (!ctx) return;
+    const buffers = this._buffers['combat_engage'];
+    if (!buffers || buffers.length === 0) return;
+    if (ctx.currentTime - this._lastCombatEngageTime < 5.0) return; // 5s cooldown
+    this._lastCombatEngageTime = ctx.currentTime;
+
+    const buffer = buffers[Math.floor(Math.random() * buffers.length)];
+    this._playBuffer(buffer);
+  }
   /** "We regret to inform you" monotone — played at most once per 3s window. */
   private _lastRegretTime = -Infinity;
 
   playParticleHazardDeath(): void {
     const ctx = this._ctx;
-    const master = this._masterGain;
-    if (!ctx || !master) return;
+    if (!ctx) return;
+    const buffers = this._buffers['regret_to_inform'];
+    if (!buffers || buffers.length === 0) return;
     if (ctx.currentTime - this._lastRegretTime < 3.0) return; // 3s cooldown
     this._lastRegretTime = ctx.currentTime;
 
-    const t = ctx.currentTime;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.14, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 2.5);
-    g.connect(master);
+    const buffer = buffers[Math.floor(Math.random() * buffers.length)];
+    this._playBuffer(buffer);
+  }
 
-    // Deep monotone — flat syllable pulses at ~120Hz
-    const syllableTimings = [0, 0.22, 0.45, 0.65, 0.85, 1.05, 1.3, 1.55, 1.78, 2.0];
-    const baseFreq = 110;
-    syllableTimings.forEach((st) => {
-      const osc = ctx.createOscillator();
-      const og  = ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(baseFreq, t + st);
-      og.gain.setValueAtTime(0.0, t + st);
-      og.gain.linearRampToValueAtTime(0.9, t + st + 0.02);
-      og.gain.setValueAtTime(0.9, t + st + 0.12);
-      og.gain.linearRampToValueAtTime(0.0, t + st + 0.18);
-      osc.connect(og); og.connect(g);
-      osc.start(t + st);
-      osc.stop(t + st + 0.22);
-    });
+  playEnemyPlanetDestroy(): void {
+    const buffers = this._buffers['enemy_planet_destroy'];
+    if (!buffers || buffers.length === 0) return;
+    const buffer = buffers[Math.floor(Math.random() * buffers.length)];
+    this._playBuffer(buffer);
   }
 
   // ── Cleanup ───────────────────────────────────────────────

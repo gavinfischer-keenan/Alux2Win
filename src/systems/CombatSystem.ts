@@ -124,6 +124,10 @@ export class CombatSystem {
           for (let i = 0; i < state.particles.length && dmg > 0; i++) {
             const def = state.particles[i];
             if (def.alive && def.mode === 'orbiting' && def.homePlanetId === planet.id && def.faction === planet.faction) {
+               if (particle.faction === 'player' || def.faction === 'player') {
+                 audioManager.playCombatEngage();
+               }
+               
                if (dmg >= def.strength) {
                  dmg -= def.strength;
                  def.alive = false;
@@ -157,6 +161,10 @@ export class CombatSystem {
 
             if (dmg > 0) {
               planet.health -= dmg;
+
+              if (planet.faction === 'player') {
+                audioManager.playPlanetDamage();
+              }
 
               if (planet.health <= 0) {
                 this._capturePlanet(planet, particle, state, eventBus);
@@ -201,6 +209,12 @@ export class CombatSystem {
 
     if (planet.faction === 'player') {
       audioManager.playPlanetCapture();
+    } else if (planet.faction === 'neutral') {
+      if (oldFaction === 'player') {
+        audioManager.playPlanetHazardDeath();
+      } else if ((oldFaction === 'enemy_a' || oldFaction === 'enemy_b') && attackParticle.faction === 'player') {
+        audioManager.playEnemyPlanetDestroy();
+      }
     }
 
     // Kill orbiting particles that belonged to the old faction on this planet

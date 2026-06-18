@@ -1,4 +1,4 @@
-# Alux2Win (Lux) v1.2.0
+# Alux2Win (Lux) v1.2.1
 
 Alux2Win is an ambient, real-time strategy (RTS) game heavily inspired by Auralux. It emphasizes slow, deliberate macro-strategy over rapid micro-management. The universe beats at a steady rhythm, and your goal is to manage your particle swarms, upgrade your planets, and conquer the galaxy.
 
@@ -42,7 +42,16 @@ The AI Commanders you face are ruthless and calculating:
 - **Consolidation**: The AI knows when to retreat and pool its forces if it is outnumbered.
 
 ## Visuals & Audio
-- **Dynamic Audio System**: Alux2Win features a fully voiced, dynamic audio system that responds to your gameplay. You will hear distinct voice callouts for planet captures, shield damage, black hole traps, asteroid spawns, and gamma ray fires.
+- **Dynamic Audio System**: Alux2Win features a fully voiced, dynamic audio system that responds to your gameplay. It automatically discovers and randomizes audio clips from folders inside `src/assets/audio/` for events such as:
+  - Planet Capture (`capture/`)
+  - Planet Loss (`oh_no/`) — supports custom playback speeds, e.g., 1.25x speed
+  - Enemy Planet Destroyed (`enemy_planet_destroy/`)
+  - Particle Death (`regret_to_inform/`)
+  - Shield Damage (`shield_damage/`)
+  - Planet Damage (`planet_damage/`)
+  - Combat Engagement (`combat_engage/`)
+  - Entering Speed/Slow Zones (`speed_zone_enter/`, `slow_zone_enter/`)
+  - Anomalies and Hazards (`blackhole_trap/`, `asteroid_enter/`, `gamma_ray_fire/`, `white_hole_explosion/`)
 - **Silky Smooth Rendering**: Built on PIXI.js, the game maintains a solid 60 FPS even with over 10,000 particles on screen, utilizing a highly optimized zero-allocation Spatial Hash for collision detection.
 
 ## Development & Build

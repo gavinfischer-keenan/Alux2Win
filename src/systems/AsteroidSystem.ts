@@ -258,7 +258,9 @@ export class AsteroidSystem {
             radius:   10,
           });
           particle.alive = false;
-          particlesKilledByAsteroid++;
+          if (particle.faction === 'player') {
+            particlesKilledByAsteroid++;
+          }
           asteroid.hitCount++;
 
           if (asteroid.hitCount >= MAX_HIT_COUNT) {

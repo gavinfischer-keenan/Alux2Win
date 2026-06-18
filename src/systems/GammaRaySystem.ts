@@ -282,7 +282,9 @@ export class GammaRaySystem {
             radius:   10,
           });
           p.alive = false;
-          particlesKilled++;
+          if (p.faction === 'player') {
+            particlesKilled++;
+          }
         }
       }
     }
