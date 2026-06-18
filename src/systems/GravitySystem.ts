@@ -27,10 +27,10 @@ export class GravitySystem {
         const dx = bh.x - particle.x;
         const dy = bh.y - particle.y;
         const distSq = dx * dx + dy * dy;
-        const dist   = Math.sqrt(distSq);
+        const radiusSq = bh.radius * bh.radius;
 
         // Instant destruction inside event horizon.
-        if (dist < bh.radius) {
+        if (distSq < radiusSq) {
           particle.alive = false;
           anyDied = true;
           if (particle.faction === 'player') {
@@ -40,9 +40,11 @@ export class GravitySystem {
         }
 
         // Apply gravity within pull radius.
-        if (dist < bh.pullRadius && dist > 0) {
+        const pullRadiusSq = bh.pullRadius * bh.pullRadius;
+        if (distSq < pullRadiusSq && distSq > 0) {
+          const dist = Math.sqrt(distSq);
           // Inverse-square acceleration, capped per frame to prevent tunnelling.
-          const rawAccel = bh.pullStrength / (distSq) * dt;
+          const rawAccel = bh.pullStrength / distSq * dt;
           const accel    = clamp(rawAccel, 0, MAX_GRAV_ACCEL * dt);
 
           particle.vx += (dx / dist) * accel;

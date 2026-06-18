@@ -183,7 +183,7 @@ export class MovementSystem {
     // ---- Aggro force ----
     let aggroX = 0, aggroY = 0;
     let closestDistSq = AGGRO_RADIUS * AGGRO_RADIUS;
-    const nearby = spatialHash.getNearby(p, this._nearbyBuffer);
+    const nearby = nearbyBoids;
     for (let i = 0; i < nearby.length; i++) {
       const other = nearby[i];
       if (!other.alive || other.faction === p.faction || other.faction === 'neutral') continue;

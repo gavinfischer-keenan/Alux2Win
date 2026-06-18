@@ -50,9 +50,11 @@ export class TrappingBlackHoleSystem {
         for (const bh of bhs) {
           const dx   = bh.x - p.x;
           const dy   = bh.y - p.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+          const distSq = dx * dx + dy * dy;
+          const pullRadiusSq = bh.pullRadius * bh.pullRadius;
 
-          if (dist < bh.pullRadius && dist > 0) {
+          if (distSq < pullRadiusSq && distSq > 0) {
+            const dist = Math.sqrt(distSq);
             if (dist > CORE_DISTANCE) {
               // -- Pull toward centre --
               const nx       = dx / dist;

@@ -13,7 +13,7 @@ export class SpatialHash {
   private readonly cellSize: number;
   private readonly cols: number;
   private readonly rows: number;
-  private buckets: Map<number, ParticleData[]> = new Map();
+  private buckets: ParticleData[][];
 
   /**
    * Two call signatures are supported:
@@ -36,11 +36,12 @@ export class SpatialHash {
       this.cols = Math.ceil(worldWidthOrCellSize / cellSize);
       this.rows = Math.ceil(worldHeight / cellSize);
     }
-  }
 
-  /** Encode (cellX, cellY) into a single integer key. */
-  private key(cellX: number, cellY: number): number {
-    return cellX * 10000 + cellY;
+    const numCells = this.cols * this.rows;
+    this.buckets = new Array(numCells);
+    for (let i = 0; i < numCells; i++) {
+      this.buckets[i] = [];
+    }
   }
 
   /** Map a world coordinate to a cell index, clamped to grid bounds. */
@@ -54,8 +55,9 @@ export class SpatialHash {
 
   /** Reset all buckets. Must be called at the start of each frame. */
   clear(): void {
-    for (const bucket of this.buckets.values()) {
-      bucket.length = 0;
+    const numCells = this.cols * this.rows;
+    for (let i = 0; i < numCells; i++) {
+      this.buckets[i].length = 0;
     }
   }
 
@@ -63,13 +65,8 @@ export class SpatialHash {
   insert(particle: ParticleData): void {
     const cx = this.cellX(particle.x);
     const cy = this.cellY(particle.y);
-    const k = this.key(cx, cy);
-    let bucket = this.buckets.get(k);
-    if (!bucket) {
-      bucket = [];
-      this.buckets.set(k, bucket);
-    }
-    bucket.push(particle);
+    const idx = cx * this.rows + cy;
+    this.buckets[idx].push(particle);
   }
 
   /**
@@ -85,11 +82,9 @@ export class SpatialHash {
 
     for (let cx = minCX; cx <= maxCX; cx++) {
       for (let cy = minCY; cy <= maxCY; cy++) {
-        const bucket = this.buckets.get(this.key(cx, cy));
-        if (bucket) {
-          for (let i = 0; i < bucket.length; i++) {
-            out.push(bucket[i]);
-          }
+        const bucket = this.buckets[cx * this.rows + cy];
+        for (let i = 0; i < bucket.length; i++) {
+          out.push(bucket[i]);
         }
       }
     }
@@ -110,11 +105,9 @@ export class SpatialHash {
         const nx = cx + dx;
         const ny = cy + dy;
         if (nx < 0 || nx >= this.cols || ny < 0 || ny >= this.rows) continue;
-        const bucket = this.buckets.get(this.key(nx, ny));
-        if (bucket) {
-          for (let i = 0; i < bucket.length; i++) {
-            out.push(bucket[i]);
-          }
+        const bucket = this.buckets[nx * this.rows + ny];
+        for (let i = 0; i < bucket.length; i++) {
+          out.push(bucket[i]);
         }
       }
     }

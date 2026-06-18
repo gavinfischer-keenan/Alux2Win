@@ -154,10 +154,13 @@ export class AsteroidSystem {
       // ── Planet collisions ─────────────────────────────────
       for (const planet of state.planets.values()) {
         const planetR    = PLANET_RADIUS[planet.upgradeLevel];
-        const d          = dist(asteroid.x, asteroid.y, planet.x, planet.y);
+        const dx         = asteroid.x - planet.x;
+        const dy         = asteroid.y - planet.y;
+        const distSq     = dx * dx + dy * dy;
         const combinedR  = asteroid.radius + planetR;
 
-        if (d < combinedR) {
+        if (distSq < combinedR * combinedR) {
+          const d = Math.sqrt(distSq);
           // Normalised vector from planet centre → asteroid centre.
           const rawLen = d > 0 ? d : 0.001; // guard zero-division
           const nx = (asteroid.x - planet.x) / rawLen;
@@ -248,14 +251,17 @@ export class AsteroidSystem {
 
       // ── Particle collisions ───────────────────────────────
       const hitRadius = asteroid.radius + 4;
+      const hitRadiusSq = hitRadius * hitRadius;
       let particlesKilledByAsteroid = 0;
       outerParticleLoop: for (const particle of state.particles) {
         if (!particle.alive)  continue;
         // Particles sheltered inside a plasma storm are immune.
         if (particle.inStorm) continue;
 
-        const pd = dist(asteroid.x, asteroid.y, particle.x, particle.y);
-        if (pd < hitRadius) {
+        const dx = asteroid.x - particle.x;
+        const dy = asteroid.y - particle.y;
+        const distSq = dx * dx + dy * dy;
+        if (distSq < hitRadiusSq) {
           state.hazardEffects.push({
             id:       ++state.hazardEffectIdCounter,
             kind:     'particle_sparkle',

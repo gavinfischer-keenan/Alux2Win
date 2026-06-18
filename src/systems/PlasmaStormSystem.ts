@@ -27,7 +27,12 @@ function pointInEllipse(
 ): boolean {
   const dx = px - ex;
   const dy = py - ey;
-  return (dx * dx) / (radiusX * radiusX) + (dy * dy) / (radiusY * radiusY) <= 1;
+  // Bounding box check (cheap pre-filter)
+  if (Math.abs(dx) > radiusX || Math.abs(dy) > radiusY) return false;
+  // Division-free ellipse check
+  const rxSq = radiusX * radiusX;
+  const rySq = radiusY * radiusY;
+  return (dx * dx) * rySq + (dy * dy) * rxSq <= rxSq * rySq;
 }
 
 /**
