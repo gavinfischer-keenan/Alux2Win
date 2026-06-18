@@ -43,6 +43,10 @@ export interface PlanetData {
   // hazard state
   inStorm: boolean;
   wasInStorm: boolean;
+  // shield feature
+  isShielded?: boolean;
+  shieldPoints?: number;
+  shieldTimer?: number;
 }
 
 // ---- Particle Data (runtime) ----
@@ -232,6 +236,7 @@ export interface PlanetDef {
   orbitRadiusY?: number;
   orbitSpeed?: number;
   orbitStartAngle?: number;
+  isShielded?: boolean;
 }
 
 export interface BlackHoleDef {

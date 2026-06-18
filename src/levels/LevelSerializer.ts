@@ -67,6 +67,7 @@ function isPlanetDef(value: unknown): value is PlanetDef {
     if (v['orbitRadiusY'] !== undefined && !isNumber(v['orbitRadiusY'])) return false;
     if (!isNumber(v['orbitSpeed'])) return false;
   }
+  if (v['isShielded'] !== undefined && !isBoolean(v['isShielded'])) return false;
   return true;
 }
 
@@ -114,6 +115,10 @@ export class LevelSerializer {
         def.orbitSpeed = planet.orbitSpeed;
         // Persist the current angle so the level re-opens at the same orbital position.
         def.orbitStartAngle = planet.orbitAngle ?? 0;
+      }
+
+      if (planet.isShielded) {
+        def.isShielded = true;
       }
 
       planets.push(def);
@@ -166,6 +171,9 @@ export class LevelSerializer {
         isOrbiting: def.isOrbiting,
         inStorm: false,
         wasInStorm: false,
+        isShielded: def.isShielded ?? false,
+        shieldPoints: 0,
+        shieldTimer: 0,
       };
 
       if (def.isOrbiting) {

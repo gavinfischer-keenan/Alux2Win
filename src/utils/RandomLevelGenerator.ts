@@ -111,11 +111,11 @@ export function generateRandomLevel(): LevelData {
   // 3. Hazards
   const hazardTypes = [
     'SpeedZones', 'BlackHoles', 'PlasmaStorms', 'Asteroids', 
-    'GammaRay', 'Portals', 'TrappingBlackHoles', 'WhiteHoles'
+    'GammaRay', 'Portals', 'TrappingBlackHoles', 'WhiteHoles', 'ShieldedPlanets'
   ];
   
-  // Pick 1 or 2 hazard types randomly
-  const numHazardTypes = Math.floor(Math.random() * 2) + 1;
+  // Bias towards 2 hazards, occasionally 3 (80% / 20%)
+  const numHazardTypes = Math.random() > 0.8 ? 3 : 2;
   const selectedHazardTypes: string[] = [];
   while (selectedHazardTypes.length < numHazardTypes) {
     const t = hazardTypes[Math.floor(Math.random() * hazardTypes.length)];
@@ -133,75 +133,92 @@ export function generateRandomLevel(): LevelData {
   const asteroidConfig = { enabled: false };
   const gammaRayConfig: { enabled: boolean; intervalSeconds?: number } = { enabled: false };
   
-  // Don't add too many (max 2-3 hazard objects total)
-  const numHazards = Math.floor(Math.random() * 2) + 2; 
-  
-  for (let i = 0; i < numHazards; i++) {
-    const type = selectedHazardTypes[Math.floor(Math.random() * selectedHazardTypes.length)];
-    
-    // We don't want hazards right on top of home planets
-    const pos = getValidPos(300, existingPoints);
-    if (!pos && type !== 'Asteroids' && type !== 'GammaRay') continue;
+  // Enable global hazards if selected
+  if (selectedHazardTypes.includes('Asteroids')) {
+    asteroidConfig.enabled = true;
+  }
+  if (selectedHazardTypes.includes('GammaRay')) {
+    gammaRayConfig.enabled = true;
+    gammaRayConfig.intervalSeconds = 60 + Math.random() * 30; // At least 60 seconds fuse
+  }
+  if (selectedHazardTypes.includes('ShieldedPlanets')) {
+    planets.forEach(p => {
+      // 70% chance a planet is shielded if this hazard is active
+      if (Math.random() > 0.3) p.isShielded = true;
+    });
+  }
 
-    if (type === 'SpeedZones' && pos) {
-      speedZones.push({
-        id: Math.random().toString(36).substring(2, 9),
-        x: pos.x,
-        y: pos.y,
-        radius: 150 + Math.random() * 100,
-        type: Math.random() > 0.5 ? 'speedup' : 'slowdown'
-      });
-      existingPoints.push(pos);
-    } else if (type === 'BlackHoles' && pos) {
-      blackHoles.push({
-        id: Math.random().toString(36).substring(2, 9),
-        x: pos.x,
-        y: pos.y,
-        radius: 30 + Math.random() * 20,
-        pullStrength: 50 + Math.random() * 50
-      });
-      existingPoints.push(pos);
-    } else if (type === 'PlasmaStorms' && pos) {
-      plasmaStorms.push({
-        id: Math.random().toString(36).substring(2, 9),
-        x: pos.x,
-        y: pos.y,
-        radiusX: 200 + Math.random() * 100,
-        radiusY: 100 + Math.random() * 100,
-        vx: (Math.random() - 0.5) * 20,
-        vy: (Math.random() - 0.5) * 20
-      });
-      existingPoints.push(pos);
-    } else if (type === 'Portals' && pos) {
-      const pos2 = getValidPos(300, existingPoints);
-      if (pos2) {
-        const id1 = Math.random().toString(36).substring(2, 9);
-        const id2 = Math.random().toString(36).substring(2, 9);
-        const color = Math.floor(Math.random() * 0xffffff);
-        portals.push({ id: id1, x: pos.x, y: pos.y, pairId: id2, color });
-        portals.push({ id: id2, x: pos2.x, y: pos2.y, pairId: id1, color });
-        existingPoints.push(pos, pos2);
+  // Filter out global hazards for placeable object loop
+  const placeableTypes = selectedHazardTypes.filter(t => 
+    t !== 'Asteroids' && t !== 'GammaRay' && t !== 'ShieldedPlanets'
+  );
+
+  if (placeableTypes.length > 0) {
+    // Add 3 to 5 hazard objects total
+    const numHazards = Math.floor(Math.random() * 3) + 3; 
+    
+    for (let i = 0; i < numHazards; i++) {
+      const type = placeableTypes[Math.floor(Math.random() * placeableTypes.length)];
+      
+      // We don't want hazards right on top of home planets
+      const pos = getValidPos(300, existingPoints);
+      if (!pos) continue;
+
+      if (type === 'SpeedZones') {
+        speedZones.push({
+          id: Math.random().toString(36).substring(2, 9),
+          x: pos.x,
+          y: pos.y,
+          radius: 150 + Math.random() * 100,
+          type: Math.random() > 0.5 ? 'speedup' : 'slowdown'
+        });
+        existingPoints.push(pos);
+      } else if (type === 'BlackHoles') {
+        blackHoles.push({
+          id: Math.random().toString(36).substring(2, 9),
+          x: pos.x,
+          y: pos.y,
+          radius: 30 + Math.random() * 20,
+          pullStrength: 50 + Math.random() * 50
+        });
+        existingPoints.push(pos);
+      } else if (type === 'PlasmaStorms') {
+        plasmaStorms.push({
+          id: Math.random().toString(36).substring(2, 9),
+          x: pos.x,
+          y: pos.y,
+          radiusX: 200 + Math.random() * 100,
+          radiusY: 100 + Math.random() * 100,
+          vx: (Math.random() - 0.5) * 20,
+          vy: (Math.random() - 0.5) * 20
+        });
+        existingPoints.push(pos);
+      } else if (type === 'Portals') {
+        const pos2 = getValidPos(300, existingPoints);
+        if (pos2) {
+          const id1 = Math.random().toString(36).substring(2, 9);
+          const id2 = Math.random().toString(36).substring(2, 9);
+          const color = Math.floor(Math.random() * 0xffffff);
+          portals.push({ id: id1, x: pos.x, y: pos.y, pairId: id2, color });
+          portals.push({ id: id2, x: pos2.x, y: pos2.y, pairId: id1, color });
+          existingPoints.push(pos, pos2);
+        }
+      } else if (type === 'TrappingBlackHoles') {
+        trappingBlackHoles.push({
+          id: Math.random().toString(36).substring(2, 9),
+          x: pos.x,
+          y: pos.y,
+          pullRadius: 150 + Math.random() * 100
+        });
+        existingPoints.push(pos);
+      } else if (type === 'WhiteHoles') {
+        whiteHoles.push({
+          id: Math.random().toString(36).substring(2, 9),
+          x: pos.x,
+          y: pos.y
+        });
+        existingPoints.push(pos);
       }
-    } else if (type === 'TrappingBlackHoles' && pos) {
-      trappingBlackHoles.push({
-        id: Math.random().toString(36).substring(2, 9),
-        x: pos.x,
-        y: pos.y,
-        pullRadius: 150 + Math.random() * 100
-      });
-      existingPoints.push(pos);
-    } else if (type === 'WhiteHoles' && pos) {
-      whiteHoles.push({
-        id: Math.random().toString(36).substring(2, 9),
-        x: pos.x,
-        y: pos.y
-      });
-      existingPoints.push(pos);
-    } else if (type === 'Asteroids') {
-      asteroidConfig.enabled = true;
-    } else if (type === 'GammaRay') {
-      gammaRayConfig.enabled = true;
-      gammaRayConfig.intervalSeconds = 15 + Math.random() * 15;
     }
   }
 

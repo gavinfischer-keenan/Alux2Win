@@ -47,6 +47,9 @@ function defaultPlanet(id: string, x: number, y: number): PlanetData {
     isOrbiting: false,
     inStorm: false,
     wasInStorm: false,
+    isShielded: false,
+    shieldPoints: 0,
+    shieldTimer: 0,
   };
 }
 
@@ -1337,6 +1340,9 @@ export class EditorScene {
         orbitRadius: p.orbitRadius,
         orbitSpeed: p.orbitSpeed,
         orbitAngle: p.orbitStartAngle,
+        isShielded: !!p.isShielded,
+        shieldPoints: 0,
+        shieldTimer: 0,
       });
       const num = parseInt(p.id.replace(/\\D/g, ''), 10);
       if (!isNaN(num) && num > maxPid) maxPid = num;

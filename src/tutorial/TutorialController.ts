@@ -41,6 +41,18 @@ interface EnemyAction {
 
 const TUTORIAL_SCRIPTS: Record<string, TutorialStep[]> = {
 
+  shield: [
+    {
+      id: 'shield_intro',
+      icon: '🛡️',
+      heading: 'Shielded Planets',
+      body: 'Welcome to Shielded Planets. These planets generate a protective shield over time. Every 15 seconds, a shield point is generated, acting as an extra layer of defense.',
+      pointAtPlanet: 'planet0',
+      autoDismiss: false,
+      isDone: (_s, elapsed) => elapsed > 10,
+    }
+  ],
+
   // ── COMMANDER TRAINING (Tutorial galaxy, combined tutorial) ─
   commander: [
     {

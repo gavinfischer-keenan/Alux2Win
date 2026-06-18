@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "name": "Shield Tutorial",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "planets": [
+    {
+      "id": "planet0",
+      "x": 600,
+      "y": 1024,
+      "faction": "player",
+      "upgradeLevel": 1,
+      "startingParticles": 20,
+      "isOrbiting": false,
+      "isShielded": true
+    },
+    {
+      "id": "planet1",
+      "x": 1400,
+      "y": 1024,
+      "faction": "enemy_a",
+      "upgradeLevel": 1,
+      "startingParticles": 20,
+      "isOrbiting": false,
+      "isShielded": false
+    }
+  ],
+  "blackHoles": []
+}

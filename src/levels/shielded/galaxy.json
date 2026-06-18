@@ -1,0 +1,15 @@
+{
+  "id": "shielded",
+  "name": "Shielded Planets",
+  "description": "Master the art of defense. Shielded planets slowly generate a protective energy barrier over time that absorbs incoming attacks before the planet takes damage.",
+  "order": 5,
+  "color": "0xff0000",
+  "levels": [
+    {
+      "id": "shielded_01",
+      "name": "Shield Tutorial",
+      "file": "level_01.json",
+      "tutorial": "tutorial_shield"
+    }
+  ]
+}

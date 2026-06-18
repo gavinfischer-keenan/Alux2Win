@@ -38,6 +38,19 @@ export class ProductionSystem {
       }
 
       this.accumulators.set(planet.id, acc);
+
+      // Shield regeneration
+      if (planet.isShielded) {
+        let rate = 1.0;
+        if (planet.upgradeLevel === 2) rate = 1.1;
+        if (planet.upgradeLevel === 3) rate = 1.5;
+
+        planet.shieldTimer = (planet.shieldTimer ?? 0) + (dt * rate);
+        if (planet.shieldTimer >= 15.0) {
+          planet.shieldTimer -= 15.0;
+          planet.shieldPoints = (planet.shieldPoints ?? 0) + 1;
+        }
+      }
     }
   }
 

@@ -138,15 +138,24 @@ export class CombatSystem {
              anyDied = true;
           }
 
-          // 2. Any remaining damage hits the planet health
+          // 2. Any remaining damage hits the planet health (or shields first)
           if (dmg > 0) {
             particle.alive = false;
             anyDied = true;
             
-            planet.health -= dmg;
+            // Shield absorbs damage first
+            if (planet.isShielded && (planet.shieldPoints ?? 0) > 0) {
+              const absorbed = Math.min(dmg, planet.shieldPoints!);
+              planet.shieldPoints! -= absorbed;
+              dmg -= absorbed;
+            }
 
-            if (planet.health <= 0) {
-              this._capturePlanet(planet, particle, state, eventBus);
+            if (dmg > 0) {
+              planet.health -= dmg;
+
+              if (planet.health <= 0) {
+                this._capturePlanet(planet, particle, state, eventBus);
+              }
             }
           }
         }
@@ -176,6 +185,8 @@ export class CombatSystem {
     planet.health = planet.maxHealth;
     planet.absorbedCount = 0;
     planet.productionRate = 0.5;
+    planet.shieldPoints = 0;
+    planet.shieldTimer = 0;
 
     if (oldFaction === 'neutral') {
       planet.faction = attackParticle.faction;

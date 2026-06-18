@@ -56,6 +56,7 @@ export class Planet {
   private glowGraphics:  Graphics;
   private healthArc:     Graphics;
   private upgradeArc:    Graphics;
+  private shieldGraphics:Graphics;
   private selectionRing: Graphics;
   private label:         Text;
   private levelLabel:    Text;
@@ -76,6 +77,7 @@ export class Planet {
     this.glowGraphics  = new Graphics();
     this.healthArc     = new Graphics();
     this.upgradeArc    = new Graphics();
+    this.shieldGraphics= new Graphics();
     this.graphics      = new Graphics();
     this.selectionRing = new Graphics();
 
@@ -97,11 +99,12 @@ export class Planet {
     this.levelLabel = new Text({ text: '', style: levelStyle });
     this.levelLabel.anchor.set(0.5, 0);
 
-    // Stacking order: glow → healthArc → upgradeArc → planet body → selection ring → labels
+    // Stacking order: glow → healthArc → upgradeArc → planet body → shieldGraphics → selection ring → labels
     layer.addChild(this.glowGraphics);
     layer.addChild(this.healthArc);
     layer.addChild(this.upgradeArc);
     layer.addChild(this.graphics);
+    layer.addChild(this.shieldGraphics);
     layer.addChild(this.selectionRing);
     layer.addChild(this.label);
     layer.addChild(this.levelLabel);
@@ -140,6 +143,7 @@ export class Planet {
     // Rings redraw every frame
     this._drawHealthRing();
     this._drawUpgradeRing();
+    this._drawShield();
 
     if (selected !== this.lastSelected) {
       this.lastSelected = selected;
@@ -157,6 +161,26 @@ export class Planet {
     }
   }
 
+  private _drawShield(): void {
+    const d = this.data;
+    this.shieldGraphics.clear();
+    
+    if (d.isShielded) {
+      const shieldPoints = d.shieldPoints ?? 0;
+      const baseRadius = PLANET_RADIUS[d.upgradeLevel] + 4;
+      
+      // Calculate shield intensity based on shield points
+      // We'll cap the visual intensity increase at 20 points, but it keeps absorbing damage.
+      const intensity = Math.min(shieldPoints / 20, 1.0);
+      const alpha = 0.2 + (intensity * 0.8);
+      const strokeWidth = 2 + (intensity * 2);
+      
+      this.shieldGraphics
+        .circle(0, 0, baseRadius)
+        .stroke({ color: 0xff0000, width: strokeWidth, alpha: alpha, alignment: 0.5 });
+    }
+  }
+
   updatePosition(): void {
     const { x, y } = this.data;
     const r = PLANET_RADIUS[this.data.upgradeLevel];
@@ -167,6 +191,8 @@ export class Planet {
     this.healthArc.y     = y;
     this.upgradeArc.x    = x;
     this.upgradeArc.y    = y;
+    this.shieldGraphics.x= x;
+    this.shieldGraphics.y= y;
     this.graphics.x      = x;
     this.graphics.y      = y;
     this.selectionRing.x = x;
@@ -182,6 +208,7 @@ export class Planet {
     this.glowGraphics.destroy();
     this.healthArc.destroy();
     this.upgradeArc.destroy();
+    this.shieldGraphics.destroy();
     this.graphics.destroy();
     this.selectionRing.destroy();
     this.label.destroy();

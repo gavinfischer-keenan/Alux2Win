@@ -23,6 +23,8 @@ import speedTraps1Data from '../levels/speed_traps_1.json';
 import portals1Data from '../levels/portals_1.json';
 import blackholes1Data from '../levels/blackholes_1.json';
 import whiteholes1Data from '../levels/whiteholes_1.json';
+import shielded1Data from '../levels/shielded/level_01.json';
+import shielded2Data from '../levels/shielded/level_02.json';
 import { SettingsStore } from '../core/SettingsStore';
 import type { GameSettings } from '../core/SettingsStore';
 import { audioManager } from '../core/AudioManager';
@@ -249,6 +251,7 @@ export class MainMenuScene {
       { name: 'Portals',       desc: 'Instantaneous travel across the system. Send units into one portal to emerge at the exit.', image: '/assets/galaxies/lava.png',      locked: false, tutorialId: 'portals',    levels: [tutorialPortalsData as LevelData, portals1Data as LevelData, ...(customGroups['Portals'] || [])], isTutorial: false },
       { name: 'Black Holes',   desc: 'Massive gravitational anomalies. They pull in and crush units that stray too close. There is no escape.', image: '/assets/galaxies/void.png',      locked: false, tutorialId: 'blackholes', levels: [tutorialBlackholesData as LevelData, blackholes1Data as LevelData, ...(customGroups['Black Holes'] || [])], isTutorial: false },
       { name: 'White Holes',   desc: 'Sending units into the white hole rewards you with a valuable resource bounty.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: 'whiteholes', levels: [tutorialWhiteholesData as LevelData, whiteholes1Data as LevelData, ...(customGroups['White Holes'] || [])], isTutorial: false },
+      { name: 'Shielded Planets', desc: 'Master the art of defense. Shielded planets slowly generate a protective energy barrier over time that absorbs incoming attacks.', image: '/assets/galaxies/normal.png', locked: false, tutorialId: 'shield', levels: [shielded1Data as LevelData, shielded2Data as LevelData, ...(customGroups['Shielded Planets'] || [])], isTutorial: false },
       { name: 'Custom',        desc: 'Explore custom user-generated systems and experimental battlegrounds.', image: '/assets/galaxies/normal.png',    locked: false, tutorialId: '',           levels: customGroups['Custom'] || [], isTutorial: false },
       { name: 'Random',        desc: 'An unpredictable, procedurally generated system. Every battle is unique.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: '',           levels: [], isTutorial: false },
     ];

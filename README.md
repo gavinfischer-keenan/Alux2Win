@@ -18,6 +18,13 @@
 - **Level Editor:** Build, play, and share your own custom galaxies with intuitive drag-and-drop tools and orbit configuration.
 - **Leaderboards:** Track your top-5 fastest completion times for every system.
 
+## ✨ What's New in v1.1.0
+
+- **🛡️ Shielded Planets:** A brand new map mechanic! Certain planets now generate protective shields over time. These shields intercept incoming particle damage before the planet's actual health is affected, adding an intense defensive layer to sieges.
+- **Improved Random Generation:** The random level generator now creates deadlier combinations (biased towards 2-3 overlapping hazards) and features Shielded Planets natively. Gamma Ray fuses are properly regulated to ensure fair but chaotic fights.
+- **Dynamic Tooltips:** Hover over any shielded planet to view its exact real-time shield point accumulation.
+- **Optimized UI:** Ranked top-5 run times displayed beautifully on menu tiles.
+
 ## 🚀 Getting Started
 
 ### Prerequisites

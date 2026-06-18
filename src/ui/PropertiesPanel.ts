@@ -118,6 +118,15 @@ export class PropertiesPanel {
     );
     this.element.appendChild(particlesInput);
 
+    // Shielded checkbox
+    this.element.appendChild(this.buildLabel('Shielded'));
+    const shieldSection = this.buildCheckbox(!!planet.isShielded, (val) => {
+      if (this.currentPlanetId) {
+        this.onPlanetChange(this.currentPlanetId, { isShielded: val });
+      }
+    });
+    this.element.appendChild(shieldSection);
+
     // Orbiting checkbox + orbit controls
     this.element.appendChild(this.buildLabel('Orbiting'));
     const orbitSection = this.buildOrbitSection(planet, (changes) => {
@@ -698,6 +707,26 @@ export class PropertiesPanel {
     slider.value = String(Math.round(value));
     slider.addEventListener('input', () => onChange(Number(slider.value)));
     return slider;
+  }
+
+  private buildCheckbox(checked: boolean, onChange: (val: boolean) => void): HTMLElement {
+    const label = document.createElement('label');
+    label.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      color: rgba(255,255,255,0.65);
+      font-size: 13px;
+    `;
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = checked;
+    checkbox.style.accentColor = '#4fc3f7';
+    checkbox.addEventListener('change', () => onChange(checkbox.checked));
+    
+    label.appendChild(checkbox);
+    return label;
   }
 
   private buildDeleteBtn(getId: () => string | null): HTMLElement {

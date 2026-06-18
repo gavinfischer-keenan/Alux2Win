@@ -1216,6 +1216,16 @@ export class GameScene {
           </div>`;
       }
 
+      let shieldHtml = '';
+      if (p.isShielded) {
+        const shieldPoints = p.shieldPoints ?? 0;
+        shieldHtml = `
+          <div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.08)">
+            <span style="color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;letter-spacing:0.1em">🛡️ Shield Level</span><br>
+            <span style="color:#ff3333;font-weight:600">${shieldPoints} Points</span>
+          </div>`;
+      }
+
       tip.innerHTML = `
         <div style="font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;
                     color:${levelColors[lvl]};letter-spacing:0.1em;margin-bottom:4px">
@@ -1227,6 +1237,7 @@ export class GameScene {
           &nbsp;<span style="color:rgba(255,255,255,0.3);font-size:10px">${p.health} / ${p.maxHealth} structural</span>
         </div>
         ${upgradeHtml}
+        ${shieldHtml}
       `;
 
       tip.style.display = 'block';
