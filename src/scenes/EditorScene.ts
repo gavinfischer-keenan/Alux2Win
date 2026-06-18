@@ -156,7 +156,7 @@ export class EditorScene {
 
     // PixiJS rendering layer for editor graphics
     this.editorContainer = new Container();
-    this.renderer.stage.addChild(this.editorContainer);
+    this.renderer.getWorldContainer().addChild(this.editorContainer);
     this.editorGfx     = new Graphics();
     this.labelContainer = new Container();
     this.editorContainer.addChild(this.editorGfx);

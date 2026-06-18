@@ -494,6 +494,17 @@ export class PropertiesPanel {
     ];
 
     const select = document.createElement('select');
+    select.style.cssText = `
+      appearance: auto;
+      -webkit-appearance: auto;
+      width: 100%;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 4px;
+      padding: 4px;
+      font-size: 13px;
+      outline: none;
+    `;
     factions.forEach(f => {
       const opt = document.createElement('option');
       opt.value = f.value;
@@ -533,7 +544,7 @@ export class PropertiesPanel {
       radio.name = 'upgrade-level';
       radio.value = String(lvl);
       radio.checked = lvl === current;
-      radio.style.accentColor = '#4fc3f7';
+      radio.style.cssText = 'appearance: auto; -webkit-appearance: auto; accent-color: #4fc3f7; margin-right: 2px;';
       radio.addEventListener('change', () => { if (radio.checked) onChange(lvl); });
       label.appendChild(radio);
       label.appendChild(document.createTextNode(String(lvl)));
@@ -551,6 +562,16 @@ export class PropertiesPanel {
   ): HTMLElement {
     const input = document.createElement('input');
     input.type = 'number';
+    input.style.cssText = `
+      width: 100%;
+      background: rgba(0,0,0,0.5);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 4px;
+      padding: 4px 6px;
+      font-size: 13px;
+      outline: none;
+    `;
     input.min = String(min);
     input.max = String(max);
     input.value = String(Math.round(value));
@@ -582,7 +603,7 @@ export class PropertiesPanel {
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.checked = planet.isOrbiting;
-    checkbox.style.accentColor = '#4fc3f7';
+    checkbox.style.cssText = 'appearance: auto; -webkit-appearance: auto; accent-color: #4fc3f7; margin-right: 4px;';
     checkRow.appendChild(checkbox);
     checkRow.appendChild(document.createTextNode('Orbiting'));
     section.appendChild(checkRow);
@@ -602,6 +623,8 @@ export class PropertiesPanel {
     orbitControls.appendChild(shapeLabel);
     const shapeSelect = document.createElement('select');
     shapeSelect.style.cssText = `
+      appearance: auto;
+      -webkit-appearance: auto;
       background: rgba(0,0,0,0.5);
       color: white;
       border: 1px solid rgba(255,255,255,0.2);
@@ -722,7 +745,7 @@ export class PropertiesPanel {
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.checked = checked;
-    checkbox.style.accentColor = '#4fc3f7';
+    checkbox.style.cssText = 'appearance: auto; -webkit-appearance: auto; accent-color: #4fc3f7; margin-right: 4px;';
     checkbox.addEventListener('change', () => onChange(checkbox.checked));
     
     label.appendChild(checkbox);

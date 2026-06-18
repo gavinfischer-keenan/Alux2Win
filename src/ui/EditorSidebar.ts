@@ -14,20 +14,19 @@ export type EditorTool =
 
 interface ToolDef {
   id: EditorTool;
-  icon: string;
   label: string;
   title: string;
 }
 
 const TOOLS: ToolDef[] = [
-  { id: 'select',           icon: '↖',  label: 'SEL',  title: 'Select / Move (S)' },
-  { id: 'place_planet',     icon: '🪐', label: 'PLT',  title: 'Place Planet (P)' },
-  { id: 'place_blackhole',  icon: '⚫', label: 'BH',   title: 'Place Black Hole (B)' },
-  { id: 'place_speedzone',  icon: '💨', label: 'SPD',  title: 'Place Speed Zone (Z)' },
-  { id: 'place_portal',     icon: '🌀', label: 'PRT',  title: 'Place Portal (O)' },
-  { id: 'place_trappingbh', icon: '🕳️', label: 'TBH',  title: 'Place Trapping Black Hole (T)' },
-  { id: 'place_whitehole',  icon: '⭐', label: 'WH',   title: 'Place White Hole (H)' },
-  { id: 'delete',           icon: '🗑️', label: 'DEL',  title: 'Delete Entity (X)' },
+  { id: 'select',           label: 'Select',        title: 'Select / Move (S)' },
+  { id: 'place_planet',     label: 'Planet',        title: 'Place Planet (P)' },
+  { id: 'place_blackhole',  label: 'Black Hole',    title: 'Place Black Hole (B)' },
+  { id: 'place_speedzone',  label: 'Speed Zone',    title: 'Place Speed Zone (Z)' },
+  { id: 'place_portal',     label: 'Portal',        title: 'Place Portal (O)' },
+  { id: 'place_trappingbh', label: 'Trapping BH',   title: 'Place Trapping Black Hole (T)' },
+  { id: 'place_whitehole',  label: 'White Hole',    title: 'Place White Hole (H)' },
+  { id: 'delete',           label: 'Delete',        title: 'Delete Entity (X)' },
 ];
 
 export class EditorSidebar {
@@ -55,7 +54,7 @@ export class EditorSidebar {
     sidebar.style.cssText = `
       position: absolute;
       top: 0; left: 0;
-      width: 64px;
+      width: 120px;
       height: 100%;
       display: flex;
       flex-direction: column;
@@ -158,39 +157,24 @@ export class EditorSidebar {
     const btn = document.createElement('button');
     btn.title = tool.title;
     btn.style.cssText = `
-      width: 48px;
-      height: 48px;
-      border-radius: 8px;
+      width: 104px;
+      height: 36px;
+      border-radius: 6px;
       border: 1px solid rgba(255,255,255,0.08);
       background: rgba(255,255,255,0.04);
-      color: rgba(255,255,255,0.65);
+      color: rgba(255,255,255,0.75);
       cursor: pointer;
-      font-size: 20px;
+      font-size: 11px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      letter-spacing: 0.05em;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
-      flex-direction: column;
-      gap: 1px;
       flex-shrink: 0;
     `;
-
-    const iconSpan = document.createElement('span');
-    iconSpan.textContent = tool.icon;
-    iconSpan.style.lineHeight = '1';
-    iconSpan.style.fontSize = '18px';
-    btn.appendChild(iconSpan);
-
-    const labelSpan = document.createElement('span');
-    labelSpan.textContent = tool.label;
-    labelSpan.style.cssText = `
-      font-size: 7px;
-      font-family: 'Orbitron', sans-serif;
-      letter-spacing: 0.04em;
-      color: rgba(255,255,255,0.4);
-      line-height: 1;
-    `;
-    btn.appendChild(labelSpan);
+    btn.textContent = tool.label;
 
     btn.addEventListener('click', () => {
       this.setActiveTool(tool.id);
@@ -232,7 +216,7 @@ export class EditorSidebar {
   private createDivider(): HTMLElement {
     const d = document.createElement('div');
     d.style.cssText = `
-      width: 36px;
+      width: 104px;
       height: 1px;
       background: rgba(255,255,255,0.08);
       margin: 4px 0;
