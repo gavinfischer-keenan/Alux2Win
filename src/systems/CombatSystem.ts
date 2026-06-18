@@ -148,6 +148,10 @@ export class CombatSystem {
               const absorbed = Math.min(dmg, planet.shieldPoints!);
               planet.shieldPoints! -= absorbed;
               dmg -= absorbed;
+
+              if (planet.faction === 'player') {
+                audioManager.playShieldDamage();
+              }
             }
 
             if (dmg > 0) {

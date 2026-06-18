@@ -17,6 +17,7 @@ class AudioManager {
 
   private _ohNoBuffer: AudioBuffer | null = null;
   private _captureBuffer: AudioBuffer | null = null;
+  private _shieldDamageBuffer: AudioBuffer | null = null;
 
   // ── Init ─────────────────────────────────────────────────
 
@@ -48,6 +49,15 @@ class AudioManager {
       this._captureBuffer = await this._ctx.decodeAudioData(arrayBuffer);
     } catch (err) {
       console.warn('Failed to load capture audio', err);
+    }
+
+    // Load shield damage MP3
+    try {
+      const response = await fetch('/assets/audio/shield_damage.mp3');
+      const arrayBuffer = await response.arrayBuffer();
+      this._shieldDamageBuffer = await this._ctx.decodeAudioData(arrayBuffer);
+    } catch (err) {
+      console.warn('Failed to load shield damage audio', err);
     }
 
     if (this._ctx.state === 'suspended') {
@@ -437,6 +447,27 @@ class AudioManager {
 
     const source = ctx.createBufferSource();
     source.buffer = this._captureBuffer;
+    
+    const g = ctx.createGain();
+    g.gain.value = 1.0;
+    source.connect(g);
+    g.connect(master);
+    
+    source.start();
+  }
+
+  /** Played when a player's shielded planet takes damage. */
+  private _lastShieldDamageTime = -Infinity;
+
+  playShieldDamage(): void {
+    const ctx = this._ctx;
+    const master = this._masterGain;
+    if (!ctx || !master || !this._shieldDamageBuffer) return;
+    if (ctx.currentTime - this._lastShieldDamageTime < 2.0) return; // 2s cooldown
+    this._lastShieldDamageTime = ctx.currentTime;
+
+    const source = ctx.createBufferSource();
+    source.buffer = this._shieldDamageBuffer;
     
     const g = ctx.createGain();
     g.gain.value = 1.0;
