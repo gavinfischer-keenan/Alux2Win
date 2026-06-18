@@ -65,7 +65,7 @@ const TUTORIAL_SCRIPTS: Record<string, TutorialStep[]> = {
       id: 'capture',
       icon: '🎯',
       heading: 'Step 2 — Capture',
-      body: 'With your planet selected, right-click the grey planet above to send particles to capture it. Grey planets are neutral — they belong to nobody yet!',
+      body: 'With your planet selected, right-click the grey planet above to send particles to capture it. Grey planets are neutral — they belong to nobody yet! Notice the badge in the top-left corner showing how many particles you have selected.',
       pointAtPlanet: 'p_near',
       autoDismiss: true,
       isDone: (state) => {
@@ -90,7 +90,7 @@ const TUTORIAL_SCRIPTS: Record<string, TutorialStep[]> = {
       id: 'upgrade_hint',
       icon: '⬆️',
       heading: 'Step 3 — Upgrade',
-      body: 'Send particles from your home planet BACK to one of your captured planets. Each particle absorbed upgrades it. Watch the cyan arc on the RIGHT side of the planet fill up — that\'s your upgrade progress!',
+      body: 'To upgrade a planet, select your fleet and right-click one of YOUR OWN planets. Particles you send to your own planet are absorbed directly, filling the cyan arc on the RIGHT — that\'s your upgrade progress!',
       pointAtPlanet: 'p_upgrade',
       autoDismiss: true,
       isDone: (state) => {
@@ -130,7 +130,7 @@ const TUTORIAL_SCRIPTS: Record<string, TutorialStep[]> = {
         // Enemy attacked — advance when player planet takes damage OR enemy sends particles
         const enemyParticles = state.particles.filter(p => p.alive && p.faction === 'enemy_a');
         const playerPlanets  = [...state.planets.values()].filter(p => p.faction === 'player');
-        return playerPlanets.some(p => p.bonusHealth < p.maxBonusHealth) || enemyParticles.length > 5;
+        return playerPlanets.some(p => p.health < p.maxHealth) || enemyParticles.length > 5;
       },
     },
     {
@@ -142,10 +142,18 @@ const TUTORIAL_SCRIPTS: Record<string, TutorialStep[]> = {
       isDone: (_s, elapsed) => elapsed > 12,
     },
     {
+      id: 'repeat_action',
+      icon: '🔁',
+      heading: 'Double Right-Click — Repeat!',
+      body: 'Power move: double right-click anywhere to instantly repeat your last deploy order. Your last selection and target are remembered, so you can keep up relentless pressure with just two clicks!',
+      autoDismiss: false,
+      isDone: (_s, elapsed) => elapsed > 10,
+    },
+    {
       id: 'counter_attack',
       icon: '🚀',
       heading: 'Press the Advantage!',
-      body: 'You\'ve got the basics! Now push forward — capture the central neutral planet, upgrade everything to level 3, and eliminate the enemy base. The galaxy is yours to take!',
+      body: 'You\'ve got the full toolkit! Now push forward — capture the central neutral planet, upgrade everything to level 3, and eliminate the enemy base. The galaxy is yours to take!',
       pointAtPlanet: 'p_enemy',
       autoDismiss: true,
       isDone: (state) => {
@@ -157,7 +165,7 @@ const TUTORIAL_SCRIPTS: Record<string, TutorialStep[]> = {
       id: 'complete',
       icon: '🏆',
       heading: 'Commander Training Complete!',
-      body: 'You\'ve mastered the full toolkit: selecting, capturing, upgrading, attacking, and repairing. You\'re ready for any galaxy!',
+      body: 'You\'ve mastered it all: selecting, capturing, upgrading, attacking, repairing, and the double right-click repeat trick. You\'re ready for any galaxy!',
       autoDismiss: false,
       isDone: () => false,
     },
@@ -213,7 +221,7 @@ const TUTORIAL_SCRIPTS: Record<string, TutorialStep[]> = {
       id: 'upgrade_hint',
       icon: '⬆️',
       heading: 'Upgrade Your Planets',
-      body: 'Send your particles BACK to one of your own planets to upgrade it. A level 2 planet produces much faster! Watch the cyan arc on the right side fill up.',
+      body: 'Right-click one of YOUR OWN planets to send particles to it. They\'re absorbed directly, filling the cyan arc on the right. A level 2 planet produces much faster — level 3 is a powerhouse!',
       pointAtPlanet: 'p_upgrade',
       autoDismiss: true,
       isDone: (state) => {
@@ -227,7 +235,15 @@ const TUTORIAL_SCRIPTS: Record<string, TutorialStep[]> = {
       id: 'upgraded',
       icon: '🌟',
       heading: 'Planet Upgraded!',
-      body: 'Look at the size difference! Upgraded planets produce particles faster and can hold more. Max level 3 is a powerhouse.',
+      body: 'Look at the size difference! Upgraded planets produce particles faster and can hold more. Max level 3 is a powerhouse. When particles die to hazards, watch for sparkle flashes — and planets struck show a shockwave ring!',
+      autoDismiss: false,
+      isDone: (_s, elapsed) => elapsed > 8,
+    },
+    {
+      id: 'badge_tip',
+      icon: '🔢',
+      heading: 'Selection Badge',
+      body: 'When you lasso-select multiple planets by dragging, a badge appears in the top-left corner showing your total selected particle count and how many are orbiting in defense. Use it to plan your attacks!',
       autoDismiss: false,
       isDone: (_s, elapsed) => elapsed > 8,
     },
@@ -235,7 +251,7 @@ const TUTORIAL_SCRIPTS: Record<string, TutorialStep[]> = {
       id: 'enemy_incoming',
       icon: '⚠️',
       heading: 'Incoming Attack!',
-      body: 'The enemy is sending particles toward you! Counter-attack their planet while they\'re exposed, or reinforce your threatened planet by right-clicking it with yours selected.',
+      body: 'The enemy is sending particles toward you! Counter-attack their planet while they\'re exposed, or reinforce your threatened planet by single right-clicking it while yours are selected.',
       pointAtPlanet: 'p_enemy',
       autoDismiss: true,
       isDone: (state) => {
@@ -614,7 +630,7 @@ const TUTORIAL_SCRIPTS: Record<string, TutorialStep[]> = {
       id: 'intro',
       icon: '✨',
       heading: 'White Holes!',
-      body: 'That glowing white sphere in the center is a White Hole. Feed it 20 of your particles and it will EXPLODE — a massive nova that destroys everything nearby!',
+      body: 'That glowing white sphere in the center is a White Hole. Feed it 80 of your particles and it ERUPTS — launching 300 fresh particles for your faction in every direction!',
       pointAtPlanet: 'p_home',
       autoDismiss: false,
       isDone: (_s, elapsed) => elapsed > 10,
@@ -623,7 +639,7 @@ const TUTORIAL_SCRIPTS: Record<string, TutorialStep[]> = {
       id: 'feed_it',
       icon: '⚡',
       heading: 'Feed the White Hole!',
-      body: 'Select your home planet and right-click the White Hole glowing in the center. Send your particles into it — it needs 20 to charge up. Watch the progress indicator!',
+      body: 'Select your home planet and right-click the glowing White Hole in the center. Keep sending particles into it — it needs 80 to fully charge. Watch the progress ring grow!',
       autoDismiss: true,
       isDone: (state) => {
         // Done when white hole has started charging (progress > 0)
@@ -634,17 +650,25 @@ const TUTORIAL_SCRIPTS: Record<string, TutorialStep[]> = {
       id: 'charging',
       icon: '🔋',
       heading: 'Charging...',
-      body: 'Keep feeding it! Each particle you send in adds to the charge. When it hits 20, stand back — the nova will wipe out all particles and damage all planets in a huge radius!',
+      body: 'Keep feeding it! Each particle adds to the charge. When it hits 80, stand back — 300 particles explode outward from the nova! Enemy particles hit by hazards flash with sparkles; planets struck show a shockwave ring.',
       autoDismiss: true,
       isDone: (state) => {
         return state.whiteHoles.some(wh => wh.exploded) || state.whiteHoles.length === 0;
       },
     },
     {
+      id: 'repeat_tip',
+      icon: '🔁',
+      heading: 'Repeat Last Action!',
+      body: 'Pro tip: double right-click anywhere to instantly repeat your last deploy order — same source, same target. Great for feeding a White Hole turn after turn without re-selecting!',
+      autoDismiss: false,
+      isDone: (_s, elapsed) => elapsed > 10,
+    },
+    {
       id: 'weapon',
       icon: '💥',
       heading: 'Supernova Weapon!',
-      body: 'The best tactic: Charge a White Hole near the enemy\'s planets, THEN lure their fleet close — trigger it when their forces are in range for maximum destruction!',
+      body: 'The best tactic: Charge a White Hole near enemy planets, THEN lure their fleet close — trigger it when their forces are in range for maximum destruction!',
       pointAtPlanet: 'p_enemy_a',
       autoDismiss: false,
       isDone: (_s, elapsed) => elapsed > 12,
@@ -850,7 +874,9 @@ export class TutorialController {
 
       const validSources = action.from.filter(id => {
         const p = state.planets.get(id);
-        return p && p.faction === 'enemy_a' && p.particles >= 5;
+        if (!p || p.faction !== 'enemy_a') return false;
+        const orbitingCount = state.particles.filter(pt => pt.alive && pt.mode === 'orbiting' && pt.homePlanetId === id).length;
+        return orbitingCount >= 5;
       });
       const target = state.planets.get(action.to);
 

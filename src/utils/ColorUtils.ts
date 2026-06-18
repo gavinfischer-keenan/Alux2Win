@@ -1,5 +1,5 @@
 // ============================================================
-// ColorUtils.ts — Faction color helpers for Alux2Win
+// ColorUtils.ts — Faction color helpers for LUX
 // ============================================================
 
 import { FACTION_COLORS } from '../types';

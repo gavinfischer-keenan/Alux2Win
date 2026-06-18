@@ -1,5 +1,5 @@
 // ============================================================
-// MathUtils.ts — Vec2 math helpers for Alux2Win
+// MathUtils.ts — Vec2 math helpers for LUX
 // ============================================================
 
 import type { Vec2 } from '../types';

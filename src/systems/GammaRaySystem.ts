@@ -1,5 +1,5 @@
 // ============================================================
-// GammaRaySystem.ts — Alux2Win
+// GammaRaySystem.ts — LUX
 // Handles the gamma-ray hazard: warning countdown, path
 // generation, beam sweep, and planet reset on fire.
 //
@@ -15,6 +15,7 @@ import {
   type GammaRayPath,
   type PlanetData,
   PLANET_RADIUS,
+  FACTION_COLORS,
 } from '../types';
 
 // Maximum retries when generating a path that hits at least one planet.
@@ -235,27 +236,59 @@ export class GammaRaySystem {
     const path = state.gammaRay.path;
     if (!path) return;
 
-    // Mark that the first shot has now fired — future paths will be random.
     this._firstShotDone = true;
+
+    let particlesKilled = 0;
 
     for (const planetId of path.targetedPlanetIds) {
       const planet = state.planets.get(planetId);
       if (!planet) continue;
 
-      // Reset planet to a blank neutral state.
+      // Planet death shockwave effect
+      state.hazardEffects.push({
+        id:       ++state.hazardEffectIdCounter,
+        kind:     'planet_shockwave',
+        x:        planet.x,
+        y:        planet.y,
+        color:    FACTION_COLORS[planet.faction] ?? 0xffffff,
+        age:      0,
+        duration: 0.7,
+        radius:   PLANET_RADIUS[planet.upgradeLevel] * 4,
+      });
+      // Signal audio (via a flag in state that GameScene reads)
+      (state as any)._pendingPlanetHazardDeaths = ((state as any)._pendingPlanetHazardDeaths ?? 0) + 1;
+
+      // Reset planet to neutral
       planet.faction       = 'neutral';
-      planet.particles     = 0;
+      planet.health        = 40;
+      planet.maxHealth     = 40;
       planet.absorbedCount = 0;
       planet.upgradeLevel  = 1;
-      planet.bonusHealth   = 0;
 
-      // Kill all particles that call this planet home.
-      state.particles
-        .filter(p => p.homePlanetId === planetId)
-        .forEach(p => { p.alive = false; });
+      // Kill orbiting particles — add sparkle for each
+      for (const p of state.particles) {
+        if (p.alive && p.homePlanetId === planetId) {
+          // Sparkle effect
+          state.hazardEffects.push({
+            id:       ++state.hazardEffectIdCounter,
+            kind:     'particle_sparkle',
+            x:        p.x,
+            y:        p.y,
+            color:    FACTION_COLORS[p.faction] ?? 0xffffff,
+            age:      0,
+            duration: 0.15,
+            radius:   10,
+          });
+          p.alive = false;
+          particlesKilled++;
+        }
+      }
     }
 
-    // Purge dead particles from the global list.
+    if (particlesKilled > 0) {
+      (state as any)._pendingParticleHazardDeaths = ((state as any)._pendingParticleHazardDeaths ?? 0) + particlesKilled;
+    }
+
     state.particles = state.particles.filter(p => p.alive);
   }
 

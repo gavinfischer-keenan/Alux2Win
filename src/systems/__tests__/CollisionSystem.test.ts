@@ -32,6 +32,8 @@ describe('CollisionSystem', () => {
       portals: [],
       trappingBlackHoles: [],
       whiteHoles: [],
+      hazardEffects: [],
+      hazardEffectIdCounter: 0,
     };
   });
 

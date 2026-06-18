@@ -1,37 +1,14 @@
 // ============================================================
-// PlasmaStormRenderer.ts - Plasma storm visual entity for Alux2Win
+// PlasmaStormRenderer.ts - Plasma storm visual entity for LUX
 // ============================================================
 //
 // Renders all active plasma storms each frame using PixiJS v8's
-// Graphics builder API.  Each storm gets three concentric ellipse
-// layers (outer glow, mid, core) plus an animated inner-ellipse
-// offset driven by storm.angle to suggest swirling plasma motion.
+// Graphics builder API.  Organic layered ellipses with breathing,
+// color-shifting wisps, and no hard borders.
 // ============================================================
 
 import { Container, Graphics } from 'pixi.js';
 import type { PlasmaStormData } from '../types';
-
-// -- Palette -------------------------------------------------------------------
-
-/** Outer glow layer - dark purple, very transparent. */
-const COLOR_OUTER  = 0x7c3aed;
-const ALPHA_OUTER  = 0.08;
-
-/** Mid layer - bright purple, semi-transparent. */
-const COLOR_MID    = 0xa855f7;
-const ALPHA_MID    = 0.15;
-
-/** Core/inner layer - light lavender, most opaque of the fills. */
-const COLOR_CORE   = 0xd8b4fe;
-const ALPHA_CORE   = 0.25;
-
-/** Stroke on the outer edge. */
-const COLOR_STROKE = 0xc084fc;
-const ALPHA_STROKE = 0.4;
-const WIDTH_STROKE = 1.5;
-
-/** How far the inner ellipse drifts to simulate swirling plasma. */
-const SWIRL_OFFSET = 5;
 
 // -- Renderer -----------------------------------------------------------------
 
@@ -59,30 +36,46 @@ export class PlasmaStormRenderer {
     for (const storm of storms) {
       const { x, y, radiusX, radiusY, angle } = storm;
 
-      // Swirl offsets: shift the core ellipse slightly in a direction driven
-      // by the slowly incrementing angle, giving an organic rotation illusion.
-      const swirlX = Math.cos(angle) * SWIRL_OFFSET;
-      const swirlY = Math.sin(angle) * SWIRL_OFFSET;
+      // Slow color shift between purple and indigo
+      const t = (Math.sin(angle * 0.15) + 1) / 2;
+      const color = t < 0.5 ? 0x7c3aed : 0x6366f1;
 
-      // -- Layer 1: Outer glow (scaled 1.2-) --------------------
-      g.ellipse(x, y, radiusX * 1.2, radiusY * 1.2)
-        .fill({ color: COLOR_OUTER, alpha: ALPHA_OUTER });
+      // Breathing scale applied to all layer radii
+      const breathScale = 1.0 + 0.06 * Math.sin(angle * 1.3);
+      const rx = radiusX * breathScale;
+      const ry = radiusY * breathScale;
 
-      // -- Outer stroke on the same ellipse ---------------------
-      g.ellipse(x, y, radiusX * 1.2, radiusY * 1.2)
-        .stroke({ color: COLOR_STROKE, width: WIDTH_STROKE, alpha: ALPHA_STROKE });
+      // Edge flicker adds a tiny random bump to the outer alpha
+      const flickerOuter = Math.random() * 0.012;
 
-      // -- Layer 2: Mid layer (1.0-) -----------------------------
-      g.ellipse(x, y, radiusX, radiusY)
-        .fill({ color: COLOR_MID, alpha: ALPHA_MID });
+      // -- 4 concentric soft ellipse layers (no strokes) ----------------
+      // Layer 1: 1.25x — very faint outer glow
+      g.ellipse(x, y, rx * 1.25, ry * 1.25)
+        .fill({ color, alpha: 0.06 + flickerOuter });
 
-      // -- Layer 3: Core/inner ellipse (0.6-, offset for swirl) --
-      g.ellipse(
-        x + swirlX,
-        y + swirlY,
-        radiusX * 0.6,
-        radiusY * 0.6,
-      ).fill({ color: COLOR_CORE, alpha: ALPHA_CORE });
+      // Layer 2: 1.0x
+      g.ellipse(x, y, rx, ry)
+        .fill({ color: 0x8b5cf6, alpha: 0.10 });
+
+      // Layer 3: 0.75x
+      g.ellipse(x, y, rx * 0.75, ry * 0.75)
+        .fill({ color: 0xa78bfa, alpha: 0.16 });
+
+      // Layer 4: 0.45x — dense core
+      g.ellipse(x, y, rx * 0.45, ry * 0.45)
+        .fill({ color: 0xc4b5fd, alpha: 0.20 });
+
+      // -- 4 wisp tendrils at storm radius * 0.85, rotating slowly ------
+      const wispDist = radiusX * 0.85 * breathScale;
+      const wispBaseAngle = angle / 7;
+      for (let i = 0; i < 4; i++) {
+        const wispAngle = wispBaseAngle + i * (Math.PI / 2);
+        const wx = x + Math.cos(wispAngle) * wispDist;
+        const wy = y + Math.sin(wispAngle) * wispDist;
+        // Small filled ellipse wisp (width=8, height=3)
+        g.ellipse(wx, wy, 8, 3)
+          .fill({ color: 0xddd6fe, alpha: 0.18 });
+      }
     }
   }
 

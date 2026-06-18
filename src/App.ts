@@ -1,5 +1,5 @@
 // ============================================================
-// App.ts — Top-level application state machine for Alux2Win
+// App.ts — Top-level application state machine for LUX
 // Manages scene transitions: Menu → Game → Editor → Menu
 // ============================================================
 

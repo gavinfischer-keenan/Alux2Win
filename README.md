@@ -1,6 +1,6 @@
 # LUX
 
-LUX is a high-performance, minimalist Real-Time Strategy (RTS) game heavily inspired by Auralux. It features massive swarms of boid-driven particles, dynamic generative audio, and a challenging heuristic-based AI, all running beautifully in the browser at 60+ FPS.
+LUX is a high-performance, minimalist Real-Time Strategy (RTS) game heavily inspired by LUX. It features massive swarms of boid-driven particles, dynamic generative audio, and a challenging heuristic-based AI, all running beautifully in the browser at 60+ FPS.
 
 ## 🚀 Features
 
@@ -14,8 +14,8 @@ LUX is a high-performance, minimalist Real-Time Strategy (RTS) game heavily insp
 
 1. **Clone the repository:**
    \`\`\`bash
-   git clone https://github.com/gavinfischer-keenan/Alux2Win.git
-   cd Alux2Win
+   git clone https://github.com/gavinfischer-keenan/LUX.git
+   cd LUX
    \`\`\`
 
 2. **Install dependencies:**

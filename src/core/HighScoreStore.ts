@@ -22,7 +22,7 @@ export interface GameStats {
   finalPlanets: number;
 }
 
-const STORAGE_KEY = 'alux2win_highscores_v1';
+const STORAGE_KEY = 'lux_highscores_v1';
 
 // We now map a levelId to an array of LevelRecord
 type RecordMap = Record<string, LevelRecord[]>;

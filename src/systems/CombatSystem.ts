@@ -14,7 +14,11 @@ export class CombatSystem {
 
     for (const particle of state.particles) {
       if (!particle.alive) continue;
-      if (particle.mode !== 'traveling' && particle.mode !== 'combat') continue;
+      if (
+        particle.mode !== 'traveling' &&
+        particle.mode !== 'combat' &&
+        particle.mode !== 'stationed'
+      ) continue;
 
       for (const planet of planets) {
         const dx   = planet.x - particle.x;
@@ -27,9 +31,21 @@ export class CombatSystem {
 
         // Plasma storm protection: skip all combat if particle is in storm
         if (particle.inStorm) continue;
-        
-        // If this planet is not the particle's intended target, fly right past it (ignore)
-        if (particle.targetPlanetId !== planet.id) {
+
+        // Determine if this planet is a valid target for this particle:
+        // 1. Particle is explicitly targeting this planet, OR
+        // 2. Particle has a location target (move-to-point) and is within
+        //    100px of that point — treat any planet nearby as engageable.
+        const hasExplicitTarget = particle.targetPlanetId === planet.id;
+        const nearDestination = (() => {
+          if (particle.targetPlanetId) return false; // has a planet target, must match
+          if (particle.targetX === undefined || particle.targetY === undefined) return false;
+          const ldx = particle.targetX - particle.x;
+          const ldy = particle.targetY - particle.y;
+          return Math.sqrt(ldx * ldx + ldy * ldy) <= 100;
+        })();
+
+        if (!hasExplicitTarget && !nearDestination) {
           continue;
         }
 
@@ -43,122 +59,93 @@ export class CombatSystem {
           particle.orbitAngle = Math.atan2(particle.y - planet.y, particle.x - planet.x);
           particle.orbitRadius = PLANET_RADIUS[planet.upgradeLevel] * 1.8;
           particle.homePlanetId = planet.id;
-          planet.particles++;
           break;
         }
 
         if (particle.faction === planet.faction) {
-          // Skip friendly absorption if particle was just deployed
-          if (particle.deployTimer !== undefined && particle.deployTimer > 0) {
+          // Require particle to actually reach the planet surface for friendly interaction
+          if (dist > planetRadius + 5) {
             continue;
           }
-          // ---- Friendly absorption (upgrade fuel or heal) ----
-          particle.alive = false;
-          anyDied = true;
-          
-          let healAmount: number = particle.strength;
 
-          // 1. Heal inner health (spawn visual orbiting particles)
-          while (healAmount > 0 && planet.particles < planet.capacity) {
-            healAmount -= 1;
-            planet.particles += 1;
-            
+          const healthFull = planet.health >= planet.maxHealth;
+          const upgradeFull = planet.upgradeLevel >= 3;
+
+          if (healthFull && upgradeFull) {
+            // ---- Planet is full — unit joins orbit as a live defender ----
             const orbitAngle  = Math.random() * Math.PI * 2;
             const orbitRadius = PLANET_RADIUS[planet.upgradeLevel] * 1.8;
-            const orbitSpeed = 1.2;
-            state.particles.push({
-              id:             ++state.particleIdCounter,
-              x:              planet.x + orbitRadius * Math.cos(orbitAngle),
-              y:              planet.y + orbitRadius * Math.sin(orbitAngle),
-              vx:             -Math.sin(orbitAngle) * orbitRadius * orbitSpeed,
-              vy:             Math.cos(orbitAngle) * orbitRadius * orbitSpeed,
-              faction:        planet.faction,
-              mode:           'orbiting',
-              strength:       1,
-              orbitTimer:     0,
-              deployTimer:    0,
-              damage:         0,
-              homePlanetId:   planet.id,
-              orbitAngle,
-              orbitRadius,
-              alive:          true,
-              stormTimer:     0,
-              inStorm:        false,
-              speedMod:       1.0,
-              portalCooldown: 0,
-              trappedByBH:    null,
-            });
-          }
+            const orbitSpeed  = 1.2;
 
-          // 2. Heal outer shield (bonus health)
-          if (healAmount > 0 && planet.bonusHealth < planet.maxBonusHealth) {
-            const needed = planet.maxBonusHealth - planet.bonusHealth;
-            if (healAmount <= needed) {
-              planet.bonusHealth += healAmount;
-              healAmount = 0;
-            } else {
-              planet.bonusHealth = planet.maxBonusHealth;
-              healAmount -= needed;
+            particle.mode           = 'orbiting';
+            particle.targetPlanetId = undefined;
+            particle.targetX        = undefined;
+            particle.targetY        = undefined;
+            particle.orbitAngle     = orbitAngle;
+            particle.orbitRadius    = orbitRadius;
+            particle.homePlanetId   = planet.id;
+            particle.orbitTimer     = 0;
+            particle.vx = -Math.sin(orbitAngle) * orbitRadius * orbitSpeed;
+            particle.vy =  Math.cos(orbitAngle) * orbitRadius * orbitSpeed;
+          } else {
+            // ---- Consume particle: heal health → upgrade fuel ----
+            particle.alive = false;
+            anyDied = true;
+
+            let healAmount: number = particle.strength;
+
+            // 1. Repair health
+            if (healAmount > 0 && planet.health < planet.maxHealth) {
+              const needed = planet.maxHealth - planet.health;
+              if (healAmount <= needed) {
+                planet.health += healAmount;
+                healAmount = 0;
+              } else {
+                planet.health = planet.maxHealth;
+                healAmount -= needed;
+              }
             }
-          }
 
-          // 3. Upgrade Progress (if not fully upgraded)
-          if (healAmount > 0 && planet.upgradeLevel < 3) {
-            planet.absorbedCount += healAmount;
-            healAmount = 0;
-          }
-
-          // 4. Fully upgraded and fully healed -> orbit as extra defenders
-          while (healAmount > 0) {
-            healAmount -= 1;
-            // The planet is maxed out. They go into orbit as excess defenders.
-            // (Note: They don't increase internal `planet.particles` past capacity, 
-            // they just exist in space orbiting the planet).
-            const orbitAngle  = Math.random() * Math.PI * 2;
-            const orbitRadius = PLANET_RADIUS[planet.upgradeLevel] * 1.8;
-            const orbitSpeed = 1.2;
-            state.particles.push({
-              id:             ++state.particleIdCounter,
-              x:              planet.x + orbitRadius * Math.cos(orbitAngle),
-              y:              planet.y + orbitRadius * Math.sin(orbitAngle),
-              vx:             -Math.sin(orbitAngle) * orbitRadius * orbitSpeed,
-              vy:             Math.cos(orbitAngle) * orbitRadius * orbitSpeed,
-              faction:        planet.faction,
-              mode:           'orbiting',
-              strength:       1,
-              orbitTimer:     0,
-              deployTimer:    0,
-              damage:         0,
-              homePlanetId:   planet.id,
-              orbitAngle,
-              orbitRadius,
-              alive:          true,
-              stormTimer:     0,
-              inStorm:        false,
-              speedMod:       1.0,
-              portalCooldown: 0,
-              trappedByBH:    null,
-            });
+            // 2. Any remaining → upgrade fuel
+            if (healAmount > 0 && planet.upgradeLevel < 3) {
+              planet.absorbedCount += healAmount;
+            }
           }
         } else {
           // ---- Enemy / Neutral interaction ----
-          particle.alive = false;
-          anyDied = true;
-
           if (planet.faction === 'player') {
             audioManager.playWarning();
           }
 
-          const dmg = particle.strength; // 1X = 1 dmg, 5X = 5 dmg
+          let dmg: number = particle.strength; // 1X = 1 dmg, 5X = 5 dmg
 
-          if (planet.bonusHealth > 0) {
-            // Deplete bonus health first (the clock-face ring)
-            planet.bonusHealth = Math.max(0, planet.bonusHealth - dmg);
-          } else {
-            // Then deplete stationed particle count
-            planet.particles = Math.max(0, planet.particles - dmg);
+          // 1. Fight orbiting defenders first
+          for (let i = 0; i < state.particles.length && dmg > 0; i++) {
+            const def = state.particles[i];
+            if (def.alive && def.mode === 'orbiting' && def.homePlanetId === planet.id && def.faction === planet.faction) {
+               if (dmg >= def.strength) {
+                 dmg -= def.strength;
+                 def.alive = false;
+                 anyDied = true;
+               } else {
+                 dmg = 0; // Attacker completely absorbed by stronger defender
+               }
+            }
+          }
 
-            if (planet.particles <= 0) {
+          if (dmg < particle.strength) {
+             particle.alive = false;
+             anyDied = true;
+          }
+
+          // 2. Any remaining damage hits the planet health
+          if (dmg > 0) {
+            particle.alive = false;
+            anyDied = true;
+            
+            planet.health -= dmg;
+
+            if (planet.health <= 0) {
               this._capturePlanet(planet, particle, state, eventBus);
             }
           }
@@ -183,17 +170,18 @@ export class CombatSystem {
   ): void {
     const oldFaction = planet.faction;
 
-    if (oldFaction === 'neutral') {
-      planet.faction    = attackParticle.faction;
-      planet.particles  = 0;
-    } else {
-      planet.faction    = 'neutral';
-      planet.particles  = 0;
-    }
+    // Instantly reset health & level to base
+    planet.upgradeLevel = 1;
+    planet.maxHealth = 40;
+    planet.health = planet.maxHealth;
+    planet.absorbedCount = 0;
+    planet.productionRate = 0.5;
 
-    // Reset bonus health on capture
-    planet.bonusHealth    = 0;
-    planet.maxBonusHealth = 0;
+    if (oldFaction === 'neutral') {
+      planet.faction = attackParticle.faction;
+    } else {
+      planet.faction = 'neutral';
+    }
 
     // Kill orbiting particles that belonged to the old faction on this planet
     for (const p of state.particles) {

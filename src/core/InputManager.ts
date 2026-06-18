@@ -1,5 +1,5 @@
 // ============================================================
-// InputManager.ts — Mouse input handler for Alux2Win
+// InputManager.ts — Mouse input handler for LUX
 // ============================================================
 
 import type { Vec2 } from '../types';

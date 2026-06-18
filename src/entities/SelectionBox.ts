@@ -1,5 +1,5 @@
 // ============================================================
-// SelectionBox.ts — Drag-select rectangle visual for Alux2Win
+// SelectionBox.ts — Drag-select rectangle visual for LUX
 // ============================================================
 
 import { Container, Graphics } from 'pixi.js';

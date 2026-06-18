@@ -1,5 +1,5 @@
 // ============================================================
-// SpeedZoneSystem.ts - Speed zone hazard logic for Alux2Win
+// SpeedZoneSystem.ts - Speed zone hazard logic for LUX
 // ============================================================
 //
 // Responsibilities:

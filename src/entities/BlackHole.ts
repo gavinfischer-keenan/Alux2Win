@@ -1,5 +1,5 @@
 // ============================================================
-// BlackHole.ts — Black hole visual entity for Alux2Win
+// BlackHole.ts — Black hole visual entity for LUX
 // ============================================================
 
 import { Container, Graphics } from 'pixi.js';

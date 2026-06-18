@@ -16,7 +16,6 @@ export class ProductionSystem {
 
   update(dt: number, state: GameState): void {
     this._produceParticles(dt, state);
-    this._tickAutoAbsorb(dt, state);
     this._formComposites(state);
   }
 
@@ -29,68 +28,17 @@ export class ProductionSystem {
   private _produceParticles(dt: number, state: GameState): void {
     for (const planet of state.planets.values()) {
       if (planet.faction === 'neutral') continue;
-      if (planet.particles >= planet.capacity) continue;
       if (planet.inStorm) continue; // no production while in plasma storm
 
       let acc = (this.accumulators.get(planet.id) ?? 0) + dt * planet.productionRate;
 
-      while (acc >= 1.0 && planet.particles < planet.capacity) {
+      while (acc >= 1.0) {
         acc -= 1.0;
-        planet.particles += 1;
         state.particles.push(this._spawnOrbiting(state, planet));
       }
 
       this.accumulators.set(planet.id, acc);
     }
-  }
-
-  // ---- Auto-absorb: orbiting 1X particles idle > 20s get absorbed at non-max planets ----
-
-  private _tickAutoAbsorb(dt: number, state: GameState): void {
-    const toAbsorb: number[] = []; // particle IDs
-
-    for (const p of state.particles) {
-      if (!p.alive || p.mode !== 'orbiting' || p.strength !== 1) continue;
-
-      const home = state.planets.get(p.homePlanetId);
-      if (!home || home.upgradeLevel >= 3) continue; // max-upgraded: never auto-absorb
-
-      p.orbitTimer += dt;
-
-      if (p.orbitTimer >= PARTICLE_ORBIT_AUTO_ABSORB_SECS) {
-        toAbsorb.push(p.id);
-      }
-    }
-
-    if (toAbsorb.length === 0) return;
-
-    const absorbSet = new Set<number>(toAbsorb);
-
-    for (const p of state.particles) {
-      if (!absorbSet.has(p.id)) continue;
-      p.alive = false;
-      const home = state.planets.get(p.homePlanetId);
-      if (!home) continue;
-      home.particles = Math.max(0, home.particles - 1);
-      
-      let healAmount: number = p.strength;
-      if (home.bonusHealth < home.maxBonusHealth) {
-        const needed = home.maxBonusHealth - home.bonusHealth;
-        if (healAmount <= needed) {
-          home.bonusHealth += healAmount;
-          healAmount = 0;
-        } else {
-          home.bonusHealth = home.maxBonusHealth;
-          healAmount -= needed;
-        }
-      }
-
-      if (healAmount > 0) {
-        home.absorbedCount += healAmount;
-      }
-    }
-
-    state.particles = state.particles.filter(p => p.alive);
   }
 
   // ---- 5X Formation: at max-upgraded planets, every COMBO_ORBIT_THRESHOLD (5) orbiting 1X → 1 5X ----
@@ -131,8 +79,7 @@ export class ProductionSystem {
         avgY     /= COMBO_ORBIT_THRESHOLD;
         avgAngle /= COMBO_ORBIT_THRESHOLD;
 
-        // Update planet particle count: remove 5, add 1
-        planet.particles = Math.max(0, planet.particles - COMBO_ORBIT_THRESHOLD + 1);
+        // (Orbiting particles don't consume internal slots)
 
         const orbitRadius = PLANET_RADIUS[planet.upgradeLevel] * 1.8;
 

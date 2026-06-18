@@ -1,5 +1,5 @@
 // ============================================================
-// GameLoop.ts — Fixed-timestep game loop for Alux2Win
+// GameLoop.ts — Fixed-timestep game loop for LUX
 // ============================================================
 
 /** Fixed physics timestep: 1/60 second. */

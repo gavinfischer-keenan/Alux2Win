@@ -1,5 +1,5 @@
 // ============================================================
-// Renderer.ts — PixiJS Application wrapper for Alux2Win
+// Renderer.ts — PixiJS Application wrapper for LUX
 // ============================================================
 
 import { Application, Container, Graphics } from 'pixi.js';

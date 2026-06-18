@@ -1,5 +1,5 @@
 // ============================================================
-// EditorScene.ts — Visual Level Editor scene for Alux2Win
+// EditorScene.ts — Visual Level Editor scene for LUX
 // Allows placing/moving planets, black holes, speed zones,
 // portals, trapping black holes, and white holes; editing
 // properties, and exporting/testing levels.
@@ -21,9 +21,8 @@ import type {
 } from '../types';
 import {
   PLANET_RADIUS,
-  PLANET_CAPACITY,
+  PLANET_MAX_HEALTH,
   PLANET_PRODUCTION,
-  PLANET_BONUS_HEALTH,
   FACTION_COLORS,
   FACTION_COLORS_HEX,
 } from '../types';
@@ -41,12 +40,10 @@ function defaultPlanet(id: string, x: number, y: number): PlanetData {
     y,
     faction: 'neutral',
     upgradeLevel: 1 as UpgradeLevel,
-    particles: 0,
-    capacity: PLANET_CAPACITY[1],
+    health: PLANET_MAX_HEALTH[1],
+    maxHealth: PLANET_MAX_HEALTH[1],
     productionRate: PLANET_PRODUCTION[1],
     absorbedCount: 0,
-    bonusHealth:    PLANET_BONUS_HEALTH[1],
-    maxBonusHealth: PLANET_BONUS_HEALTH[1],
     isOrbiting: false,
     inStorm: false,
     wasInStorm: false,
@@ -828,10 +825,10 @@ export class EditorScene {
     if (changes.faction !== undefined)         planet.faction = changes.faction as Faction;
     if (changes.upgradeLevel !== undefined) {
       planet.upgradeLevel  = changes.upgradeLevel as UpgradeLevel;
-      planet.capacity      = PLANET_CAPACITY[planet.upgradeLevel];
+      planet.maxHealth     = PLANET_MAX_HEALTH[planet.upgradeLevel];
       planet.productionRate = PLANET_PRODUCTION[planet.upgradeLevel];
     }
-    if (changes.startingParticles !== undefined) planet.particles = changes.startingParticles;
+    if (changes.startingParticles !== undefined) planet.health = changes.startingParticles;
     if (changes.isOrbiting !== undefined)        planet.isOrbiting = changes.isOrbiting;
     if (changes.orbitRadius !== undefined)       planet.orbitRadius = changes.orbitRadius;
     if (changes.orbitSpeed !== undefined)        planet.orbitSpeed = changes.orbitSpeed;
@@ -954,7 +951,7 @@ export class EditorScene {
         y:                p.y,
         faction:          p.faction,
         upgradeLevel:     p.upgradeLevel,
-        startingParticles: Math.min(p.particles, p.capacity),
+        startingParticles: Math.min(p.health, p.maxHealth),
         isOrbiting:       p.isOrbiting,
         orbitCenterX:     p.orbitCenterX,
         orbitCenterY:     p.orbitCenterY,
@@ -1042,7 +1039,7 @@ export class EditorScene {
       if (p.faction !== 'neutral') {
         uniqueFactions.add(p.faction);
       } else {
-        totalNeutralCapacity += PLANET_CAPACITY[p.upgradeLevel];
+        totalNeutralCapacity += PLANET_MAX_HEALTH[p.upgradeLevel];
       }
     });
 
@@ -1309,8 +1306,8 @@ export class EditorScene {
         ...defaultPlanet(p.id, p.x, p.y),
         faction: p.faction,
         upgradeLevel: p.upgradeLevel,
-        particles: p.startingParticles,
-        capacity: PLANET_CAPACITY[p.upgradeLevel],
+        health: p.startingParticles,
+        maxHealth: PLANET_MAX_HEALTH[p.upgradeLevel],
         productionRate: PLANET_PRODUCTION[p.upgradeLevel],
         isOrbiting: !!p.isOrbiting,
         orbitCenterX: p.orbitCenterX,

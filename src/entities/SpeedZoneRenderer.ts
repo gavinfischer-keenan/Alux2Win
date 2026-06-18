@@ -1,5 +1,5 @@
 // ============================================================
-// SpeedZoneRenderer.ts - Speed zone visual entity for Alux2Win
+// SpeedZoneRenderer.ts - Speed zone visual entity for LUX
 // ============================================================
 //
 // Renders all active speed zones each frame using PixiJS v8's
@@ -7,38 +7,23 @@
 // and redrawn every frame.
 //
 // Visual design:
-//   Speed-up zones → dim swirling GREEN fog
-//   Slow-down zones → dim swirling RED fog
+//   Speed-up zones → soft teal nebula blob
+//   Slow-down zones → soft amber nebula blob
 //
-// Each zone gets three concentric circle fills (outer glow, mid,
-// core) plus six animated swirl dots at radius*0.7 from centre,
-// rotated by zone.pulseAngle, and a subtle stroke on the rim.
+// Each zone gets 5 concentric circle fills (no dots, no strokes)
+// plus 3 wisp tendrils for an organic feel.
 // ============================================================
 
 import { Container, Graphics } from 'pixi.js';
 import type { SpeedZoneData } from '../types';
 
 // -- Speedup palette -----------------------------------------------------------
-const SPEEDUP_OUTER  = 0x22c55e;
-const SPEEDUP_MID    = 0x4ade80;
-const SPEEDUP_CORE   = 0x86efac;
-const SPEEDUP_SWIRL  = 0x4ade80;
-const SPEEDUP_STROKE = 0x22c55e;
+const SPEEDUP_OUTER = 0x00bcd4;
+const SPEEDUP_CORE  = 0x4dd0e1;
 
 // -- Slowdown palette ----------------------------------------------------------
-const SLOWDOWN_OUTER  = 0xef4444;
-const SLOWDOWN_MID    = 0xf87171;
-const SLOWDOWN_CORE   = 0xfca5a5;
-const SLOWDOWN_SWIRL  = 0xf87171;
-const SLOWDOWN_STROKE = 0xef4444;
-
-// -- Swirl constants -----------------------------------------------------------
-/** Number of small orbiting dots that form the swirl ring. */
-const SWIRL_COUNT  = 6;
-/** Radius of each individual swirl dot. */
-const SWIRL_DOT_R  = 4;
-/** Angular spread step between consecutive swirl dots. */
-const SWIRL_STEP   = (Math.PI * 2) / SWIRL_COUNT;
+const SLOWDOWN_OUTER = 0xff6f00;
+const SLOWDOWN_CORE  = 0xffb300;
 
 // -- Renderer -----------------------------------------------------------------
 
@@ -68,38 +53,43 @@ export class SpeedZoneRenderer {
 
       // Choose colour palette based on zone type.
       const isSpeedup = type === 'speedup';
-      const cOuter  = isSpeedup ? SPEEDUP_OUTER  : SLOWDOWN_OUTER;
-      const cMid    = isSpeedup ? SPEEDUP_MID    : SLOWDOWN_MID;
-      const cCore   = isSpeedup ? SPEEDUP_CORE   : SLOWDOWN_CORE;
-      const cSwirl  = isSpeedup ? SPEEDUP_SWIRL  : SLOWDOWN_SWIRL;
-      const cStroke = isSpeedup ? SPEEDUP_STROKE : SLOWDOWN_STROKE;
+      const cOuter = isSpeedup ? SPEEDUP_OUTER : SLOWDOWN_OUTER;
+      const cCore  = isSpeedup ? SPEEDUP_CORE  : SLOWDOWN_CORE;
 
-      // -- Layer 1: Outer glow (full radius, very faint) --------
-      g.circle(x, y, radius)
+      // Breathing scale
+      const breath = 1.0 + 0.07 * Math.sin(pulseAngle * 1.1);
+
+      // -- 5 concentric soft nebula layers (no strokes, no dots) --------
+      // Layer 1: 1.0x — outermost, very faint
+      g.circle(x, y, radius * breath * 1.0)
         .fill({ color: cOuter, alpha: 0.04 });
 
-      // -- Layer 2: Mid ring (80% radius) -----------------------
-      g.circle(x, y, radius * 0.8)
-        .fill({ color: cMid, alpha: 0.07 });
+      // Layer 2: 0.75x
+      g.circle(x, y, radius * breath * 0.75)
+        .fill({ color: cOuter, alpha: 0.07 });
 
-      // -- Layer 3: Inner core (50% radius) ---------------------
-      g.circle(x, y, radius * 0.5)
-        .fill({ color: cCore, alpha: 0.10 });
+      // Layer 3: 0.55x
+      g.circle(x, y, radius * breath * 0.55)
+        .fill({ color: cCore, alpha: 0.11 });
 
-      // -- Layer 4: Animated swirl dots -------------------------
-      // Six small circles in a ring at radius*0.7, offset by pulseAngle.
-      const swirlRingR = radius * 0.7;
-      for (let i = 0; i < SWIRL_COUNT; i++) {
-        const angle  = pulseAngle + i * SWIRL_STEP;
-        const dotX   = x + Math.cos(angle) * swirlRingR;
-        const dotY   = y + Math.sin(angle) * swirlRingR;
-        g.circle(dotX, dotY, SWIRL_DOT_R)
-          .fill({ color: cSwirl, alpha: 0.35 });
+      // Layer 4: 0.35x
+      g.circle(x, y, radius * breath * 0.35)
+        .fill({ color: cCore, alpha: 0.14 });
+
+      // Layer 5: 0.15x — dense core
+      g.circle(x, y, radius * breath * 0.15)
+        .fill({ color: cCore, alpha: 0.18 });
+
+      // -- 3 wisp tendrils at 120° apart, rotating slowly ---------------
+      const wispBaseAngle = pulseAngle / 10;
+      for (let i = 0; i < 3; i++) {
+        const wispAngle = wispBaseAngle + i * ((Math.PI * 2) / 3);
+        const wispDist  = radius * breath * 0.65;
+        const wx = x + Math.cos(wispAngle) * wispDist;
+        const wy = y + Math.sin(wispAngle) * wispDist;
+        g.ellipse(wx, wy, radius * 0.4, radius * 0.08)
+          .fill({ color: cCore, alpha: 0.12 });
       }
-
-      // -- Stroke: outer boundary ring --------------------------
-      g.circle(x, y, radius)
-        .stroke({ color: cStroke, width: 1.5, alpha: 0.25 });
     }
   }
 

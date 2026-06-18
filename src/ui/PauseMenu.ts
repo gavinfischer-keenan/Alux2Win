@@ -1,5 +1,5 @@
 // ============================================================
-// PauseMenu.ts — In-game pause overlay for Alux2Win
+// PauseMenu.ts — In-game pause overlay for LUX
 // Triggered by ESC key or the HUD pause button.
 // ============================================================
 

@@ -10,7 +10,7 @@
       "y": 1024,
       "faction": "player",
       "upgradeLevel": 2,
-      "startingParticles": 15,
+      "startingParticles": 30,
       "isOrbiting": false
     },
     {
@@ -19,7 +19,7 @@
       "y": 1024,
       "faction": "enemy_a",
       "upgradeLevel": 2,
-      "startingParticles": 15,
+      "startingParticles": 30,
       "isOrbiting": false
     },
     { "id": "p_neutral_1", "x": 1024, "y": 200,  "faction": "neutral", "upgradeLevel": 1, "startingParticles": 10, "isOrbiting": false },

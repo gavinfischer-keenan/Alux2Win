@@ -1,18 +1,15 @@
 // ============================================================
-// TrappingBlackHoleSystem.ts — Trapping (non-destructive) black hole logic
+// TrappingBlackHoleSystem.ts — Cinematic lethal black hole logic
 // ============================================================
 //
-// Unlike the destructive GravitySystem, this system TRAPS particles inside
-// the black hole's gravitational well without killing them.  Trapped particles
-// are held at the BH centre and are only released when the owning player or AI
-// issues a deploy / move command (i.e. the particle's mode flips to 'traveling'
-// with a valid target).
+// This system provides a more cinematic pull-in effect compared to GravitySystem.
+// It overrides particle velocities with a slow, controlled drift toward the centre.
+// Once particles reach the core, they are instantly destroyed, with no escape.
 //
 // Update order (called once per game tick):
 //   1. Advance pulseAngle for each BH (animation only).
 //   2. Pull free particles that enter pullRadius toward the BH core.
-//   3. Snap-and-hold particles that reach the core (dist <= 8).
-//   4. Release trapped particles that have received a move command.
+//   3. Destroy particles that reach the core (dist <= 8).
 // ============================================================
 
 import type { GameState, TrappingBlackHoleData, ParticleData } from '../types';
@@ -33,6 +30,8 @@ export class TrappingBlackHoleSystem {
     const bhs = state.trappingBlackHoles;
     if (bhs.length === 0) return;
 
+    let anyDied = false;
+
     // ------------------------------------------------------------------ 1.
     // Advance visual pulse angle for every trapping black hole.
     // ------------------------------------------------------------------ //
@@ -40,13 +39,12 @@ export class TrappingBlackHoleSystem {
       bh.pulseAngle += 0.9 * dt;
     }
 
-    // ------------------------------------------------------------------ 2-4.
+    // ------------------------------------------------------------------ 2.
     // Process every alive particle.
     // ------------------------------------------------------------------ //
     for (const p of state.particles) {
       if (!p.alive) continue;
 
-      // ---- Particles that are NOT currently trapped -------------------------
       if (p.trappedByBH === null) {
         for (const bh of bhs) {
           const dx   = bh.x - p.x;
@@ -68,64 +66,25 @@ export class TrappingBlackHoleSystem {
               p.vx = nx * PULL_SPEED;
               p.vy = ny * PULL_SPEED;
             } else {
-              // -- Snap to core: particle is now trapped --
-              p.trappedByBH = bh.id;
-              p.x           = bh.x;
-              p.y           = bh.y;
-              p.vx          = 0;
-              p.vy          = 0;
-              p.mode        = 'stationed';
+              // -- Reached the core: particle is instantly killed --
+              p.alive = false;
+              anyDied = true;
             }
 
             // Only one BH can act on a particle per tick.
             break;
           }
         }
-
-        // Re-read trappedByBH: it may have just been set above.
-        // If it was just set the hold-in-place block below will handle it
-        // on the next tick, which is fine.
         continue;
       }
 
-      // ---- Particles that ARE currently trapped ----------------------------
-      // Check for a move / deploy command first.
-      const hasTarget =
-        p.targetPlanetId !== undefined ||
-        (p.targetX !== undefined && p.targetY !== undefined);
-
-      if (hasTarget && p.mode === 'traveling') {
-        // The player/AI issued a deploy command — release the particle.
-        p.trappedByBH = null;
-        // Leave position, velocity, and mode as set by the deploy logic.
-        continue;
-      }
-
-      // No move command: find the owning BH and hold the particle in place.
-      const ownerBH = this._findBH(bhs, p.trappedByBH);
-      if (ownerBH !== null) {
-        p.x  = ownerBH.x;
-        p.y  = ownerBH.y;
-        p.vx = 0;
-        p.vy = 0;
-      } else {
-        // BH no longer exists — free the particle.
-        p.trappedByBH = null;
-      }
+      // If they were already trapped from a previous save, kill them.
+      p.alive = false;
+      anyDied = true;
     }
-  }
 
-  // -------------------------------------------------------------------------
-  // Private helpers
-  // -------------------------------------------------------------------------
-
-  private _findBH(
-    bhs: TrappingBlackHoleData[],
-    id: string,
-  ): TrappingBlackHoleData | null {
-    for (const bh of bhs) {
-      if (bh.id === id) return bh;
+    if (anyDied) {
+      state.particles = state.particles.filter(p => p.alive);
     }
-    return null;
   }
 }

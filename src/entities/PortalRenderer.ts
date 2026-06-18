@@ -1,5 +1,5 @@
 // ============================================================
-// PortalRenderer.ts - Portal visual entity for Alux2Win
+// PortalRenderer.ts - Portal visual entity for LUX
 // ============================================================
 //
 // Renders all active portals each frame using PixiJS v8's Graphics

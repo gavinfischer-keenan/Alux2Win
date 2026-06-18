@@ -1,5 +1,5 @@
 // ============================================================
-// HUD.ts — In-game heads-up display for Alux2Win
+// HUD.ts — In-game heads-up display for LUX
 // Shows FPS, faction particle counts, pause button, and hints.
 // ============================================================
 
@@ -73,20 +73,15 @@ export class HUD {
 
   /** Update faction particle counts from current game state. */
   update(state: GameState): void {
-    const stationedCounts: Partial<Record<Faction, number>> = {};
-    state.planets.forEach(planet => {
-      stationedCounts[planet.faction] = (stationedCounts[planet.faction] ?? 0) + planet.particles;
-    });
-
-    const travelCounts: Partial<Record<Faction, number>> = {};
+    const particleCounts: Partial<Record<Faction, number>> = {};
     state.particles.forEach(p => {
       if (p.alive) {
-        travelCounts[p.faction] = (travelCounts[p.faction] ?? 0) + 1;
+        particleCounts[p.faction] = (particleCounts[p.faction] ?? 0) + 1;
       }
     });
 
     for (const fd of this.factionDisplays) {
-      const total = (stationedCounts[fd.faction] ?? 0) + (travelCounts[fd.faction] ?? 0);
+      const total = particleCounts[fd.faction] ?? 0;
       fd.countEl.textContent = String(Math.floor(total));
     }
 

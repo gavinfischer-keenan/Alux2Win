@@ -1,6 +1,6 @@
 import type { LevelData } from '../types';
 
-const STORAGE_KEY = 'alux2win_custom_levels';
+const STORAGE_KEY = 'lux_custom_levels';
 
 export class LevelStore {
   /**

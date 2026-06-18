@@ -107,9 +107,9 @@ export class PropertiesPanel {
     // Starting particles
     this.element.appendChild(this.buildLabel('Starting Particles'));
     const particlesInput = this.buildNumberInput(
-      planet.particles,
+      planet.health,
       0,
-      planet.capacity,
+      planet.maxHealth,
       (v) => {
         if (this.currentPlanetId) {
           this.onPlanetChange(this.currentPlanetId, { startingParticles: v });

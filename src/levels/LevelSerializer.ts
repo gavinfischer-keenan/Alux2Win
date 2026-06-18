@@ -11,10 +11,9 @@ import {
   BlackHoleData,
   BlackHoleDef,
   UpgradeLevel,
-  PLANET_CAPACITY,
+  PLANET_MAX_HEALTH,
   PLANET_PRODUCTION,
   PLANET_RADIUS,
-  PLANET_BONUS_HEALTH,
   Faction,
 } from '../types';
 
@@ -100,7 +99,7 @@ export class LevelSerializer {
         y: planet.y,
         faction: planet.faction,
         upgradeLevel: planet.upgradeLevel,
-        startingParticles: Math.floor(planet.particles),
+        startingParticles: Math.floor(planet.health),
         isOrbiting: planet.isOrbiting,
       };
 
@@ -156,12 +155,10 @@ export class LevelSerializer {
         y: def.y,
         faction: def.faction,
         upgradeLevel: def.upgradeLevel,
-        particles: Math.max(0, def.startingParticles),
-        capacity: PLANET_CAPACITY[def.upgradeLevel],
+        health: Math.max(0, def.startingParticles),
+        maxHealth: PLANET_MAX_HEALTH[def.upgradeLevel],
         productionRate: PLANET_PRODUCTION[def.upgradeLevel],
         absorbedCount: 0,
-        bonusHealth:    PLANET_BONUS_HEALTH[def.upgradeLevel],
-        maxBonusHealth: PLANET_BONUS_HEALTH[def.upgradeLevel],
         isOrbiting: def.isOrbiting,
         inStorm: false,
         wasInStorm: false,

@@ -13,7 +13,7 @@ export interface GameSettings {
   masterVolume: number;   // 0–1
 }
 
-const STORAGE_KEY = 'alux2win_settings_v2';
+const STORAGE_KEY = 'lux_settings_v2';
 
 const DEFAULTS: GameSettings = {
   gameSpeed:   1,

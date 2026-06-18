@@ -1,5 +1,5 @@
 // ============================================================
-// GammaRayRenderer.ts — Alux2Win
+// GammaRayRenderer.ts — LUX
 // Renders the gamma-ray warning trail and active beam sweep
 // using PixiJS v8 Graphics API (stroke-based, no lineStyle).
 //
@@ -97,7 +97,8 @@ export class GammaRayRenderer {
   /**
    * Firing phase: the beam sweeps from (x1,y1) toward (x2,y2) over 3 s.
    * Draws three overlapping strokes (outer glow, mid glow, core) in red/white
-   * plus a circular pulse at the leading edge.
+   * plus edge distortion strokes, beam flicker, afterimage fade, and an
+   * impact bloom at the terminus.
    */
   private _drawFiringBeam(g: Graphics, gammaRay: GammaRayState): void {
     const path = gammaRay.path!;
@@ -109,27 +110,63 @@ export class GammaRayRenderer {
 
     if (progress <= 0) return;
 
-    // ── Layer 1: wide outer glow (dark red) ────────────────
+    // Beam flicker multiplier — small random variation each frame.
+    const flicker = 0.85 + Math.random() * 0.15;
+
+    // Afterimage fade: when beam is almost done, fade quickly.
+    const afterimage = progress > 0.95 ? (1 - progress) * 20 : 1.0;
+
+    // Combined alpha scale.
+    const alphaScale = flicker * afterimage;
+
+    // -- Perpendicular direction for edge distortion ----------------------
+    // Beam direction vector (normalised).
+    const bdx = frontX - path.x1;
+    const bdy = frontY - path.y1;
+    const bLen = Math.sqrt(bdx * bdx + bdy * bdy) || 1;
+    // Perpendicular unit vector.
+    const perpX = -bdy / bLen;
+    const perpY =  bdx / bLen;
+
+    // ── Edge distortion: 6 thin writhing strokes laterally offset ─────
+    for (let i = 0; i < 6; i++) {
+      const lateralOffset = Math.sin(progress * 20 + i) * 12;
+      const ox = perpX * lateralOffset;
+      const oy = perpY * lateralOffset;
+      g.moveTo(path.x1 + ox, path.y1 + oy)
+        .lineTo(frontX + ox, frontY + oy)
+        .stroke({ color: 0xff3300, width: 8, alpha: 0.15 * alphaScale });
+    }
+
+    // ── Layer 1: wide outer glow (dark red) ────────────────────────────
     g.moveTo(path.x1, path.y1)
       .lineTo(frontX, frontY)
-      .stroke({ color: 0xcc1100, width: path.width, alpha: 0.38 });
+      .stroke({ color: 0xcc1100, width: path.width, alpha: 0.38 * alphaScale });
 
-    // ── Layer 2: bright mid glow (vivid red) ───────────────
+    // ── Layer 2: bright mid glow (vivid red) ───────────────────────────
     g.moveTo(path.x1, path.y1)
       .lineTo(frontX, frontY)
-      .stroke({ color: 0xff3300, width: path.width * 0.4, alpha: 0.65 });
+      .stroke({ color: 0xff3300, width: path.width * 0.4, alpha: 0.65 * alphaScale });
 
-    // ── Layer 3: searing white-hot core ────────────────────
+    // ── Layer 3: searing white-hot core ────────────────────────────────
     g.moveTo(path.x1, path.y1)
       .lineTo(frontX, frontY)
-      .stroke({ color: 0xffffff, width: path.width * 0.15, alpha: 0.95 });
+      .stroke({ color: 0xffffff, width: path.width * 0.15, alpha: 0.95 * alphaScale });
 
-    // ── Leading-edge pulse circle ──────────────────────────
+    // ── Leading-edge pulse circle ──────────────────────────────────────
     g.circle(frontX, frontY, path.width * 0.6)
-      .fill({ color: 0xff4422, alpha: 0.35 });
+      .fill({ color: 0xff4422, alpha: 0.35 * alphaScale });
 
-    // ── Bright core pulse ──────────────────────────────────
+    // ── Bright core pulse ──────────────────────────────────────────────
     g.circle(frontX, frontY, path.width * 0.2)
-      .fill({ color: 0xffffff, alpha: 0.55 });
+      .fill({ color: 0xffffff, alpha: 0.55 * alphaScale });
+
+    // ── Impact bloom at terminus: 3 concentric expanding rings ─────────
+    g.circle(frontX, frontY, path.width * (0.5 + progress * 0.4))
+      .fill({ color: 0xff4400, alpha: 0.5 * alphaScale });
+    g.circle(frontX, frontY, path.width * 0.8)
+      .fill({ color: 0xff4400, alpha: 0.3 * alphaScale });
+    g.circle(frontX, frontY, path.width * 1.1)
+      .fill({ color: 0xff4400, alpha: 0.12 * alphaScale });
   }
 }

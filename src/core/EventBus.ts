@@ -1,5 +1,5 @@
 // ============================================================
-// EventBus.ts — Typed event emitter for Alux2Win
+// EventBus.ts — Typed event emitter for LUX
 // ============================================================
 
 import type { SceneName, Faction, LevelData } from '../types';

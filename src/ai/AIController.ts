@@ -1,5 +1,5 @@
 // ============================================================
-// AIController.ts — Heuristic state-machine AI for Alux2Win
+// AIController.ts — Heuristic state-machine AI for LUX
 // Supports Easy / Normal / Hard difficulty with random sub-roles
 // that persist for the lifetime of a single game.
 // ============================================================
@@ -106,63 +106,63 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
 
   // ── NORMAL ──────────────────────────────────────────────────────────────────
   fortress: {
-    evalInterval:     4.0,
+    evalInterval:     3.5,
     evalJitter:       1.0,
-    minToDeploy:      14,
-    reserveParticles: 12,
-    aggressionRatio:  2.0,
-    upgradeTrigger:   50,
-    neutralAttackCap: 4,
-    upgradeFraction:  0.55,   // spends a lot on upgrades
-    neutralFraction:  0.45,
-    attackFraction:   0.35,   // cautious attacker
-    upgradeWeight:    0.85,
-    expandWeight:     0.55,
+    minToDeploy:      12,
+    reserveParticles: 10,
+    aggressionRatio:  1.4,    // was 2.0 — more willing to fight
+    upgradeTrigger:   40,
+    neutralAttackCap: 8,      // was 4 — grab bigger neutral planets
+    upgradeFraction:  0.55,
+    neutralFraction:  0.55,
+    attackFraction:   0.45,
+    upgradeWeight:    0.75,
+    expandWeight:     0.65,
     maxUpgrade:       3,
   },
   balanced: {
-    evalInterval:     3.0,
-    evalJitter:       1.0,
-    minToDeploy:      10,
-    reserveParticles: 5,
-    aggressionRatio:  1.4,
-    upgradeTrigger:   40,
-    neutralAttackCap: 5,
-    upgradeFraction:  0.50,
-    neutralFraction:  0.60,
-    attackFraction:   0.55,
-    upgradeWeight:    0.65,
-    expandWeight:     0.70,
-    maxUpgrade:       3,
-  },
-  opportunist: {
-    evalInterval:     2.5,
+    evalInterval:     2.8,
     evalJitter:       0.8,
-    minToDeploy:      10,
-    reserveParticles: 6,
-    aggressionRatio:  1.3,    // strikes when barely ahead
-    upgradeTrigger:   35,
-    neutralAttackCap: 6,
-    upgradeFraction:  0.40,
+    minToDeploy:      8,
+    reserveParticles: 5,
+    aggressionRatio:  1.2,    // was 1.4 — attacks more readily
+    upgradeTrigger:   30,
+    neutralAttackCap: 8,      // was 5
+    upgradeFraction:  0.50,
     neutralFraction:  0.65,
-    attackFraction:   0.70,   // bold strikes
-    upgradeWeight:    0.45,
+    attackFraction:   0.60,
+    upgradeWeight:    0.60,
     expandWeight:     0.75,
     maxUpgrade:       3,
   },
-  expander: {
-    evalInterval:     2.8,
-    evalJitter:       0.7,
+  opportunist: {
+    evalInterval:     2.0,
+    evalJitter:       0.6,
     minToDeploy:      8,
     reserveParticles: 4,
-    aggressionRatio:  1.8,    // holds off attacking while it expands
-    upgradeTrigger:   45,
-    neutralAttackCap: 12,     // attacks neutral planets even when they're big
+    aggressionRatio:  1.0,    // was 1.3 — strikes at rough parity
+    upgradeTrigger:   25,
+    neutralAttackCap: 10,     // was 6
     upgradeFraction:  0.35,
-    neutralFraction:  0.80,   // pours resources into expansion
-    attackFraction:   0.45,
-    upgradeWeight:    0.30,
-    expandWeight:     0.95,   // expansion first, always
+    neutralFraction:  0.70,
+    attackFraction:   0.75,
+    upgradeWeight:    0.40,
+    expandWeight:     0.80,
+    maxUpgrade:       3,
+  },
+  expander: {
+    evalInterval:     2.4,
+    evalJitter:       0.6,
+    minToDeploy:      7,
+    reserveParticles: 3,
+    aggressionRatio:  1.5,    // was 1.8
+    upgradeTrigger:   35,
+    neutralAttackCap: 20,     // was 12 — attacks ANY neutral planet
+    upgradeFraction:  0.30,
+    neutralFraction:  0.85,
+    attackFraction:   0.50,
+    upgradeWeight:    0.25,
+    expandWeight:     0.98,
     maxUpgrade:       3,
   },
 
@@ -267,6 +267,15 @@ export class AIController {
   /** The resolved strategy parameters per faction (derived from sub-role). */
   private strategies: Map<Faction, AIStrategy>;
 
+  /** Seconds each faction has been in 'defend' state consecutively — triggers pressure valve. */
+  private defendTimers: Map<Faction, number>;
+
+  /** Rolling buffer of recent deploy events (any faction) for backcap detection. */
+  private recentDeployEvents: Array<{ planetId: string; faction: Faction; time: number; orbitCountBefore: number }> = [];
+
+  /** Per-faction: planet IDs recently deployed FROM (with cooldown). */
+  private aggressorCooldowns: Map<string, number> = new Map(); // planetId -> seconds remaining
+
   constructor(factions: Faction[], difficulty: AIDifficulty = 'normal') {
     this.factions   = factions;
     this.timers     = new Map();
@@ -274,6 +283,7 @@ export class AIController {
     this.states     = new Map();
     this.subRoles   = new Map();
     this.strategies = new Map();
+    this.defendTimers = new Map();
 
     for (const faction of factions) {
       const role     = pickSubRole(difficulty);
@@ -284,6 +294,7 @@ export class AIController {
       this.timers.set(faction, Math.random() * strategy.evalInterval);
       this.evalIntervals.set(faction, this.randomInterval(strategy));
       this.states.set(faction, 'defend');
+      this.defendTimers.set(faction, 0);
 
       console.log(`[AI] faction=${faction} difficulty=${difficulty} sub-role=${role}`);
     }
@@ -296,9 +307,27 @@ export class AIController {
   update(dt: number, state: GameState, deployCallback: DeployCallback): void {
     if (!state.running) return;
 
+    // Tick aggressor cooldowns
+    for (const [planetId, remaining] of this.aggressorCooldowns) {
+      const next = remaining - dt;
+      if (next <= 0) this.aggressorCooldowns.delete(planetId);
+      else this.aggressorCooldowns.set(planetId, next);
+    }
+
+    // Expire old deploy events (> 12s)
+    const cutoff = performance.now() - 12000;
+    this.recentDeployEvents = this.recentDeployEvents.filter(e => e.time > cutoff);
+
     for (const faction of this.factions) {
       const elapsed  = (this.timers.get(faction) ?? 0) + dt;
       const interval = this.evalIntervals.get(faction) ?? 3.0;
+
+      // Tick defend timer
+      if (this.states.get(faction) === 'defend') {
+        this.defendTimers.set(faction, (this.defendTimers.get(faction) ?? 0) + dt);
+      } else {
+        this.defendTimers.set(faction, 0);
+      }
 
       if (elapsed >= interval) {
         this.timers.set(faction, 0);
@@ -308,6 +337,13 @@ export class AIController {
         this.timers.set(faction, elapsed);
       }
     }
+  }
+
+  /** Call this whenever any faction deploys units away from a planet. */
+  recordDeployEvent(planetId: string, faction: Faction, orbitCountBefore: number): void {
+    this.recentDeployEvents.push({ planetId, faction, time: performance.now(), orbitCountBefore });
+    // Keep buffer small
+    if (this.recentDeployEvents.length > 20) this.recentDeployEvents.shift();
   }
 
   // -------------------------------------------------------------------------
@@ -327,27 +363,57 @@ export class AIController {
       return;
     }
 
-    const totalParticles  = this.getTotalParticles(faction, state);
-    const playerParticles = this.getTotalParticles('player', state);
+    const totalParticles = this.getTotalParticles(faction, state);
+
+    // Find strongest enemy's particle count
+    const enemyTotals = new Map<Faction, number>();
+    for (const p of state.particles) {
+      if (p.alive && p.faction !== 'neutral' && p.faction !== faction) {
+        enemyTotals.set(p.faction, (enemyTotals.get(p.faction) || 0) + 1);
+      }
+    }
+    let strongestEnemyParticles = 0;
+    for (const count of enemyTotals.values()) {
+      if (count > strongestEnemyParticles) strongestEnemyParticles = count;
+    }
 
     const sourcePlanets = ownPlanets.filter(
-      (p) => p.particles > strategy.minToDeploy,
+      (p) => this.getOrbitingCount(p.id, state) > strategy.minToDeploy &&
+             !this.aggressorCooldowns.has(p.id),
     );
 
+    // --- Branch 0: Backcap — opportunistically attack a just-vacated planet ---
+    if (sourcePlanets.length > 0) {
+      const backcapTarget = this._findBackcapTarget(faction, state);
+      if (backcapTarget !== null) {
+        const localSource = this.nearestPlanet(sourcePlanets, backcapTarget);
+        if (localSource !== null) {
+          const localOrbit = this.getOrbitingCount(localSource.id, state);
+          if (localOrbit > backcapTarget.health + strategy.reserveParticles) {
+            this.states.set(faction, 'attack');
+            this.deployParticles([localSource], backcapTarget, deployCallback, strategy.attackFraction);
+            this.aggressorCooldowns.set(localSource.id, 8);
+            return;
+          }
+        }
+      }
+    }
+
     // --- Branch 1: Upgrade ---
-    // Respect upgradeWeight: higher weight = more eager to upgrade before acting.
     const wantsUpgrade = Math.random() < strategy.upgradeWeight;
     if (wantsUpgrade && sourcePlanets.length > 0 && totalParticles >= strategy.upgradeTrigger) {
       const bestUpgradePlanet = this.findBestPlanetToUpgrade(ownPlanets, strategy.maxUpgrade);
       if (bestUpgradePlanet !== null) {
         this.states.set(faction, 'upgrade');
-        const richest = this.richestPlanet(sourcePlanets);
-        if (richest !== null && richest.id !== bestUpgradePlanet.id) {
-          this.deployParticles([richest], bestUpgradePlanet, deployCallback, strategy.upgradeFraction);
-        } else if (richest !== null) {
-          const alt = sourcePlanets.find((p) => p.id !== richest.id) ?? null;
+        const nearest = this.nearestPlanet(sourcePlanets, bestUpgradePlanet);
+        if (nearest !== null && nearest.id !== bestUpgradePlanet.id) {
+          this.deployParticles([nearest], bestUpgradePlanet, deployCallback, strategy.upgradeFraction);
+          this.aggressorCooldowns.set(nearest.id, 5);
+        } else if (nearest !== null) {
+          const alt = sourcePlanets.find((p) => p.id !== nearest.id) ?? null;
           if (alt !== null) {
             this.deployParticles([alt], bestUpgradePlanet, deployCallback, strategy.upgradeFraction);
+            this.aggressorCooldowns.set(alt.id, 5);
           }
         }
         return;
@@ -360,31 +426,76 @@ export class AIController {
     if (
       wantsExpand &&
       weakestNeutral !== null &&
-      weakestNeutral.particles < strategy.neutralAttackCap &&
+      weakestNeutral.health < strategy.neutralAttackCap &&
       sourcePlanets.length > 0
     ) {
       this.states.set(faction, 'conquer_neutral');
       const nearest = this.nearestPlanet(sourcePlanets, weakestNeutral);
       if (nearest !== null) {
         this.deployParticles([nearest], weakestNeutral, deployCallback, strategy.neutralFraction);
+        this.aggressorCooldowns.set(nearest.id, 6);
       }
       return;
     }
 
-    // --- Branch 3: Attack ---
+    // --- Branch 2.5: Opportunity Attack (local advantage) ---
+    // Attack a nearby enemy planet even if globally behind, if locally strong enough
+    if (sourcePlanets.length > 0) {
+      const opportunityTarget = this._findOpportunityTarget(faction, sourcePlanets, state);
+      if (opportunityTarget !== null) {
+        const src = this.nearestPlanet(sourcePlanets, opportunityTarget);
+        if (src !== null) {
+          this.states.set(faction, 'attack');
+          this.deployParticles([src], opportunityTarget, deployCallback, strategy.attackFraction);
+          this.aggressorCooldowns.set(src.id, 8);
+          return;
+        }
+      }
+    }
+
+    // --- Branch 3: Attack (global advantage) ---
     if (
-      totalParticles > playerParticles * strategy.aggressionRatio &&
+      totalParticles > strongestEnemyParticles * strategy.aggressionRatio &&
       sourcePlanets.length > 0
     ) {
       const target = this.findAttackTarget(state, faction);
       if (target !== null) {
         this.states.set(faction, 'attack');
-        this.deployParticles(sourcePlanets, target, deployCallback, strategy.attackFraction);
+        const src = this.nearestPlanet(sourcePlanets, target);
+        if (src !== null) {
+          this.deployParticles([src], target, deployCallback, strategy.attackFraction);
+          this.aggressorCooldowns.set(src.id, 8);
+        }
         return;
       }
     }
 
-    // --- Branch 4: Defend (accumulate) ---
+    // --- Branch 4: Defend timeout pressure valve ---
+    // If stuck in defend for 15+ seconds, force an action regardless of ratios
+    const defendTime = this.defendTimers.get(faction) ?? 0;
+    if (defendTime >= 15 && sourcePlanets.length > 0) {
+      this.defendTimers.set(faction, 0);
+      // Try neutral first; if none, attack weakest enemy
+      const neutral = this.findWeakestNeutral(state);
+      const forceSrc = this.nearestPlanet(sourcePlanets, neutral ?? ownPlanets[0]);
+      if (forceSrc !== null) {
+        if (neutral !== null) {
+          this.states.set(faction, 'conquer_neutral');
+          this.deployParticles([forceSrc], neutral, deployCallback, strategy.neutralFraction);
+          this.aggressorCooldowns.set(forceSrc.id, 6);
+        } else {
+          const anyEnemy = this.findAttackTarget(state, faction);
+          if (anyEnemy !== null) {
+            this.states.set(faction, 'attack');
+            this.deployParticles([forceSrc], anyEnemy, deployCallback, strategy.attackFraction * 0.5);
+            this.aggressorCooldowns.set(forceSrc.id, 8);
+          }
+        }
+        return;
+      }
+    }
+
+    // --- Branch 5: Defend (accumulate) ---
     this.states.set(faction, 'defend');
   }
 
@@ -402,20 +513,25 @@ export class AIController {
 
   private getTotalParticles(faction: Faction, state: GameState): number {
     let total = 0;
-    for (const planet of state.planets.values()) {
-      if (planet.faction === faction) total += planet.particles;
-    }
     for (const particle of state.particles) {
       if (particle.alive && particle.faction === faction) total++;
     }
     return total;
   }
 
+  private getOrbitingCount(planetId: string, state: GameState): number {
+    let count = 0;
+    for (const particle of state.particles) {
+      if (particle.alive && particle.mode === 'orbiting' && particle.homePlanetId === planetId) count++;
+    }
+    return count;
+  }
+
   private findWeakestNeutral(state: GameState): PlanetData | null {
     let best: PlanetData | null = null;
     for (const planet of state.planets.values()) {
       if (planet.faction === 'neutral') {
-        if (best === null || planet.particles < best.particles) best = planet;
+        if (best === null || planet.health < best.health) best = planet;
       }
     }
     return best;
@@ -433,16 +549,16 @@ export class AIController {
       let best: PlanetData | null = null;
       for (const planet of state.planets.values()) {
         if (planet.faction === faction || planet.faction === 'neutral') continue;
-        if (best === null || planet.particles < best.particles) best = planet;
+        if (best === null || planet.health < best.health) best = planet;
       }
       return best;
     }
 
-    // Default: target weakest player planet
+    // Default: target weakest non-self, non-neutral planet
     let best: PlanetData | null = null;
     for (const planet of state.planets.values()) {
-      if (planet.faction === 'player') {
-        if (best === null || planet.particles < best.particles) best = planet;
+      if (planet.faction !== faction && planet.faction !== 'neutral') {
+        if (best === null || planet.health < best.health) best = planet;
       }
     }
     return best;
@@ -457,7 +573,7 @@ export class AIController {
         best = planet;
       } else if (
         planet.upgradeLevel === best.upgradeLevel &&
-        planet.particles > best.particles
+        planet.health > best.health
       ) {
         best = planet;
       }
@@ -476,7 +592,8 @@ export class AIController {
     _fraction: number,
   ): void {
     const strategy = this.strategies.get(this.factions[0])!; // fraction logged only
-    const validSources = sources.filter((p) => p.particles > strategy.reserveParticles);
+    // Minimal check to avoid sending from empty planets
+    const validSources = sources;
     if (validSources.length === 0) return;
     deployCallback(validSources.map((p) => p.id), target.id);
   }
@@ -485,9 +602,10 @@ export class AIController {
   // Spatial helpers
   // -------------------------------------------------------------------------
 
-  private richestPlanet(planets: PlanetData[]): PlanetData | null {
+  private richestPlanet(planets: PlanetData[], state?: GameState): PlanetData | null {
     if (planets.length === 0) return null;
-    return planets.reduce((best, p) => (p.particles > best.particles ? p : best));
+    if (!state) return planets[0]; // fallback
+    return planets.reduce((best, p) => (this.getOrbitingCount(p.id, state) > this.getOrbitingCount(best.id, state) ? p : best));
   }
 
   private nearestPlanet(planets: PlanetData[], target: PlanetData): PlanetData | null {
@@ -509,6 +627,65 @@ export class AIController {
 
   private randomInterval(strategy: AIStrategy): number {
     return strategy.evalInterval + (Math.random() * 2 - 1) * strategy.evalJitter;
+  }
+
+  /**
+   * Backcap: scan recent deploy events for enemy planets that just sent units away
+   * and are now weakly defended.
+   */
+  private _findBackcapTarget(faction: Faction, state: GameState): PlanetData | null {
+    const now = performance.now();
+    let best: PlanetData | null = null;
+    let bestScore = 0;
+
+    for (const event of this.recentDeployEvents) {
+      const age = (now - event.time) / 1000; // seconds
+      if (age > 10) continue; // only care about last 10s
+      if (event.faction === faction) continue; // don't backcap ourselves
+
+      const planet = state.planets.get(event.planetId);
+      if (!planet || planet.faction === faction || planet.faction === 'neutral') continue;
+
+      const currentOrbit = this.getOrbitingCount(event.planetId, state);
+      const depleted = event.orbitCountBefore - currentOrbit;
+      // Score: how depleted is it relative to what it was?
+      const score = depleted > 0 ? depleted / Math.max(1, currentOrbit + planet.health) : 0;
+      if (score > bestScore && currentOrbit < 15) {
+        bestScore = score;
+        best = planet;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Opportunity attack: find an enemy planet that is locally weak enough
+   * for one of our source planets to take it on, even without global advantage.
+   */
+  private _findOpportunityTarget(faction: Faction, sourcePlanets: PlanetData[], state: GameState): PlanetData | null {
+    const OPPORTUNITY_RANGE_SQ = 350 * 350; // within 350px
+    let best: PlanetData | null = null;
+    let bestScore = Infinity;
+
+    for (const planet of state.planets.values()) {
+      if (planet.faction === faction || planet.faction === 'neutral') continue;
+      const enemyOrbit = this.getOrbitingCount(planet.id, state);
+      const totalDefense = enemyOrbit + planet.health;
+
+      for (const src of sourcePlanets) {
+        const dSq = this.distSq(src, planet);
+        if (dSq > OPPORTUNITY_RANGE_SQ) continue;
+        const myOrbit = this.getOrbitingCount(src.id, state);
+        // Only attack if we have a meaningful local advantage
+        if (myOrbit > totalDefense * 1.5) {
+          if (totalDefense < bestScore) {
+            bestScore = totalDefense;
+            best = planet;
+          }
+        }
+      }
+    }
+    return best;
   }
 
   // -------------------------------------------------------------------------

@@ -1,10 +1,10 @@
 // ============================================================
-// WhiteHoleSystem.ts — White Hole game logic for Alux2Win
+// WhiteHoleSystem.ts — White Hole game logic for LUX
 // ============================================================
 //
 // White holes accumulate particles from a single faction.
-// Once 20 strength worth of particles have been absorbed they
-// explode, spraying 100 new particles of the owning faction
+// Once 80 strength worth of particles have been absorbed they
+// explode, spraying 300 new particles of the owning faction
 // outward.  Particles from an opposing faction reduce the
 // stored progress instead of adding to it.
 // ============================================================
@@ -60,7 +60,7 @@ export class WhiteHoleSystem {
       wh.ownerFaction = p.faction;
       wh.progress    += p.strength;
 
-      if (wh.progress >= 20) {
+      if (wh.progress >= 80) {
         this._explode(whIndex, state);
       }
     } else {
@@ -79,10 +79,10 @@ export class WhiteHoleSystem {
     const wh = state.whiteHoles[whIndex];
     wh.exploded = true;
 
-    // Spawn 100 particles for the owning faction fanning out from the
+    // Spawn 300 particles for the owning faction fanning out from the
     // white hole position.  deployTimer prevents them from immediately
     // re-entering the (now exploded) white hole or any adjacent one.
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 300; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = PARTICLE_SPEED * (0.5 + Math.random() * 0.5);
 

@@ -1,5 +1,5 @@
 // ============================================================
-// SHARED TYPES — Alux2Win
+// SHARED TYPES — LUX
 // All interfaces shared across the entire game codebase
 // ============================================================
 
@@ -28,12 +28,10 @@ export interface PlanetData {
   y: number;
   faction: Faction;
   upgradeLevel: UpgradeLevel;
-  particles: number;
-  capacity: number;
+  health: number;
+  maxHealth: number;
   productionRate: number;
   absorbedCount: number;
-  bonusHealth: number;
-  maxBonusHealth: number;
   isOrbiting: boolean;
   orbitCenterX?: number;
   orbitCenterY?: number;
@@ -191,7 +189,7 @@ export interface WhiteHoleData {
   x: number;
   y: number;
   ownerFaction: Faction | null; // faction currently investing
-  progress: number;             // 0–20 particles invested
+  progress: number;             // 0–80 particles invested (explodes at 80)
   exploded: boolean;
   pulseAngle: number;           // visual animation
 }
@@ -238,6 +236,19 @@ export interface BlackHoleDef {
   pullStrength: number;
 }
 
+// ---- Hazard Visual Effects ----
+export type HazardEffectKind = 'particle_sparkle' | 'planet_shockwave';
+export interface HazardEffect {
+  id: number;
+  kind: HazardEffectKind;
+  x: number;
+  y: number;
+  color: number;     // PixiJS hex
+  age: number;       // seconds elapsed
+  duration: number;  // total lifetime in seconds
+  radius: number;    // for shockwave: max radius; for sparkle: ray length
+}
+
 // ---- Game State (used by systems) ----
 export interface GameState {
   planets: Map<string, PlanetData>;
@@ -261,6 +272,8 @@ export interface GameState {
   portals:             PortalData[];
   trappingBlackHoles:  TrappingBlackHoleData[];
   whiteHoles:          WhiteHoleData[];
+  hazardEffects:       HazardEffect[];
+  hazardEffectIdCounter: number;
 }
 
 // ---- Upgrade thresholds ----
@@ -270,30 +283,22 @@ export const UPGRADE_THRESHOLDS: Record<UpgradeLevel, number> = {
   3: 100,  // absorb 100 more to reach level 3  (was 50)
 };
 
-export const PLANET_CAPACITY: Record<UpgradeLevel, number> = {
+export const PLANET_MAX_HEALTH: Record<UpgradeLevel, number> = {
   1: 40,   // was 20
   2: 80,   // was 40
   3: 150,  // was 75
 };
 
 export const PLANET_PRODUCTION: Record<UpgradeLevel, number> = {
-  1: 1.0,  // was 0.5
-  2: 2.4,  // was 1.2
-  3: 5.0,  // was 2.5
+  1: 0.25,
+  2: 0.6,
+  3: 1.25,
 };
 
 export const PLANET_RADIUS: Record<UpgradeLevel, number> = {
   1: 18,
   2: 28,
   3: 40,
-};
-
-// Bonus health granted to planets at each upgrade level.
-// Enemy particles must deplete this before the particle count starts dropping.
-export const PLANET_BONUS_HEALTH: Record<UpgradeLevel, number> = {
-  1: 0,
-  2: 50,   // was 25
-  3: 150,  // was 75
 };
 
 

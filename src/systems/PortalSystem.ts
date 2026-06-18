@@ -1,5 +1,5 @@
 // ============================================================
-// PortalSystem.ts - Portal teleportation hazard for Alux2Win
+// PortalSystem.ts - Portal teleportation hazard for LUX
 // ============================================================
 //
 // Responsibilities:

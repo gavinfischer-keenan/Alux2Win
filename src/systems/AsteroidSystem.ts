@@ -1,5 +1,5 @@
 // ============================================================
-// AsteroidSystem.ts — Asteroid hazard simulation for Alux2Win
+// AsteroidSystem.ts — Asteroid hazard simulation for LUX
 // ============================================================
 //
 // Manages the single-asteroid-at-a-time hazard:
@@ -14,7 +14,7 @@
 // ============================================================
 
 import type { AsteroidData, GameState, ParticleData } from '../types';
-import { PLANET_RADIUS } from '../types';
+import { PLANET_RADIUS, FACTION_COLORS } from '../types';
 
 /** Maximum cumulative hits before an asteroid is destroyed. */
 const MAX_HIT_COUNT = 20;
@@ -175,26 +175,53 @@ export class AsteroidSystem {
           // Asteroid knocks the planet down 2 levels.
           // A fully upgraded planet (Level 3) drops to Level 1 but survives.
           // Lesser planets (Level 1, 2) drop below Level 1 and are lost to neutral.
+          // Planet death shockwave effect
+          state.hazardEffects.push({
+            id:       ++state.hazardEffectIdCounter,
+            kind:     'planet_shockwave',
+            x:        planet.x,
+            y:        planet.y,
+            color:    FACTION_COLORS[planet.faction] ?? 0xffffff,
+            age:      0,
+            duration: 0.6,
+            radius:   PLANET_RADIUS[planet.upgradeLevel] * 3.5,
+          });
+          (state as any)._pendingPlanetHazardDeaths = ((state as any)._pendingPlanetHazardDeaths ?? 0) + 1;
+
           if (planet.upgradeLevel === 3) {
             planet.upgradeLevel  = 1;
             planet.absorbedCount = 0;
-            planet.bonusHealth   = 0;
-            // Cap internal particles to the new level 1 capacity
-            planet.particles     = Math.min(planet.particles, 40); // PLANET_CAPACITY[1]
+            planet.maxHealth     = 40;
+            planet.health        = Math.min(planet.health, planet.maxHealth);
           } else {
             // Reset planet to neutral level-1 state.
             planet.faction       = 'neutral';
-            planet.particles     = 0;
             planet.absorbedCount = 0;
             planet.upgradeLevel  = 1;
-            planet.bonusHealth   = 0;
+            planet.maxHealth     = 40;
+            planet.health        = 40;
           }
 
           // Kill all orbiting particles that call this planet home.
+          let particlesKilledByPlanetHit = 0;
           for (const p of state.particles) {
             if (p.alive && p.homePlanetId === planet.id && p.mode === 'orbiting') {
+              state.hazardEffects.push({
+                id:       ++state.hazardEffectIdCounter,
+                kind:     'particle_sparkle',
+                x:        p.x,
+                y:        p.y,
+                color:    FACTION_COLORS[p.faction] ?? 0xffffff,
+                age:      0,
+                duration: 0.15,
+                radius:   10,
+              });
               p.alive = false;
+              particlesKilledByPlanetHit++;
             }
+          }
+          if (particlesKilledByPlanetHit > 0) {
+            (state as any)._pendingParticleHazardDeaths = ((state as any)._pendingParticleHazardDeaths ?? 0) + particlesKilledByPlanetHit;
           }
 
           // Accumulate damage.
@@ -211,6 +238,7 @@ export class AsteroidSystem {
 
       // ── Particle collisions ───────────────────────────────
       const hitRadius = asteroid.radius + 4;
+      let particlesKilledByAsteroid = 0;
       outerParticleLoop: for (const particle of state.particles) {
         if (!particle.alive)  continue;
         // Particles sheltered inside a plasma storm are immune.
@@ -218,7 +246,18 @@ export class AsteroidSystem {
 
         const pd = dist(asteroid.x, asteroid.y, particle.x, particle.y);
         if (pd < hitRadius) {
+          state.hazardEffects.push({
+            id:       ++state.hazardEffectIdCounter,
+            kind:     'particle_sparkle',
+            x:        particle.x,
+            y:        particle.y,
+            color:    FACTION_COLORS[particle.faction] ?? 0xffffff,
+            age:      0,
+            duration: 0.15,
+            radius:   10,
+          });
           particle.alive = false;
+          particlesKilledByAsteroid++;
           asteroid.hitCount++;
 
           if (asteroid.hitCount >= MAX_HIT_COUNT) {
@@ -226,6 +265,9 @@ export class AsteroidSystem {
             break outerParticleLoop;
           }
         }
+      }
+      if (particlesKilledByAsteroid > 0) {
+        (state as any)._pendingParticleHazardDeaths = ((state as any)._pendingParticleHazardDeaths ?? 0) + particlesKilledByAsteroid;
       }
     }
 

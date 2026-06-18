@@ -5,10 +5,9 @@
 import type { GameState, UpgradeLevel } from '../types';
 import {
   UPGRADE_THRESHOLDS,
-  PLANET_CAPACITY,
+  PLANET_MAX_HEALTH,
   PLANET_PRODUCTION,
   PLANET_RADIUS,
-  PLANET_BONUS_HEALTH,
 } from '../types';
 import { audioManager } from '../core/AudioManager';
 
@@ -22,14 +21,11 @@ export class UpgradeSystem {
 
       if (planet.absorbedCount >= threshold) {
         planet.upgradeLevel   = nextLevel;
-        planet.capacity       = PLANET_CAPACITY[nextLevel];
+        const newMax          = PLANET_MAX_HEALTH[nextLevel];
+        planet.maxHealth      = newMax;
+        planet.health         = newMax;
         planet.productionRate = PLANET_PRODUCTION[nextLevel];
         planet.absorbedCount  = 0;
-
-        // Grant bonus health for the new level
-        const bh = PLANET_BONUS_HEALTH[nextLevel];
-        planet.bonusHealth    = bh;
-        planet.maxBonusHealth = bh;
 
         if (planet.faction === 'player') {
           audioManager.playUpgrade(true);

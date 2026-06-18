@@ -1,5 +1,5 @@
 // ============================================================
-// WhiteHoleRenderer.ts — White Hole visual entity for Alux2Win
+// WhiteHoleRenderer.ts — White Hole visual entity for LUX
 // ============================================================
 //
 // Renders all active white holes each frame using PixiJS v8's
@@ -63,15 +63,21 @@ export class WhiteHoleRenderer {
         // Full outer ring.
         g.circle(x, y, 44).stroke({ color: factionColor, width: 3, alpha: 0.8 });
 
-        // Progress arc approximated by filled dots in a ring at radius 52.
-        const progressFraction = Math.min(progress / 20, 1);
-        const dotCount = Math.round(progressFraction * 16);
+        // Progress arc — threshold now 80 (was 20) for 4× longer charge.
+        const progressFraction = Math.min(progress / 80, 1);
 
-        for (let i = 0; i < dotCount; i++) {
-          const dotAngle = (i / 16) * Math.PI * 2 - Math.PI / 2;
-          const dx = x + Math.cos(dotAngle) * 52;
-          const dy = y + Math.sin(dotAngle) * 52;
-          g.circle(dx, dy, 4).fill({ color: factionColor, alpha: 0.85 });
+        // Faint full ring behind the progress arc.
+        g.circle(x, y, 52).stroke({ color: factionColor, width: 1.5, alpha: 0.2 });
+
+        // Real arc from top (-π/2) sweeping clockwise by progressFraction * 2π.
+        g.arc(x, y, 52, -Math.PI / 2, -Math.PI / 2 + progressFraction * Math.PI * 2)
+          .stroke({ color: factionColor, width: 4, alpha: 0.9 });
+
+        // Pre-detonation warning: pulsing outer halo when 90%+ charged.
+        if (progressFraction >= 0.9) {
+          const haloR = 60 + Math.sin(pulseAngle * 8) * 4;
+          const haloAlpha = 0.4 + Math.sin(pulseAngle * 8) * 0.3;
+          g.circle(x, y, haloR).stroke({ color: 0xffffff, width: 2, alpha: haloAlpha });
         }
 
         // ---- 4. Counter-rotating inner faction dots (8 dots at r=34) --

@@ -1,5 +1,5 @@
 // ============================================================
-// PlasmaStormSystem.ts - Plasma storm hazard logic for Alux2Win
+// PlasmaStormSystem.ts - Plasma storm hazard logic for LUX
 // ============================================================
 //
 // Responsibilities:

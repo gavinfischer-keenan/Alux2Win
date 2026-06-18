@@ -4,11 +4,11 @@
   "worldWidth": 2048,
   "worldHeight": 2048,
   "planets": [
-    { "id": "p_home",    "x": 200,  "y": 1024, "faction": "player",  "upgradeLevel": 2, "startingParticles": 35, "isOrbiting": false },
+    { "id": "p_home",    "x": 200,  "y": 1024, "faction": "player",  "upgradeLevel": 3, "startingParticles": 60, "isOrbiting": false },
     { "id": "p_side_a",  "x": 600,  "y": 600,  "faction": "neutral", "upgradeLevel": 1, "startingParticles": 4,  "isOrbiting": false },
     { "id": "p_side_b",  "x": 600,  "y": 1450, "faction": "neutral", "upgradeLevel": 1, "startingParticles": 4,  "isOrbiting": false },
-    { "id": "p_enemy_a", "x": 1550, "y": 600,  "faction": "enemy_a", "upgradeLevel": 1, "startingParticles": 8,  "isOrbiting": false },
-    { "id": "p_enemy_b", "x": 1550, "y": 1450, "faction": "enemy_a", "upgradeLevel": 1, "startingParticles": 8,  "isOrbiting": false }
+    { "id": "p_enemy_a", "x": 1550, "y": 600,  "faction": "enemy_a", "upgradeLevel": 2, "startingParticles": 20, "isOrbiting": false },
+    { "id": "p_enemy_b", "x": 1550, "y": 1450, "faction": "enemy_a", "upgradeLevel": 2, "startingParticles": 20, "isOrbiting": false }
   ],
   "blackHoles": [],
   "whiteHoles": [

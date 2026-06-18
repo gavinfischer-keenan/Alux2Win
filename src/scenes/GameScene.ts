@@ -1,5 +1,5 @@
 // ============================================================
-// GameScene.ts — Main gameplay scene for Alux2Win
+// GameScene.ts — Main gameplay scene for LUX
 // Wires all ECS systems, entities, input, AI, and HUD together.
 // ============================================================
 
@@ -15,10 +15,9 @@ import type {
   UpgradeLevel,
 } from '../types';
 import {
-  PLANET_CAPACITY,
+  PLANET_MAX_HEALTH,
   PLANET_PRODUCTION,
   PLANET_RADIUS,
-  PLANET_BONUS_HEALTH,
   FACTION_COLORS_HEX,
   PARTICLE_SPEED,
 } from '../types';
@@ -132,6 +131,25 @@ export class GameScene {
   private resultOverlay: HTMLElement | null = null;
   private pauseMenu: PauseMenu | null = null;
   private cameraController: CameraController | null = null;
+  private _planetTooltip: HTMLElement | null = null;
+  private _mouseMoveHandler: ((e: MouseEvent) => void) | null = null;
+
+  // Selection count badge
+  private _selectionBadge: HTMLElement | null = null;
+
+  // Effects renderer (sparkles + shockwaves)
+  private _effectsGraphics: import('pixi.js').Graphics | null = null;
+
+  // Repeat-last-action state
+  private _lastRightClickTime = 0;
+  private _lastAction: {
+    selBoxWorld: { x1: number; y1: number; x2: number; y2: number } | null;
+    selPlanetIds: Set<string>;
+    selParticleIds: Set<number>;
+    targetPlanetId?: string;
+    targetX?: number;
+    targetY?: number;
+  } | null = null;
 
   // Tutorial mode
   private _isTutorial = false;
@@ -148,6 +166,7 @@ export class GameScene {
   // Drag-select bookkeeping
   private _dragStartX = 0;
   private _dragStartY = 0;
+  private _lastSelBoxWorld: { x1: number; y1: number; x2: number; y2: number } | null = null;
 
   // Stats tracking
   private _levelId       = 'unknown';
@@ -201,6 +220,11 @@ export class GameScene {
     this.entities.portals            = new PortalRenderer(this.renderer.layers.portals);
     this.entities.trappingBlackHoles = new TrappingBlackHoleRenderer(this.renderer.layers.trappingBlackHoles);
     this.entities.whiteHoles         = new WhiteHoleRenderer(this.renderer.layers.whiteHoles);
+
+    // Hazard effects renderer (sparkles + shockwaves)
+    { const { Graphics } = await import('pixi.js');
+      this._effectsGraphics = new Graphics();
+      this.renderer.layers.particles.addChild(this._effectsGraphics); }
 
     // HUD overlay
     this.hudContainer = document.createElement('div');
@@ -283,6 +307,12 @@ export class GameScene {
         this.onGameOver(null);
       });
     }
+
+    // Planet hover tooltip
+    this._buildPlanetTooltip();
+
+    // Selection count badge
+    this._buildSelectionBadge();
   }
 
   start(): void {
@@ -304,12 +334,14 @@ export class GameScene {
     this.gameLoop?.stop();
     this.inputManager?.destroy();
     if (this._keyHandler) document.removeEventListener('keydown', this._keyHandler);
+    if (this._mouseMoveHandler) this.container?.removeEventListener('mousemove', this._mouseMoveHandler);
     this.tutorialController?.destroy();
     this.tutorialController = null;
     this.hud?.destroy();
     this.hudContainer?.remove();
     this.dragBox?.remove();
     this.resultOverlay?.remove();
+    this._planetTooltip?.remove();
     this.pauseMenu?.destroy();
     this.pauseMenu = null;
     this.cameraController?.destroy();
@@ -354,19 +386,17 @@ export class GameScene {
 
     levelData.planets.forEach((def: PlanetDef) => {
       const lvl = def.upgradeLevel as UpgradeLevel;
-      const capacity = PLANET_CAPACITY[lvl];
+      const maxHealth = PLANET_MAX_HEALTH[lvl];
       const data: PlanetData = {
         id: def.id,
         x: def.x,
         y: def.y,
         faction: def.faction,
         upgradeLevel: lvl,
-        particles: Math.min(def.startingParticles, capacity),
-        capacity,
+        health: maxHealth,
+        maxHealth,
         productionRate: PLANET_PRODUCTION[lvl],
         absorbedCount: 0,
-        bonusHealth:    PLANET_BONUS_HEALTH[lvl],
-        maxBonusHealth: PLANET_BONUS_HEALTH[lvl],
         isOrbiting: def.isOrbiting,
         orbitCenterX: def.orbitCenterX,
         orbitCenterY: def.orbitCenterY,
@@ -429,6 +459,8 @@ export class GameScene {
         exploded:     false,
         pulseAngle:   0,
       })),
+      hazardEffects:         [],
+      hazardEffectIdCounter: 0,
     };
   }
 
@@ -482,6 +514,24 @@ export class GameScene {
     if (this.state.whiteHoles.length > 0)
       this.systems.whiteHole.update(dt, this.state);
 
+    // Tick + expire hazard effects
+    this.state.hazardEffects = this.state.hazardEffects.filter(fx => {
+      fx.age += dt;
+      return fx.age < fx.duration;
+    });
+
+    // Process pending hazard death audio signals
+    const pendingPlanet   = (this.state as any)._pendingPlanetHazardDeaths ?? 0;
+    const pendingParticle = (this.state as any)._pendingParticleHazardDeaths ?? 0;
+    if (pendingPlanet > 0) {
+      for (let i = 0; i < pendingPlanet; i++) audioManager.playPlanetHazardDeath();
+      (this.state as any)._pendingPlanetHazardDeaths = 0;
+    }
+    if (pendingParticle > 0) {
+      audioManager.playParticleHazardDeath(); // batched — plays at most once per 3s
+      (this.state as any)._pendingParticleHazardDeaths = 0;
+    }
+
     // Prune dead particles
     this.state.particles = this.state.particles.filter(p => p.alive);
 
@@ -530,6 +580,45 @@ export class GameScene {
       this.entities.trappingBlackHoles.render(this.state.trappingBlackHoles, this.state.particles);
     if (this.state.whiteHoles.length > 0)
       this.entities.whiteHoles.render(this.state.whiteHoles);
+    this._renderHazardEffects();
+  }
+
+  private _renderHazardEffects(): void {
+    if (!this._effectsGraphics) return;
+    const g = this._effectsGraphics;
+    g.clear();
+
+    for (const fx of this.state.hazardEffects) {
+      const t = Math.min(1, fx.age / fx.duration); // 0 → 1 over lifetime
+      const alpha = 1 - t;                         // fades out
+
+      if (fx.kind === 'particle_sparkle') {
+        // 5-ray starburst at particle's death position
+        const rayLen = fx.radius * (1 - t * 0.5);
+        for (let i = 0; i < 5; i++) {
+          const angle = (i / 5) * Math.PI * 2;
+          const ex = fx.x + Math.cos(angle) * rayLen;
+          const ey = fx.y + Math.sin(angle) * rayLen;
+          g.moveTo(fx.x, fx.y)
+           .lineTo(ex, ey)
+           .stroke({ color: fx.color, width: 1.5, alpha: alpha * 0.9 });
+        }
+        // Center flash dot
+        g.circle(fx.x, fx.y, 3 * (1 - t))
+         .fill({ color: 0xffffff, alpha: alpha * 0.8 });
+
+      } else if (fx.kind === 'planet_shockwave') {
+        // Expanding ring shockwave
+        const r = fx.radius * t;
+        g.circle(fx.x, fx.y, r)
+         .stroke({ color: fx.color, width: 3 * (1 - t) + 1, alpha: alpha * 0.7 });
+        // Secondary inner ring
+        if (t > 0.1) {
+          g.circle(fx.x, fx.y, r * 0.65)
+           .stroke({ color: 0xffffff, width: 1.5 * (1 - t), alpha: alpha * 0.4 });
+        }
+      }
+    }
   }
 
   // ── Input Binding ─────────────────────────────────────────
@@ -575,6 +664,7 @@ export class GameScene {
         this.state.selectedPlanetIds.clear();
         this.state.selectedParticleIds.clear();
       }
+      this._updateSelectionBadge();
     };
   }
 
@@ -610,6 +700,9 @@ export class GameScene {
     const worldTL = this.renderer.screenToWorld(x1, y1);
     const worldBR = this.renderer.screenToWorld(x2, y2);
 
+    // Save world box for repeat-last-action
+    this._lastSelBoxWorld = { x1: worldTL.x, y1: worldTL.y, x2: worldBR.x, y2: worldBR.y };
+
     // Select player planets in box
     this.state.planets.forEach((planet, id) => {
       if (planet.faction !== 'player') return;
@@ -621,9 +714,9 @@ export class GameScene {
       }
     });
 
-    // Select player particles in box (excluding orbiting)
+    // Select player particles in box
     for (const p of this.state.particles) {
-      if (!p.alive || p.faction !== 'player' || p.mode === 'orbiting') continue;
+      if (!p.alive || p.faction !== 'player') continue;
       if (
         p.x >= worldTL.x && p.x <= worldBR.x &&
         p.y >= worldTL.y && p.y <= worldBR.y
@@ -635,34 +728,110 @@ export class GameScene {
     if (this.state.selectedPlanetIds.size > 0 || this.state.selectedParticleIds.size > 0) {
       audioManager.playSelect();
     }
+    this._updateSelectionBadge();
   }
 
   private handleRightClick(screenX: number, screenY: number): void {
+    const now = performance.now();
+    const timeSinceLastClick = now - this._lastRightClickTime;
+    const isDoubleClick = timeSinceLastClick < 380;
+    this._lastRightClickTime = now;
+
+    // ── Double right-click: replay last action ──────────────────────────────
+    if (isDoubleClick && this._lastAction) {
+      const la = this._lastAction;
+
+      // Re-apply selection: try the saved world box first
+      this.state.selectedPlanetIds.clear();
+      this.state.selectedParticleIds.clear();
+
+      if (la.selBoxWorld) {
+        const { x1, y1, x2, y2 } = la.selBoxWorld;
+        this.state.planets.forEach((planet, id) => {
+          if (planet.faction !== 'player') return;
+          if (planet.x >= x1 && planet.x <= x2 && planet.y >= y1 && planet.y <= y2) {
+            this.state.selectedPlanetIds.add(id);
+          }
+        });
+        for (const p of this.state.particles) {
+          if (!p.alive || p.faction !== 'player') continue;
+          if (p.x >= x1 && p.x <= x2 && p.y >= y1 && p.y <= y2) {
+            this.state.selectedParticleIds.add(p.id);
+          }
+        }
+      }
+
+      // Fallback: use saved IDs if box gave nothing
+      if (this.state.selectedPlanetIds.size === 0 && this.state.selectedParticleIds.size === 0) {
+        la.selPlanetIds.forEach(id => {
+          if (this.state.planets.has(id)) this.state.selectedPlanetIds.add(id);
+        });
+        la.selParticleIds.forEach(id => {
+          if (this.state.particles.find(p => p.alive && p.id === id)) {
+            this.state.selectedParticleIds.add(id);
+          }
+        });
+      }
+
+      if (this.state.selectedPlanetIds.size > 0 || this.state.selectedParticleIds.size > 0) {
+        if (this.state.selectedPlanetIds.size > 0) {
+          this.deployFromSelected(la.targetPlanetId, la.targetX, la.targetY);
+        }
+        if (this.state.selectedParticleIds.size > 0) {
+          this._redeploySelectedParticles(la.targetPlanetId, la.targetX, la.targetY);
+        }
+        audioManager.playCommand();
+        this._updateSelectionBadge();
+      }
+      return;
+    }
+
+    // ── Normal right-click ──────────────────────────────────────────────────
     const hasSelection =
       this.state.selectedPlanetIds.size > 0 ||
       this.state.selectedParticleIds.size > 0;
     if (!hasSelection) return;
 
     const world       = this.renderer.screenToWorld(screenX, screenY);
-    const hitPlanetId = this.getPlanetAtWorldPoint(world.x, world.y);
+    let hitPlanetId   = this.getPlanetAtWorldPoint(world.x, world.y);
+
+    // If we didn't click exactly on a planet, snap to the nearest one within 100px
+    if (!hitPlanetId) {
+      let bestDistSq = 100 * 100;
+      this.state.planets.forEach((p, id) => {
+        const dx = p.x - world.x;
+        const dy = p.y - world.y;
+        const dSq = dx * dx + dy * dy;
+        if (dSq < bestDistSq) {
+          bestDistSq = dSq;
+          hitPlanetId = id;
+        }
+      });
+    }
+
+    const targetPlanetId = hitPlanetId ?? undefined;
+    const targetX = hitPlanetId ? undefined : world.x;
+    const targetY = hitPlanetId ? undefined : world.y;
+
+    // Save this action for potential double-click replay
+    this._lastAction = {
+      selBoxWorld: this._lastSelBoxWorld,
+      selPlanetIds: new Set(this.state.selectedPlanetIds),
+      selParticleIds: new Set(this.state.selectedParticleIds),
+      targetPlanetId,
+      targetX,
+      targetY,
+    };
 
     // Deploy from selected planets
     if (this.state.selectedPlanetIds.size > 0) {
-      if (hitPlanetId) {
-        this.deployFromSelected(hitPlanetId, undefined, undefined);
-      } else {
-        this.deployFromSelected(undefined, world.x, world.y);
-      }
+      this.deployFromSelected(targetPlanetId, targetX, targetY);
       audioManager.playCommand();
     }
 
     // Redeploy selected particles
     if (this.state.selectedParticleIds.size > 0) {
-      this._redeploySelectedParticles(
-        hitPlanetId ?? undefined,
-        hitPlanetId ? undefined : world.x,
-        hitPlanetId ? undefined : world.y
-      );
+      this._redeploySelectedParticles(targetPlanetId, targetX, targetY);
       audioManager.playCommand();
     }
   }
@@ -675,12 +844,15 @@ export class GameScene {
   ): void {
     for (const p of this.state.particles) {
       if (!p.alive || !this.state.selectedParticleIds.has(p.id)) continue;
+
+
+
       p.mode          = 'traveling';
       p.targetPlanetId = targetPlanetId;
       p.targetX        = targetX;
       p.targetY        = targetY;
       p.orbitTimer     = 0;
-      p.deployTimer    = 1.5;
+      p.deployTimer    = 0;
       // Set initial velocity toward target
       const destX = targetPlanetId
         ? (this.state.planets.get(targetPlanetId)?.x ?? p.x)
@@ -699,10 +871,6 @@ export class GameScene {
 
   private deployFromSelected(targetPlanetId?: string, targetX?: number, targetY?: number): void {
     let fromIds = Array.from(this.state.selectedPlanetIds);
-    if (targetPlanetId) {
-      // Prevent deploying to itself
-      fromIds = fromIds.filter(id => id !== targetPlanetId);
-    }
     if (fromIds.length === 0) return;
 
     this._deployParticles(
@@ -726,15 +894,16 @@ export class GameScene {
     sourcePlanetIds.forEach(srcId => {
       const src = this.state.planets.get(srcId);
       if (!src) return;
-      const count = Math.floor(src.particles / 2);
-      if (count === 0) return;
-      src.particles -= count;
-      audioManager.playLaunch();
 
       // Find orbiting particles belonging to this planet
       const orbiting = this.state.particles.filter(
         p => p.alive && p.mode === 'orbiting' && p.homePlanetId === srcId
       );
+
+      const count = Math.floor(orbiting.length / 2);
+      if (count === 0) return;
+      
+      audioManager.playLaunch();
 
       const toDeploy = orbiting.slice(0, count);
 
@@ -744,7 +913,7 @@ export class GameScene {
         p.targetX        = targetX;
         p.targetY        = targetY;
         p.orbitTimer     = 0;
-        p.deployTimer    = 1.5;
+        p.deployTimer    = 0;
 
         const destX = targetPlanet ? targetPlanet.x : (targetX ?? p.x);
         const destY = targetPlanet ? targetPlanet.y : (targetY ?? p.y);
@@ -844,6 +1013,173 @@ export class GameScene {
       this.showResultOverlay(null);
     }
     // Normal single-winner case is already handled by CombatSystem via EventBus.
+  }
+
+  // ── Planet Tooltip ────────────────────────────────────────
+
+  private _buildPlanetTooltip(): void {
+    const tip = document.createElement('div');
+    tip.id = 'planet-tooltip';
+    tip.style.cssText = `
+      position: absolute;
+      display: none;
+      pointer-events: none;
+      z-index: 30;
+      background: rgba(10, 18, 30, 0.92);
+      border: 1px solid rgba(79, 195, 247, 0.25);
+      border-radius: 10px;
+      padding: 10px 14px;
+      min-width: 170px;
+      backdrop-filter: blur(8px);
+      font-family: 'Rajdhani', sans-serif;
+      color: rgba(255,255,255,0.9);
+      font-size: 12px;
+      line-height: 1.7;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    `;
+    this.container.appendChild(tip);
+    this._planetTooltip = tip;
+
+    this._mouseMoveHandler = (e: MouseEvent) => {
+      if (!this.state || this.state.winner !== null) {
+        tip.style.display = 'none';
+        return;
+      }
+      const rect = this.container.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+      const planetId = this.getPlanetAtPoint(sx, sy);
+
+      if (!planetId) {
+        tip.style.display = 'none';
+        return;
+      }
+
+      const p = this.state.planets.get(planetId);
+      if (!p) { tip.style.display = 'none'; return; }
+
+      // Position tooltip near cursor, keep on screen
+      const OFFSET = 18;
+      let tx = sx + OFFSET;
+      let ty = sy + OFFSET;
+      if (tx + 200 > rect.width)  tx = sx - 200 - OFFSET;
+      if (ty + 160 > rect.height) ty = sy - 160 - OFFSET;
+      tip.style.left = `${tx}px`;
+      tip.style.top  = `${ty}px`;
+
+      // Build content
+      const totalHealth = p.health;
+      const maxHealth   = p.maxHealth;
+      const healthPct   = maxHealth > 0 ? Math.round((totalHealth / maxHealth) * 100) : 100;
+      const healthColor = healthPct > 60 ? '#80e8ff' : healthPct > 30 ? '#ff8c42' : '#ff3333';
+
+      const levelNames  = ['', 'I', 'II', 'III'];
+      const levelColors = ['', '#8a8a8a', '#c8a820', '#ffd700'];
+      const lvl = p.upgradeLevel;
+
+      const factionLabel = p.faction === 'player'  ? 'Yours'   :
+                           p.faction === 'neutral' ? 'Neutral' :
+                           p.faction.replace(/_/g, ' ');
+
+      let upgradeHtml = '';
+      if (lvl < 3 && p.faction !== 'neutral') {
+        const thresholds: Record<number, number> = { 1: 50, 2: 100 };
+        const threshold = thresholds[lvl] ?? 100;
+        const unitsNeeded = Math.max(0, Math.ceil(threshold - p.absorbedCount));
+        const upgradePct = Math.round(Math.min(1, p.absorbedCount / threshold) * 100);
+        const upgradeColor = upgradePct >= 80 ? '#ffd700' : 'rgba(255,215,0,0.7)';
+        upgradeHtml = `
+          <div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.08)">
+            <span style="color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;letter-spacing:0.1em">⬡ Upgrade ring</span><br>
+            <span style="color:${upgradeColor};font-weight:600">${upgradePct}% to Level ${lvl + 1}</span>
+            <span style="color:rgba(255,255,255,0.45);font-size:10px"> (${unitsNeeded} units needed)</span>
+          </div>`;
+      } else if (lvl === 3) {
+        upgradeHtml = `
+          <div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.08)">
+            <span style="color:#ffd700;font-size:10px">✦ MAX LEVEL</span>
+          </div>`;
+      }
+
+      tip.innerHTML = `
+        <div style="font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;
+                    color:${levelColors[lvl]};letter-spacing:0.1em;margin-bottom:4px">
+          Level ${levelNames[lvl]} &nbsp;<span style="color:rgba(255,255,255,0.3);font-size:9px">${factionLabel.toUpperCase()}</span>
+        </div>
+        <div>
+          <span style="color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;letter-spacing:0.1em">◉ Health ring</span><br>
+          <span style="color:${healthColor};font-weight:600">${healthPct}%</span>
+          &nbsp;<span style="color:rgba(255,255,255,0.3);font-size:10px">${p.health} / ${p.maxHealth} structural</span>
+        </div>
+        ${upgradeHtml}
+      `;
+
+      tip.style.display = 'block';
+    };
+
+    this.container.addEventListener('mousemove', this._mouseMoveHandler);
+  }
+
+  // ── Selection Count Badge ─────────────────────────────────
+
+  private _buildSelectionBadge(): void {
+    const badge = document.createElement('div');
+    badge.id = 'selection-badge';
+    badge.style.cssText = `
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: none;
+      pointer-events: none;
+      z-index: 25;
+      background: rgba(10, 18, 30, 0.88);
+      border: 1px solid rgba(79, 195, 247, 0.3);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-family: 'Rajdhani', sans-serif;
+      color: rgba(255,255,255,0.95);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+      transition: opacity 0.15s ease;
+    `;
+    this.container.appendChild(badge);
+    this._selectionBadge = badge;
+  }
+
+  private _updateSelectionBadge(): void {
+    const badge = this._selectionBadge;
+    if (!badge || !this.state) return;
+
+    const planetsSelected = this.state.selectedPlanetIds.size;
+    const particlesDirect = this.state.selectedParticleIds.size;
+
+    // Count orbiting defenders on selected planets
+    let defending = 0;
+    if (planetsSelected > 0) {
+      for (const p of this.state.particles) {
+        if (p.alive && p.mode === 'orbiting' && this.state.selectedPlanetIds.has(p.homePlanetId)) {
+          defending++;
+        }
+      }
+    }
+
+    const total = particlesDirect + defending;
+    if (total === 0 && planetsSelected === 0) {
+      badge.style.display = 'none';
+      return;
+    }
+
+    badge.style.display = 'block';
+    let html = `⬡ <span style="color:#4fc3f7">${total}</span> selected`;
+    if (particlesDirect > 0 && defending > 0) {
+      html += `<br><span style="color:rgba(255,255,255,0.4);font-size:10px">${particlesDirect} free · ${defending} defending</span>`;
+    } else if (defending > 0) {
+      html += `<br><span style="color:rgba(255,255,255,0.4);font-size:10px">${defending} defending</span>`;
+    }
+    badge.innerHTML = html;
   }
 
   // ── Result Overlay ────────────────────────────────────────
