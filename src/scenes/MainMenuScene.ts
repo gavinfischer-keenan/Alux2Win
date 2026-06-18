@@ -34,6 +34,8 @@ import portals2Data from '../levels/portals_2.json';
 import blackholes2Data from '../levels/blackholes_2.json';
 import whiteholes2Data from '../levels/whiteholes_2.json';
 import shielded3Data from '../levels/shielded/level_03.json';
+import tutorialFogOfWarData from '../levels/tutorial_fogofwar.json';
+import fogOfWar1Data from '../levels/fogofwar_1.json';
 
 import { SettingsStore } from '../core/SettingsStore';
 import type { GameSettings } from '../core/SettingsStore';
@@ -262,6 +264,7 @@ export class MainMenuScene {
       { name: 'Black Holes',   desc: 'Massive gravitational anomalies. They pull in and crush units that stray too close. There is no escape.', image: '/assets/galaxies/void.png',      locked: false, tutorialId: 'blackholes', levels: [tutorialBlackholesData as LevelData, blackholes1Data as LevelData, blackholes2Data as LevelData, ...(customGroups['Black Holes'] || [])], isTutorial: false },
       { name: 'White Holes',   desc: 'Sending units into the white hole rewards you with a valuable resource bounty.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: 'whiteholes', levels: [tutorialWhiteholesData as LevelData, whiteholes1Data as LevelData, whiteholes2Data as LevelData, ...(customGroups['White Holes'] || [])], isTutorial: false },
       { name: 'Shielded Planets', desc: 'Master the art of defense. Shielded planets slowly generate a protective energy barrier over time that absorbs incoming attacks.', image: '/assets/galaxies/normal.png', locked: false, tutorialId: 'shield', levels: [shielded1Data as LevelData, shielded2Data as LevelData, shielded3Data as LevelData, ...(customGroups['Shielded Planets'] || [])], isTutorial: false },
+      { name: 'Fog of War',    desc: 'The galaxy is shrouded in darkness. Upgrading your planets expands your limited vision.', image: '/assets/galaxies/nebula.png', locked: false, tutorialId: 'fogofwar', levels: [tutorialFogOfWarData as LevelData, fogOfWar1Data as LevelData, ...(customGroups['Fog of War'] || [])], isTutorial: false },
       { name: 'Custom',        desc: 'Explore custom user-generated systems and experimental battlegrounds.', image: '/assets/galaxies/normal.png',    locked: false, tutorialId: '',           levels: customGroups['Custom'] || [], isTutorial: false },
       { name: 'Random',        desc: 'An unpredictable, procedurally generated system. Every battle is unique.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: '',           levels: [], isTutorial: false },
     ];
@@ -437,7 +440,7 @@ export class MainMenuScene {
     // ── Version text ───────────────────────────────────────
     const version = document.createElement('div');
     version.className = 'menu-anim-child';
-    version.textContent = 'v0.2.0';
+    version.textContent = 'v' + __APP_VERSION__;
     version.style.cssText = `
       font-family: 'Rajdhani', sans-serif;
       font-size: 12px;

@@ -70,6 +70,7 @@ import { SpeedZoneRenderer }            from '../entities/SpeedZoneRenderer';
 import { PortalRenderer }               from '../entities/PortalRenderer';
 import { TrappingBlackHoleRenderer }    from '../entities/TrappingBlackHoleRenderer';
 import { WhiteHoleRenderer }            from '../entities/WhiteHoleRenderer';
+import { FogRenderer }                  from '../entities/FogRenderer';
 
 // ── Vec2 for InputManager ────────────────────────────────────
 import type { Vec2 } from '../types';
@@ -112,6 +113,7 @@ export class GameScene {
     portals:             PortalRenderer;
     trappingBlackHoles:  TrappingBlackHoleRenderer;
     whiteHoles:          WhiteHoleRenderer;
+    fog:                 FogRenderer;
   } = {
     planets:             new Map(),
     particles:           null as unknown as ParticleRenderer,
@@ -123,6 +125,7 @@ export class GameScene {
     portals:             null as unknown as PortalRenderer,
     trappingBlackHoles:  null as unknown as TrappingBlackHoleRenderer,
     whiteHoles:          null as unknown as WhiteHoleRenderer,
+    fog:                 null as unknown as FogRenderer,
   };
 
   private container!: HTMLElement;
@@ -220,6 +223,7 @@ export class GameScene {
     this.entities.portals            = new PortalRenderer(this.renderer.layers.portals);
     this.entities.trappingBlackHoles = new TrappingBlackHoleRenderer(this.renderer.layers.trappingBlackHoles);
     this.entities.whiteHoles         = new WhiteHoleRenderer(this.renderer.layers.whiteHoles);
+    this.entities.fog                = new FogRenderer(this.renderer.getWorldContainer());
 
     // Hazard effects renderer (sparkles + shockwaves)
     { const { Graphics } = await import('pixi.js');
@@ -361,6 +365,7 @@ export class GameScene {
     this.entities.portals?.destroy();
     this.entities.trappingBlackHoles?.destroy();
     this.entities.whiteHoles?.destroy();
+    this.entities.fog?.destroy();
   }
 
   // ── Pause / Speed ─────────────────────────────────────────
@@ -673,6 +678,8 @@ export class GameScene {
     if (this.state.whiteHoles.length > 0)
       this.entities.whiteHoles.render(this.state.whiteHoles);
     this._renderHazardEffects();
+    // Draw Fog
+    this.entities.fog.render(this.state, this.state.worldWidth, this.state.worldHeight, this._elapsedTime);
   }
 
   private _renderHazardEffects(): void {

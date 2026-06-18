@@ -41,6 +41,28 @@ interface EnemyAction {
 
 const TUTORIAL_SCRIPTS: Record<string, TutorialStep[]> = {
 
+  fogofwar: [
+    {
+      id: 'fog_intro',
+      icon: '🌫️',
+      heading: 'The Fog of War',
+      body: 'Welcome to the Fog of War. You have a few seconds to scout the galaxy before the darkness descends. Pay close attention to enemy positions!',
+      autoDismiss: false,
+      isDone: (_s, elapsed) => elapsed > 5,
+    },
+    {
+      id: 'fog_vision',
+      icon: '👁️',
+      heading: 'Expand Your Vision',
+      body: "The fog hides everything outside your planets' vision range. Upgrade your planets to increase how far you can see. Particles flying in the dark grant NO vision!",
+      autoDismiss: false,
+      isDone: (state) => {
+        // Done when player has upgraded a planet
+        return [...state.planets.values()].some(p => p.faction === 'player' && p.upgradeLevel > 1);
+      },
+    }
+  ],
+
   shield: [
     {
       id: 'shield_intro',

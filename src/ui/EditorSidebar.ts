@@ -38,9 +38,11 @@ export class EditorSidebar {
   onLoadLevel: () => void = () => {};
   onBack: () => void = () => {};
   onLevelNameChange: (name: string) => void = () => {};
+  onFogChange: (enabled: boolean) => void = () => {};
 
   private toolButtons: Map<EditorTool, HTMLElement> = new Map();
   private nameInput!: HTMLInputElement;
+  private fogCheckbox!: HTMLInputElement;
 
   constructor(container: HTMLElement) {
     this.element = this.createElement();
@@ -129,6 +131,26 @@ export class EditorSidebar {
     this.nameInput.addEventListener('input', () => this.onLevelNameChange(this.nameInput.value));
     nameWrapper.appendChild(nameLabel);
     nameWrapper.appendChild(this.nameInput);
+
+    // ── Fog of War Toggle ──────────────────────────────────────
+    const fogLabel = document.createElement('label');
+    fogLabel.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      color: rgba(255,255,255,0.65);
+      font-size: 10px;
+      margin-top: 6px;
+    `;
+    this.fogCheckbox = document.createElement('input');
+    this.fogCheckbox.type = 'checkbox';
+    this.fogCheckbox.style.cssText = 'appearance: auto; -webkit-appearance: auto; accent-color: #4fc3f7; margin-right: 2px;';
+    this.fogCheckbox.addEventListener('change', () => this.onFogChange(this.fogCheckbox.checked));
+    fogLabel.appendChild(this.fogCheckbox);
+    fogLabel.appendChild(document.createTextNode('FOG OF WAR'));
+    nameWrapper.appendChild(fogLabel);
+
     sidebar.appendChild(nameWrapper);
 
     sidebar.appendChild(this.createDivider());
@@ -271,6 +293,12 @@ export class EditorSidebar {
       this.nameInput.value = name;
     }
     this.onLevelNameChange(name);
+  }
+
+  setFogEnabled(enabled: boolean): void {
+    if (this.fogCheckbox) {
+      this.fogCheckbox.checked = enabled;
+    }
   }
 
   destroy(): void {

@@ -219,6 +219,7 @@ export interface LevelData {
   portals?:            PortalDef[];
   trappingBlackHoles?: TrappingBlackHoleDef[];
   whiteHoles?:         WhiteHoleDef[];
+  fogOfWarConfig?:     { enabled: boolean };
 }
 
 export interface PlanetDef {
@@ -285,6 +286,7 @@ export interface GameState {
   whiteHoles:          WhiteHoleData[];
   hazardEffects:       HazardEffect[];
   hazardEffectIdCounter: number;
+  fogOfWarConfig?:     { enabled: boolean };
 }
 
 // ---- Upgrade thresholds ----

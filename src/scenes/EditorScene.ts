@@ -93,6 +93,7 @@ interface EditState {
   levelName:           string;
   worldWidth:          number;
   worldHeight:         number;
+  fogOfWarConfig?:     { enabled: boolean };
 }
 
 export class EditorScene {
@@ -170,6 +171,7 @@ export class EditorScene {
     this.sidebar.onLoadLevel  = () => this.showLoadOverlay();
     this.sidebar.onTestLevel  = () => this.testLevel();
     this.sidebar.onLevelNameChange = (name) => { this.editState.levelName = name; };
+    this.sidebar.onFogChange = (enabled) => { this.editState.fogOfWarConfig = enabled ? { enabled: true } : undefined; };
 
     // Properties panel
     this.propertiesPanel = new PropertiesPanel(container);
@@ -1022,6 +1024,7 @@ export class EditorScene {
       name:        this.editState.levelName || 'Untitled',
       worldWidth:  this.editState.worldWidth,
       worldHeight: this.editState.worldHeight,
+      fogOfWarConfig: this.editState.fogOfWarConfig,
       planets,
       blackHoles,
       speedZones:          speedZones.length > 0          ? speedZones          : undefined,
@@ -1319,9 +1322,13 @@ export class EditorScene {
     this.editState.levelName = ld.name;
     this.editState.worldWidth = ld.worldWidth;
     this.editState.worldHeight = ld.worldHeight;
+    this.editState.fogOfWarConfig = ld.fogOfWarConfig;
     
     if ((this.sidebar as any).setLevelName) {
       (this.sidebar as any).setLevelName(ld.name);
+    }
+    if ((this.sidebar as any).setFogEnabled) {
+      (this.sidebar as any).setFogEnabled(ld.fogOfWarConfig?.enabled ?? false);
     }
 
     let maxPid = 0, maxBhId = 0, maxSzId = 0, maxPortalId = 0, maxTbhId = 0, maxWhId = 0;

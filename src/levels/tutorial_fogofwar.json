@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "name": "Fog of War Training",
+  "worldWidth": 2500,
+  "worldHeight": 1500,
+  "fogOfWarConfig": { "enabled": true },
+  "planets": [
+    {
+      "id": "p_home",
+      "x": 800,
+      "y": 750,
+      "faction": "player",
+      "upgradeLevel": 1,
+      "startingParticles": 50,
+      "isOrbiting": false
+    },
+    {
+      "id": "p_neutral",
+      "x": 1300,
+      "y": 750,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 5,
+      "isOrbiting": false
+    },
+    {
+      "id": "p_enemy",
+      "x": 1800,
+      "y": 750,
+      "faction": "enemy_a",
+      "upgradeLevel": 1,
+      "startingParticles": 30,
+      "isOrbiting": false
+    }
+  ],
+  "blackHoles": []
+}

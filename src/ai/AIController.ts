@@ -514,7 +514,7 @@ export class AIController {
 
     // --- Branch 2: Conquer Neutral ---
     const wantsExpand = Math.random() < strategy.expandWeight;
-    const weakestNeutral = this.findWeakestNeutral(state);
+    const weakestNeutral = this.findWeakestNeutral(state, faction);
     if (
       wantsExpand &&
       weakestNeutral !== null &&
@@ -566,7 +566,7 @@ export class AIController {
     if (defendTime >= 15 && (sourcePlanets.length > 0 || stationedParticleIds.length > 0)) {
       this.defendTimers.set(faction, 0);
       // Try neutral first; if none, attack weakest enemy
-      const neutral = this.findWeakestNeutral(state);
+      const neutral = this.findWeakestNeutral(state, faction);
       const forceSrc = this.nearestPlanet(sourcePlanets, neutral ?? ownPlanets[0]);
       if (forceSrc !== null || stationedParticleIds.length > 0) {
         if (neutral !== null) {
@@ -617,10 +617,44 @@ export class AIController {
     return count;
   }
 
-  private findWeakestNeutral(state: GameState): PlanetData | null {
+  private isPlanetVisible(target: PlanetData, faction: Faction, state: GameState): boolean {
+    if (!state.fogOfWarConfig?.enabled) return true;
+    if (state.tick * (1/60) < 5) return true;
+    if (target.faction === faction) return true;
+
+    const diffMap: Record<string, number> = {
+      'easy_turtle': 1,
+      'fortress': 1.25,
+      'balanced': 1.25,
+      'opportunist': 1.25,
+      'expander': 1.25,
+      'berserker': 2.0,
+      'economic': 2.0,
+      'blitzkrieg': 2.0,
+      'dominator': 2.0
+    };
+    const subRole = this.subRoles.get(faction) as string;
+    const diff = diffMap[subRole] || 1;
+
+    for (const p of state.planets.values()) {
+      if (p.faction === faction) {
+        let r = 500;
+        if (p.upgradeLevel === 2) r = 850;
+        if (p.upgradeLevel === 3) r = 1300;
+        r *= diff;
+        const dx = target.x - p.x;
+        const dy = target.y - p.y;
+        if (dx*dx + dy*dy <= r*r) return true;
+      }
+    }
+    return false;
+  }
+
+  private findWeakestNeutral(state: GameState, faction: Faction): PlanetData | null {
     let best: PlanetData | null = null;
     for (const planet of state.planets.values()) {
       if (planet.faction === 'neutral') {
+        if (!this.isPlanetVisible(planet, faction, state)) continue;
         if (best === null || planet.health < best.health) best = planet;
       }
     }
@@ -639,6 +673,7 @@ export class AIController {
       let best: PlanetData | null = null;
       for (const planet of state.planets.values()) {
         if (planet.faction === faction || planet.faction === 'neutral') continue;
+        if (!this.isPlanetVisible(planet, faction, state)) continue;
         if (best === null || planet.health < best.health) best = planet;
       }
       return best;
@@ -648,6 +683,7 @@ export class AIController {
     let best: PlanetData | null = null;
     for (const planet of state.planets.values()) {
       if (planet.faction !== faction && planet.faction !== 'neutral') {
+        if (!this.isPlanetVisible(planet, faction, state)) continue;
         if (best === null || planet.health < best.health) best = planet;
       }
     }
@@ -783,7 +819,7 @@ export class AIController {
           }
         } else if (subRole === 'opportunist' || subRole === 'expander' || subRole === 'blitzkrieg') {
           // Redirect to best available neutral or weakest enemy
-          const altNeutral = this.findWeakestNeutral(state);
+          const altNeutral = this.findWeakestNeutral(state, wave.faction);
           const altEnemy = altNeutral ? null : this.findAttackTarget(state, wave.faction);
           const altTarget = altNeutral ?? altEnemy;
           if (altTarget) {
@@ -851,6 +887,7 @@ export class AIController {
 
       const planet = state.planets.get(event.planetId);
       if (!planet || planet.faction === faction || planet.faction === 'neutral') continue;
+      if (!this.isPlanetVisible(planet, faction, state)) continue;
 
       const currentOrbit = this.getOrbitingCount(event.planetId, state);
       const depleted = event.orbitCountBefore - currentOrbit;
@@ -875,6 +912,7 @@ export class AIController {
 
     for (const planet of state.planets.values()) {
       if (planet.faction === faction || planet.faction === 'neutral') continue;
+      if (!this.isPlanetVisible(planet, faction, state)) continue;
       const enemyOrbit = this.getOrbitingCount(planet.id, state);
       const totalDefense = enemyOrbit + planet.health;
 

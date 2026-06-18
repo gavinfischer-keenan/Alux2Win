@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "fogofwar_1",
+  "name": "Hidden Threat",
+  "worldWidth": 3000,
+  "worldHeight": 2000,
+  "fogOfWarConfig": { "enabled": true },
+  "planets": [
+    {
+      "id": "player_home",
+      "x": 600,
+      "y": 1000,
+      "faction": "player",
+      "upgradeLevel": 1,
+      "startingParticles": 30,
+      "isOrbiting": false
+    },
+    {
+      "id": "neutral_1",
+      "x": 1200,
+      "y": 600,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "neutral_2",
+      "x": 1200,
+      "y": 1400,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "neutral_mid",
+      "x": 1700,
+      "y": 1000,
+      "faction": "neutral",
+      "upgradeLevel": 2,
+      "startingParticles": 15,
+      "isOrbiting": false
+    },
+    {
+      "id": "enemy_home",
+      "x": 2400,
+      "y": 1000,
+      "faction": "enemy_a",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false
+    }
+  ],
+  "blackHoles": [],
+  "asteroids": []
+}
