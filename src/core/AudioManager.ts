@@ -22,6 +22,7 @@ class AudioManager {
   private _asteroidEnterBuffer: AudioBuffer | null = null;
   private _gammaRayFireBuffer: AudioBuffer | null = null;
   private _whiteHoleExplosionBuffer: AudioBuffer | null = null;
+  private _speedZoneEnterBuffer: AudioBuffer | null = null;
 
   // ── Init ─────────────────────────────────────────────────
 
@@ -98,6 +99,15 @@ class AudioManager {
       this._whiteHoleExplosionBuffer = await this._ctx.decodeAudioData(arrayBuffer);
     } catch (err) {
       console.warn('Failed to load white hole explosion audio', err);
+    }
+
+    // Load speed zone enter MP3
+    try {
+      const response = await fetch('/assets/audio/speed_zone_enter.mp3');
+      const arrayBuffer = await response.arrayBuffer();
+      this._speedZoneEnterBuffer = await this._ctx.decodeAudioData(arrayBuffer);
+    } catch (err) {
+      console.warn('Failed to load speed zone enter audio', err);
     }
 
     if (this._ctx.state === 'suspended') {
@@ -584,6 +594,27 @@ class AudioManager {
 
     const source = ctx.createBufferSource();
     source.buffer = this._whiteHoleExplosionBuffer;
+    
+    const g = ctx.createGain();
+    g.gain.value = 1.0;
+    source.connect(g);
+    g.connect(master);
+    
+    source.start();
+  }
+
+  /** Played when a player particle enters a speed up zone. */
+  private _lastSpeedZoneTime = -Infinity;
+
+  playSpeedZoneEnter(): void {
+    const ctx = this._ctx;
+    const master = this._masterGain;
+    if (!ctx || !master || !this._speedZoneEnterBuffer) return;
+    if (ctx.currentTime - this._lastSpeedZoneTime < 3.0) return; // 3s cooldown
+    this._lastSpeedZoneTime = ctx.currentTime;
+
+    const source = ctx.createBufferSource();
+    source.buffer = this._speedZoneEnterBuffer;
     
     const g = ctx.createGain();
     g.gain.value = 1.0;

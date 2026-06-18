@@ -12,6 +12,7 @@
 // ============================================================
 
 import type { GameState } from '../types';
+import { audioManager } from '../core/AudioManager';
 
 export class SpeedZoneSystem {
   update(dt: number, state: GameState): void {
@@ -35,6 +36,9 @@ export class SpeedZoneSystem {
         if (dx <= zone.radius && dy <= zone.radius) {
           if (zone.type === 'speedup') {
             p.speedMod = 4.0; // 2x what it was previously (2.0)
+            if (p.faction === 'player') {
+              audioManager.playSpeedZoneEnter();
+            }
           } else {
             // 'slowdown'
             p.speedMod = 0.3;
