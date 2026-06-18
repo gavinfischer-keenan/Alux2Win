@@ -3,7 +3,7 @@
 // ============================================================
 
 import type { GameState, ParticleData, PlanetData } from '../types';
-import { PLANET_RADIUS } from '../types';
+import { PLANET_RADIUS, PLANET_MAX_HEALTH, PLANET_PRODUCTION } from '../types';
 import type { EventBus } from '../core/EventBus';
 import { audioManager } from '../core/AudioManager';
 
@@ -194,10 +194,10 @@ export class CombatSystem {
 
     // Instantly reset health & level to base
     planet.upgradeLevel = 1;
-    planet.maxHealth = 40;
+    planet.maxHealth = PLANET_MAX_HEALTH[1];
     planet.health = planet.maxHealth;
     planet.absorbedCount = 0;
-    planet.productionRate = 0.5;
+    planet.productionRate = PLANET_PRODUCTION[1];
     planet.shieldPoints = 0;
     planet.shieldTimer = 0;
 

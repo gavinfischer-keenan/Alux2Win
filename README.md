@@ -8,9 +8,9 @@ Alux2Win is an ambient, real-time strategy (RTS) game heavily inspired by Auralu
 - **Planets** are your bases. Every planet generates a new **Particle** once per second.
 - **Particles** are your currency, your military, and your builders. Everything costs particles.
 - **Upgrades**: You can upgrade a planet by sending your own particles to it. An upgraded planet holds more health, spawns particles faster, and has a larger defense radius.
-  - Level 1: 50 Health, 1 Particle/sec
-  - Level 2: 150 Health, 2 Particles/sec
-  - Level 3: 300 Health, 3 Particles/sec
+  - Level 1: 40 Health, 0.25 Particles/sec (1 per 4s)
+  - Level 2: 80 Health, 2.0 Particles/sec (2 per 1s)
+  - Level 3: 150 Health, 5.5 Particles/sec (5.5 per 1s)
 
 ### 2. Controls
 - **Left-Click & Drag**: Draw a lasso around your particles to select a swarm. A counter will appear letting you know exactly how many units you have selected.

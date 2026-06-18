@@ -302,8 +302,8 @@ export const PLANET_MAX_HEALTH: Record<UpgradeLevel, number> = {
 
 export const PLANET_PRODUCTION: Record<UpgradeLevel, number> = {
   1: 0.25,
-  2: 0.6,
-  3: 1.25,
+  2: 2.0,
+  3: 5.5,
 };
 
 export const PLANET_RADIUS: Record<UpgradeLevel, number> = {
