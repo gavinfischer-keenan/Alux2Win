@@ -19,6 +19,7 @@ const COLLISION_DIST_SQ = COLLISION_DISTANCE * COLLISION_DISTANCE;
  */
 export class CollisionSystem {
   private _processedPairs = new Set<number>();
+  private _nearbyBuffer: ParticleData[] = [];
 
   constructor(private readonly _ownedSpatialHash?: SpatialHash) {}
 
@@ -39,9 +40,10 @@ export class CollisionSystem {
     for (const p of particles) {
       if (!p.alive) continue;
 
-      const nearby = spatialHash.getNearby(p);
+      const nearby = spatialHash.getNearby(p, this._nearbyBuffer);
 
-      for (const other of nearby) {
+      for (let i = 0; i < nearby.length; i++) {
+        const other = nearby[i];
         if (other === p)                 continue;
         if (!other.alive)                continue;
         if (other.faction === p.faction) continue; // same faction

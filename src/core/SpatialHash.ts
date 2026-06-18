@@ -76,8 +76,8 @@ export class SpatialHash {
    * Return all particles whose cell is within `radius` of the given point.
    * This is a coarse broad-phase; callers should do exact distance checks.
    */
-  query(x: number, y: number, radius: number): ParticleData[] {
-    const results: ParticleData[] = [];
+  query(x: number, y: number, radius: number, out: ParticleData[] = []): ParticleData[] {
+    out.length = 0;
     const minCX = Math.max(0, Math.floor((x - radius) / this.cellSize));
     const maxCX = Math.min(this.cols - 1, Math.floor((x + radius) / this.cellSize));
     const minCY = Math.max(0, Math.floor((y - radius) / this.cellSize));
@@ -87,19 +87,21 @@ export class SpatialHash {
       for (let cy = minCY; cy <= maxCY; cy++) {
         const bucket = this.buckets.get(this.key(cx, cy));
         if (bucket) {
-          for (const p of bucket) results.push(p);
+          for (let i = 0; i < bucket.length; i++) {
+            out.push(bucket[i]);
+          }
         }
       }
     }
-    return results;
+    return out;
   }
 
   /**
    * Return particles in the same cell and all 8 adjacent cells for a particle.
    * Fastest possible broad-phase — used by CollisionSystem per-particle.
    */
-  getNearby(particle: ParticleData): ParticleData[] {
-    const results: ParticleData[] = [];
+  getNearby(particle: ParticleData, out: ParticleData[] = []): ParticleData[] {
+    out.length = 0;
     const cx = this.cellX(particle.x);
     const cy = this.cellY(particle.y);
 
@@ -110,10 +112,12 @@ export class SpatialHash {
         if (nx < 0 || nx >= this.cols || ny < 0 || ny >= this.rows) continue;
         const bucket = this.buckets.get(this.key(nx, ny));
         if (bucket) {
-          for (const p of bucket) results.push(p);
+          for (let i = 0; i < bucket.length; i++) {
+            out.push(bucket[i]);
+          }
         }
       }
     }
-    return results;
+    return out;
   }
 }

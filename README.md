@@ -1,76 +1,67 @@
-# LUX: Cosmic Conquest 🌌
+# Alux2Win (Lux) v1.2.0
 
-> **LUX** is an ambient real-time strategy game built with TypeScript and PixiJS. Command glowing particle swarms to conquer star systems, avoid cosmic hazards, and outsmart dynamic AI opponents.
+Alux2Win is an ambient, real-time strategy (RTS) game heavily inspired by Auralux. It emphasizes slow, deliberate macro-strategy over rapid micro-management. The universe beats at a steady rhythm, and your goal is to manage your particle swarms, upgrade your planets, and conquer the galaxy.
 
----
+## Core Mechanics
 
-## 🎮 Gameplay Features
+### 1. Planets & Particles
+- **Planets** are your bases. Every planet generates a new **Particle** once per second.
+- **Particles** are your currency, your military, and your builders. Everything costs particles.
+- **Upgrades**: You can upgrade a planet by sending your own particles to it. An upgraded planet holds more health, spawns particles faster, and has a larger defense radius.
+  - Level 1: 50 Health, 1 Particle/sec
+  - Level 2: 150 Health, 2 Particles/sec
+  - Level 3: 300 Health, 3 Particles/sec
 
-- **Ambient RTS:** No micromanagement, no build queues. Direct your particle swarms with simple click-and-drag controls.
-- **Dynamic AI Sub-Roles:** Face off against various AI personalities (`fortress`, `berserker`, `blitzkrieg`, `expander`, etc.) that dynamically adjust their strategies and behaviors.
-- **Advanced Hazard Navigation:** The galaxy is fraught with dangers:
-  - 🕳️ **Black Holes & Trapping Black Holes:** Lethal gravity wells that destroy particles and planets alike.
-  - 🌩️ **Plasma Storms:** Slow-moving anomalies that scramble navigation and trap units.
-  - ⚛️ **Speed Zones:** Temporary gravitational anomalies that can either boost or slow down your fleets.
-  - 📡 **Gamma Ray Bursts:** Devastating directional beams that require careful timing.
-  - 🪐 **White Holes:** Charge them up to unleash massive particle shockwaves.
-- **Intelligent Route Planning:** The AI calculates safe waypoints to route its waves around dangerous hazards rather than flying blindly into black holes.
-- **Level Editor:** Build, play, and share your own custom galaxies with intuitive drag-and-drop tools and orbit configuration.
-- **Leaderboards:** Track your top-5 fastest completion times for every system.
+### 2. Controls
+- **Left-Click & Drag**: Draw a lasso around your particles to select a swarm. A counter will appear letting you know exactly how many units you have selected.
+- **Right-Click (Single)**: Send your selected particles to the clicked destination (an empty space, an enemy planet to attack, or a friendly planet to upgrade/defend).
+- **Right-Click (Double)**: Repeat your last command for the currently selected particles without having to re-select them.
+- **Escape**: Pause the game and bring up the menu.
 
-## ✨ What's New in v1.1.0
+### 3. Combat
+- When particles collide with enemy particles, they annihilate each other 1-to-1.
+- When particles strike an enemy planet, they deplete its health. If a planet's health reaches 0, it turns neutral. Send more particles to capture it!
+- Some enemy planets may have **Shields**. Shields absorb incoming particle damage entirely until they break. They slowly regenerate over time.
 
-- **🛡️ Shielded Planets:** A brand new map mechanic! Certain planets now generate protective shields over time. These shields intercept incoming particle damage before the planet's actual health is affected, adding an intense defensive layer to sieges.
-- **Improved Random Generation:** The random level generator now creates deadlier combinations (biased towards 2-3 overlapping hazards) and features Shielded Planets natively. Gamma Ray fuses are properly regulated to ensure fair but chaotic fights.
-- **Dynamic Tooltips:** Hover over any shielded planet to view its exact real-time shield point accumulation.
-- **Optimized UI:** Ranked top-5 run times displayed beautifully on menu tiles.
+## Hazards & Anomalies
 
-## 🚀 Getting Started
+The galaxy is a dangerous place. Keep an eye out for these cosmic anomalies:
+
+- **White Holes**: Giant cosmic batteries. If you send enough particles to charge a White Hole, it will detonate, showering you with a massive burst of free units! But beware: enemies can drain your charge by sending their own units.
+- **Trapping Black Holes**: These dark stars exert a massive gravitational pull. Any particle that strays too close will be sucked in and permanently trapped.
+- **Gamma Rays**: A devastating beam of pure energy that periodically sweeps across the map. It destroys any particles caught in its path. In some galaxies, it can even vaporize entire planets!
+- **Asteroid Showers**: Massive rocks occasionally drift through the system. They crush any particles they touch.
+- **Speed Zones**: Green nebulas that drastically accelerate any particles passing through them.
+- **Slow Zones**: Red nebulas that severely bog down particles caught in their dust.
+
+## The AI
+
+The AI Commanders you face are ruthless and calculating:
+- **Aggressive Flanking**: They will look for undefended flanks and attack your weakest planets.
+- **Back-capping**: If you send your entire army across the map, the AI will exploit the opening and attack your now-defenseless home.
+- **Consolidation**: The AI knows when to retreat and pool its forces if it is outnumbered.
+
+## Visuals & Audio
+- **Dynamic Audio System**: Alux2Win features a fully voiced, dynamic audio system that responds to your gameplay. You will hear distinct voice callouts for planet captures, shield damage, black hole traps, asteroid spawns, and gamma ray fires.
+- **Silky Smooth Rendering**: Built on PIXI.js, the game maintains a solid 60 FPS even with over 10,000 particles on screen, utilizing a highly optimized zero-allocation Spatial Hash for collision detection.
+
+## Development & Build
 
 ### Prerequisites
+- Node.js (v18+ recommended)
+- `npm` or `yarn`
 
-You need [Node.js](https://nodejs.org/) installed on your machine.
+### Installation & Running
+1. Clone the repository.
+2. Run `npm install` to install dependencies (Vite, PIXI.js, TypeScript).
+3. Run `npm run dev` to start the local development server.
+4. Open the provided localhost URL in your browser.
 
-### Installation
+### Scripts
+- `npm run dev`: Start dev server
+- `npm run build`: Compile TypeScript and build for production
+- `npm run preview`: Preview the production build
+- `npm run test`: Run the `vitest` automated testing suite
 
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-### Development
-
-Start the Vite development server:
-```bash
-npm run dev
-```
-
-### Production Build
-
-Build the project for production:
-```bash
-npm run build
-```
-You can then preview the build with:
-```bash
-npm run preview
-```
-
-## 🧠 AI Intelligence Overhaul
-
-LUX features a custom-built, highly dynamic AI system (`AIController`):
-- **Hazard Awareness:** The AI evaluates the flight path of every particle wave it sends. If the path crosses a lethal hazard, the AI will compute a detour waypoint to navigate around it.
-- **In-Flight Re-Evaluation:** When a planet changes hands, the AI re-evaluates all waves currently in flight toward that planet. Depending on the AI's sub-role and whether the wave is past the "point of no return," it may recall its units, press the attack, or redirect to a new target.
-- **Temporal Suppression:** The AI knows better than to launch a wave straight through an actively firing Gamma Ray Burst.
-
-## 🛠️ Tech Stack
-
-- **Engine:** [PixiJS v8](https://pixijs.com/) — High-performance 2D WebGL rendering.
-- **Language:** TypeScript — Fully typed architecture.
-- **Build Tool:** Vite — Lightning fast HMR and optimized builds.
-- **UI:** Custom DOM overlays integrated with the PixiJS canvas.
-
-## 📝 License
-
-All rights reserved.
+---
+*Created by Gavin Fischer-Keenan.*

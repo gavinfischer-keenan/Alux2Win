@@ -37,13 +37,14 @@ export class CombatSystem {
         // 2. Particle has a location target (move-to-point) and is within
         //    100px of that point — treat any planet nearby as engageable.
         const hasExplicitTarget = particle.targetPlanetId === planet.id;
-        const nearDestination = (() => {
-          if (particle.targetPlanetId) return false; // has a planet target, must match
-          if (particle.targetX === undefined || particle.targetY === undefined) return false;
+        let nearDestination = false;
+        if (!particle.targetPlanetId && particle.targetX !== undefined && particle.targetY !== undefined) {
           const ldx = particle.targetX - particle.x;
           const ldy = particle.targetY - particle.y;
-          return Math.sqrt(ldx * ldx + ldy * ldy) <= 100;
-        })();
+          if (ldx * ldx + ldy * ldy <= 10000) { // 100^2
+            nearDestination = true;
+          }
+        }
 
         if (!hasExplicitTarget && !nearDestination) {
           continue;

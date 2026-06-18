@@ -19,6 +19,8 @@ const COMBAT_PROXIMITY    = 20;
 const COMBAT_SPEED_FACTOR = 0.8;
 
 export class MovementSystem {
+  private _nearbyBuffer: ParticleData[] = [];
+
   update(dt: number, state: GameState, spatialHash: SpatialHash): void {
     const planets = state.planets;
 
@@ -115,8 +117,9 @@ export class MovementSystem {
     let aliX = 0, aliY = 0;
     let neighbours = 0;
 
-    const nearbyBoids = spatialHash.getNearby(p);
-    for (const other of nearbyBoids) {
+    const nearbyBoids = spatialHash.getNearby(p, this._nearbyBuffer);
+    for (let i = 0; i < nearbyBoids.length; i++) {
+      const other = nearbyBoids[i];
       if (other === p || !other.alive || other.faction !== p.faction || other.mode !== 'traveling') continue;
       const dx = p.x - other.x;
       const dy = p.y - other.y;
@@ -180,8 +183,9 @@ export class MovementSystem {
     // ---- Aggro force ----
     let aggroX = 0, aggroY = 0;
     let closestDistSq = AGGRO_RADIUS * AGGRO_RADIUS;
-    const nearby = spatialHash.getNearby(p);
-    for (const other of nearby) {
+    const nearby = spatialHash.getNearby(p, this._nearbyBuffer);
+    for (let i = 0; i < nearby.length; i++) {
+      const other = nearby[i];
       if (!other.alive || other.faction === p.faction || other.faction === 'neutral') continue;
       const odx = other.x - p.x;
       const ody = other.y - p.y;
@@ -244,8 +248,9 @@ export class MovementSystem {
     // ---- Aggro force ----
     let aggroX = 0, aggroY = 0;
     let closestDistSq = AGGRO_RADIUS * AGGRO_RADIUS;
-    const nearby = spatialHash.getNearby(p);
-    for (const other of nearby) {
+    const nearby = spatialHash.getNearby(p, this._nearbyBuffer);
+    for (let i = 0; i < nearby.length; i++) {
+      const other = nearby[i];
       if (!other.alive || other.faction === p.faction || other.faction === 'neutral') continue;
       const odx = other.x - p.x;
       const ody = other.y - p.y;
@@ -280,17 +285,19 @@ export class MovementSystem {
     let aggroY = 0;
     let closestDistSq = AGGRO_RADIUS * AGGRO_RADIUS;
     
-    const nearby = spatialHash.getNearby(p);
-    for (const other of nearby) {
-       if (!other.alive || other.faction === p.faction || other.faction === 'neutral') continue;
-       const dx = other.x - p.x;
-       const dy = other.y - p.y;
-       const dSq = dx * dx + dy * dy;
-       if (dSq < closestDistSq) {
-          closestDistSq = dSq;
-          aggroX = dx;
-          aggroY = dy;
-       }
+    // Aggro Check
+    const nearby = spatialHash.getNearby(p, this._nearbyBuffer);
+    for (let i = 0; i < nearby.length; i++) {
+      const other = nearby[i];
+      if (!other.alive || other.faction === p.faction || other.faction === 'neutral') continue;
+      const dx = other.x - p.x;
+      const dy = other.y - p.y;
+      const dSq = dx * dx + dy * dy;
+      if (dSq < closestDistSq) {
+        closestDistSq = dSq;
+        aggroX = dx;
+        aggroY = dy;
+      }
     }
     
     if (closestDistSq < AGGRO_RADIUS * AGGRO_RADIUS) {
