@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "name": "Portals 2",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "planets": [
+    {
+      "id": "player",
+      "x": 1798,
+      "y": 250,
+      "faction": "player",
+      "upgradeLevel": 1,
+      "startingParticles": 15,
+      "isOrbiting": false
+    },
+    {
+      "id": "enemy_a",
+      "x": 250,
+      "y": 1798,
+      "faction": "enemy_a",
+      "upgradeLevel": 1,
+      "startingParticles": 15,
+      "isOrbiting": false
+    },
+    {
+      "id": "n1",
+      "x": 1748,
+      "y": 700,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "n2",
+      "x": 1348,
+      "y": 300,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "n3",
+      "x": 1648,
+      "y": 1748,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "n4",
+      "x": 300,
+      "y": 400,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "n5",
+      "x": 1348,
+      "y": 1024,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "n6",
+      "x": 698,
+      "y": 1024,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "n7",
+      "x": 1024,
+      "y": 700,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "n8",
+      "x": 1024,
+      "y": 1350,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "center_n",
+      "x": 1024,
+      "y": 1024,
+      "faction": "neutral",
+      "upgradeLevel": 2,
+      "startingParticles": 30,
+      "isOrbiting": false
+    }
+  ],
+  "blackHoles": [],
+  "portals": [
+    {
+      "id": "pa1",
+      "x": 400,
+      "y": 1024,
+      "pairId": "pair_a",
+      "color": 2293640
+    },
+    {
+      "id": "pa2",
+      "x": 1648,
+      "y": 1024,
+      "pairId": "pair_a",
+      "color": 2293640
+    },
+    {
+      "id": "pb1",
+      "x": 1024,
+      "y": 350,
+      "pairId": "pair_b",
+      "color": 16744448
+    },
+    {
+      "id": "pb2",
+      "x": 1024,
+      "y": 1698,
+      "pairId": "pair_b",
+      "color": 16744448
+    }
+  ]
+}

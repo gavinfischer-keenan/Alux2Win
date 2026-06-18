@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "name": "Black Holes 2",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "planets": [
+    {
+      "id": "p_player",
+      "x": 1798,
+      "y": 250,
+      "faction": "player",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "p_enemy",
+      "x": 250,
+      "y": 1798,
+      "faction": "enemy_a",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "p_neutral_1",
+      "x": 1348,
+      "y": 400,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "p_neutral_2",
+      "x": 1698,
+      "y": 700,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "p_neutral_3",
+      "x": 648,
+      "y": 200,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "p_neutral_4",
+      "x": 1848,
+      "y": 1400,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "p_neutral_5",
+      "x": 1648,
+      "y": 1848,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "p_neutral_6",
+      "x": 200,
+      "y": 400,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "p_neutral_7",
+      "x": 948,
+      "y": 1750,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "p_neutral_8",
+      "x": 298,
+      "y": 1100,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "p_neutral_9",
+      "x": 1024,
+      "y": 300,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "p_neutral_10",
+      "x": 1024,
+      "y": 1748,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "center_n",
+      "x": 1024,
+      "y": 1024,
+      "faction": "neutral",
+      "upgradeLevel": 2,
+      "startingParticles": 30,
+      "isOrbiting": false
+    }
+  ],
+  "blackHoles": [],
+  "trappingBlackHoles": [
+    {
+      "id": "tbh1",
+      "x": 800,
+      "y": 1024,
+      "pullRadius": 300
+    },
+    {
+      "id": "tbh2",
+      "x": 1248,
+      "y": 1024,
+      "pullRadius": 300
+    }
+  ]
+}

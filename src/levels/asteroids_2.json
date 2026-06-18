@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "name": "Asteroids 2",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "planets": [
+    {
+      "id": "player_1",
+      "x": 1024,
+      "y": 300,
+      "faction": "player",
+      "upgradeLevel": 2,
+      "startingParticles": 15,
+      "isOrbiting": false
+    },
+    {
+      "id": "enemy_a_1",
+      "x": 1024,
+      "y": 1748,
+      "faction": "enemy_a",
+      "upgradeLevel": 2,
+      "startingParticles": 15,
+      "isOrbiting": false
+    },
+    {
+      "id": "n1",
+      "x": 1648,
+      "y": 700,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "n2",
+      "x": 1024,
+      "y": 700,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "n3",
+      "x": 400,
+      "y": 700,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "n4",
+      "x": 1748,
+      "y": 1024,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 12,
+      "isOrbiting": false
+    },
+    {
+      "id": "n5",
+      "x": 1024,
+      "y": 1024,
+      "faction": "neutral",
+      "upgradeLevel": 2,
+      "startingParticles": 20,
+      "isOrbiting": false
+    },
+    {
+      "id": "n6",
+      "x": 300,
+      "y": 1024,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 12,
+      "isOrbiting": false
+    },
+    {
+      "id": "n7",
+      "x": 1648,
+      "y": 1348,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "n8",
+      "x": 1024,
+      "y": 1348,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "n9",
+      "x": 400,
+      "y": 1348,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 10,
+      "isOrbiting": false
+    },
+    {
+      "id": "center_n",
+      "x": 1024,
+      "y": 1024,
+      "faction": "neutral",
+      "upgradeLevel": 2,
+      "startingParticles": 30,
+      "isOrbiting": false
+    }
+  ],
+  "blackHoles": [],
+  "asteroidConfig": {
+    "enabled": true
+  }
+}

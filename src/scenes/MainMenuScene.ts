@@ -25,6 +25,16 @@ import blackholes1Data from '../levels/blackholes_1.json';
 import whiteholes1Data from '../levels/whiteholes_1.json';
 import shielded1Data from '../levels/shielded/level_01.json';
 import shielded2Data from '../levels/shielded/level_02.json';
+import skirmish3Data from '../levels/skirmish_3.json';
+import plasmaStorm2Data from '../levels/plasma_storm_2.json';
+import asteroids2Data from '../levels/asteroids_2.json';
+import gammaRays2Data from '../levels/gamma_rays_2.json';
+import speedTraps2Data from '../levels/speed_traps_2.json';
+import portals2Data from '../levels/portals_2.json';
+import blackholes2Data from '../levels/blackholes_2.json';
+import whiteholes2Data from '../levels/whiteholes_2.json';
+import shielded3Data from '../levels/shielded/level_03.json';
+
 import { SettingsStore } from '../core/SettingsStore';
 import type { GameSettings } from '../core/SettingsStore';
 import { audioManager } from '../core/AudioManager';
@@ -243,15 +253,15 @@ export class MainMenuScene {
           tutorialWhiteholesData as LevelData,
           tutorialMovementData as LevelData,
         ], isTutorial: true },
-      { name: 'Normal',        desc: 'Balanced systems with no extreme anomalies. A true test of strategic fundamentals.', image: '/assets/galaxies/normal.png',    locked: false, tutorialId: 'normal',     levels: [tutorialNormalData as LevelData, skirmishData as LevelData, skirmishData2 as LevelData, ...(customGroups['Normal'] || [])], isTutorial: false },
-      { name: 'Plasma Storms', desc: 'Beware the volatile plasma fields. Units that enter will gradually lose health.', image: '/assets/galaxies/plasma.png',    locked: false, tutorialId: 'plasma',     levels: [tutorialPlasmaData as LevelData, plasmaStorm1Data as LevelData, ...(customGroups['Plasma Storms'] || [])], isTutorial: false },
-      { name: 'Asteroids',     desc: 'Asteroids fly through space killing all they touch except the most developed planets.', image: '/assets/galaxies/asteroid.png',  locked: false, tutorialId: 'asteroids',  levels: [tutorialAsteroidsData as LevelData, asteroids1Data as LevelData, ...(customGroups['Asteroids'] || [])], isTutorial: false },
-      { name: 'Gamma Rays',    desc: 'Intense bursts of radiation that frequently sweep the system, destroying caught units and planets.', image: '/assets/galaxies/nebula.png',    locked: false, tutorialId: 'gamma',      levels: [tutorialGammaData as LevelData, gammaRays1Data as LevelData, ...(customGroups['Gamma Rays'] || [])], isTutorial: false },
-      { name: 'Speed Traps',   desc: 'Areas of altered spacetime. Passing through these zones will drastically slow down units.', image: '/assets/galaxies/ice.png',       locked: false, tutorialId: 'speed',      levels: [tutorialSpeedData as LevelData, speedTraps1Data as LevelData, ...(customGroups['Speed Traps'] || [])], isTutorial: false },
-      { name: 'Portals',       desc: 'Instantaneous travel across the system. Send units into one portal to emerge at the exit.', image: '/assets/galaxies/lava.png',      locked: false, tutorialId: 'portals',    levels: [tutorialPortalsData as LevelData, portals1Data as LevelData, ...(customGroups['Portals'] || [])], isTutorial: false },
-      { name: 'Black Holes',   desc: 'Massive gravitational anomalies. They pull in and crush units that stray too close. There is no escape.', image: '/assets/galaxies/void.png',      locked: false, tutorialId: 'blackholes', levels: [tutorialBlackholesData as LevelData, blackholes1Data as LevelData, ...(customGroups['Black Holes'] || [])], isTutorial: false },
-      { name: 'White Holes',   desc: 'Sending units into the white hole rewards you with a valuable resource bounty.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: 'whiteholes', levels: [tutorialWhiteholesData as LevelData, whiteholes1Data as LevelData, ...(customGroups['White Holes'] || [])], isTutorial: false },
-      { name: 'Shielded Planets', desc: 'Master the art of defense. Shielded planets slowly generate a protective energy barrier over time that absorbs incoming attacks.', image: '/assets/galaxies/normal.png', locked: false, tutorialId: 'shield', levels: [shielded1Data as LevelData, shielded2Data as LevelData, ...(customGroups['Shielded Planets'] || [])], isTutorial: false },
+      { name: 'Normal',        desc: 'Balanced systems with no extreme anomalies. A true test of strategic fundamentals.', image: '/assets/galaxies/normal.png',    locked: false, tutorialId: 'normal',     levels: [tutorialNormalData as LevelData, skirmishData as LevelData, skirmishData2 as LevelData, skirmish3Data as LevelData, ...(customGroups['Normal'] || [])], isTutorial: false },
+      { name: 'Plasma Storms', desc: 'Beware the volatile plasma fields. Units that enter will gradually lose health.', image: '/assets/galaxies/plasma.png',    locked: false, tutorialId: 'plasma',     levels: [tutorialPlasmaData as LevelData, plasmaStorm1Data as LevelData, plasmaStorm2Data as LevelData, ...(customGroups['Plasma Storms'] || [])], isTutorial: false },
+      { name: 'Asteroids',     desc: 'Asteroids fly through space killing all they touch except the most developed planets.', image: '/assets/galaxies/asteroid.png',  locked: false, tutorialId: 'asteroids',  levels: [tutorialAsteroidsData as LevelData, asteroids1Data as LevelData, asteroids2Data as LevelData, ...(customGroups['Asteroids'] || [])], isTutorial: false },
+      { name: 'Gamma Rays',    desc: 'Intense bursts of radiation that frequently sweep the system, destroying caught units and planets.', image: '/assets/galaxies/nebula.png',    locked: false, tutorialId: 'gamma',      levels: [tutorialGammaData as LevelData, gammaRays1Data as LevelData, gammaRays2Data as LevelData, ...(customGroups['Gamma Rays'] || [])], isTutorial: false },
+      { name: 'Speed Traps',   desc: 'Areas of altered spacetime. Passing through these zones will drastically slow down units.', image: '/assets/galaxies/ice.png',       locked: false, tutorialId: 'speed',      levels: [tutorialSpeedData as LevelData, speedTraps1Data as LevelData, speedTraps2Data as LevelData, ...(customGroups['Speed Traps'] || [])], isTutorial: false },
+      { name: 'Portals',       desc: 'Instantaneous travel across the system. Send units into one portal to emerge at the exit.', image: '/assets/galaxies/lava.png',      locked: false, tutorialId: 'portals',    levels: [tutorialPortalsData as LevelData, portals1Data as LevelData, portals2Data as LevelData, ...(customGroups['Portals'] || [])], isTutorial: false },
+      { name: 'Black Holes',   desc: 'Massive gravitational anomalies. They pull in and crush units that stray too close. There is no escape.', image: '/assets/galaxies/void.png',      locked: false, tutorialId: 'blackholes', levels: [tutorialBlackholesData as LevelData, blackholes1Data as LevelData, blackholes2Data as LevelData, ...(customGroups['Black Holes'] || [])], isTutorial: false },
+      { name: 'White Holes',   desc: 'Sending units into the white hole rewards you with a valuable resource bounty.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: 'whiteholes', levels: [tutorialWhiteholesData as LevelData, whiteholes1Data as LevelData, whiteholes2Data as LevelData, ...(customGroups['White Holes'] || [])], isTutorial: false },
+      { name: 'Shielded Planets', desc: 'Master the art of defense. Shielded planets slowly generate a protective energy barrier over time that absorbs incoming attacks.', image: '/assets/galaxies/normal.png', locked: false, tutorialId: 'shield', levels: [shielded1Data as LevelData, shielded2Data as LevelData, shielded3Data as LevelData, ...(customGroups['Shielded Planets'] || [])], isTutorial: false },
       { name: 'Custom',        desc: 'Explore custom user-generated systems and experimental battlegrounds.', image: '/assets/galaxies/normal.png',    locked: false, tutorialId: '',           levels: customGroups['Custom'] || [], isTutorial: false },
       { name: 'Random',        desc: 'An unpredictable, procedurally generated system. Every battle is unique.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: '',           levels: [], isTutorial: false },
     ];
