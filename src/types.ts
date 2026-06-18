@@ -153,6 +153,8 @@ export interface SpeedZoneDef {
   x: number;
   y: number;
   radius: number;
+  width?: number;  // Half-width (defaults to radius)
+  height?: number; // Half-height (defaults to radius)
   type: SpeedZoneType;
 }
 

@@ -32,8 +32,10 @@ export class SpeedZoneSystem {
         const dx = Math.abs(p.x - zone.x);
         const dy = Math.abs(p.y - zone.y);
 
-        // Treat zone.radius as half-width and half-height for the box
-        if (dx <= zone.radius && dy <= zone.radius) {
+        // Treat zone.radius or width/height as half-width and half-height for the box
+        const hw = zone.width ?? zone.radius;
+        const hh = zone.height ?? zone.radius;
+        if (dx <= hw && dy <= hh) {
           if (zone.type === 'speedup') {
             p.speedMod = 4.0; // 2x what it was previously (2.0)
             if (p.faction === 'player') {

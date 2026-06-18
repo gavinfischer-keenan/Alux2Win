@@ -274,20 +274,37 @@ export class PropertiesPanel {
     typeRow.appendChild(makeTypeBtn('🐌 Slow Down', 'slowdown', '#ef4444'));
     this.element.appendChild(typeRow);
 
-    // Radius slider
-    this.element.appendChild(this.buildLabel('Radius'));
-    const radiusWrapper = document.createElement('div');
-    radiusWrapper.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
-    const radiusVal = document.createElement('span');
-    radiusVal.style.cssText = 'font-size:11px; color: rgba(255,255,255,0.5); text-align:right;';
-    radiusVal.textContent = String(sz.radius);
-    const radiusSlider = this.buildSlider(sz.radius, 50, 400, (v) => {
-      radiusVal.textContent = String(v);
-      if (this.currentSpeedZoneId) this.onSpeedZoneChange(this.currentSpeedZoneId, { radius: v });
+    // Width slider
+    const hw = sz.width ?? sz.radius;
+    this.element.appendChild(this.buildLabel('Width (Radius X)'));
+    const widthWrapper = document.createElement('div');
+    widthWrapper.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
+    const widthVal = document.createElement('span');
+    widthVal.style.cssText = 'font-size:11px; color: rgba(255,255,255,0.5); text-align:right;';
+    widthVal.textContent = String(hw);
+    const widthSlider = this.buildSlider(hw, 20, 800, (v) => {
+      widthVal.textContent = String(v);
+      if (this.currentSpeedZoneId) this.onSpeedZoneChange(this.currentSpeedZoneId, { width: v });
     });
-    radiusWrapper.appendChild(radiusSlider);
-    radiusWrapper.appendChild(radiusVal);
-    this.element.appendChild(radiusWrapper);
+    widthWrapper.appendChild(widthSlider);
+    widthWrapper.appendChild(widthVal);
+    this.element.appendChild(widthWrapper);
+
+    // Height slider
+    const hh = sz.height ?? sz.radius;
+    this.element.appendChild(this.buildLabel('Height (Radius Y)'));
+    const heightWrapper = document.createElement('div');
+    heightWrapper.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
+    const heightVal = document.createElement('span');
+    heightVal.style.cssText = 'font-size:11px; color: rgba(255,255,255,0.5); text-align:right;';
+    heightVal.textContent = String(hh);
+    const heightSlider = this.buildSlider(hh, 20, 800, (v) => {
+      heightVal.textContent = String(v);
+      if (this.currentSpeedZoneId) this.onSpeedZoneChange(this.currentSpeedZoneId, { height: v });
+    });
+    heightWrapper.appendChild(heightSlider);
+    heightWrapper.appendChild(heightVal);
+    this.element.appendChild(heightWrapper);
 
     // Spacer
     const spacer = document.createElement('div');

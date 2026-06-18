@@ -49,7 +49,9 @@ export class SpeedZoneRenderer {
     g.clear();
 
     for (const zone of zones) {
-      const { x, y, radius, type, pulseAngle } = zone;
+      const { x, y, radius, type, pulseAngle, width, height } = zone;
+      const hw = width ?? radius;
+      const hh = height ?? radius;
 
       // Choose colour palette based on zone type.
       const isSpeedup = type === 'speedup';
@@ -57,14 +59,14 @@ export class SpeedZoneRenderer {
       const cCore  = isSpeedup ? SPEEDUP_CORE  : SLOWDOWN_CORE;
 
       // -- Box Background -----------------------------------------------
-      g.rect(x - radius, y - radius, radius * 2, radius * 2)
+      g.rect(x - hw, y - hh, hw * 2, hh * 2)
         .fill({ color: cOuter, alpha: 0.15 })
         .stroke({ color: cCore, width: 2, alpha: 0.6 });
 
       // -- Wavy Lines (flowing horizontal) -----------------------------
       const numLines = 6;
-      const spacing = (radius * 2) / numLines;
-      const amplitude = radius * 0.08;
+      const spacing = (hh * 2) / numLines;
+      const amplitude = hh * 0.08;
       const frequency = 0.05;
       
       // Speed up zones flow faster and rightwards, slow down flow slower and leftwards
@@ -72,14 +74,14 @@ export class SpeedZoneRenderer {
       const phaseOffset = pulseAngle * flowSpeed;
 
       for (let i = 0; i < numLines; i++) {
-        const lineY = (y - radius) + spacing * (i + 0.5);
-        const startX = x - radius;
+        const lineY = (y - hh) + spacing * (i + 0.5);
+        const startX = x - hw;
         
         g.moveTo(startX, lineY + Math.sin(phaseOffset + startX * frequency) * amplitude);
         
         // draw smooth wave across the box
         const segments = 15;
-        const segmentWidth = (radius * 2) / segments;
+        const segmentWidth = (hw * 2) / segments;
         for (let j = 1; j <= segments; j++) {
           const px = startX + j * segmentWidth;
           const py = lineY + Math.sin(phaseOffset + px * frequency) * amplitude;

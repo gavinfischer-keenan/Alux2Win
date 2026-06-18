@@ -389,20 +389,23 @@ export class EditorScene {
     const isSelected = sz.id === this.editState.selectedEntityId;
     const color = sz.type === 'speedup' ? 0x22c55e : 0xef4444;
 
-    // Zone circle fill
-    gfx.circle(sz.x, sz.y, sz.radius);
+    const hw = sz.width ?? sz.radius;
+    const hh = sz.height ?? sz.radius;
+
+    // Zone rectangular fill
+    gfx.rect(sz.x - hw, sz.y - hh, hw * 2, hh * 2);
     gfx.fill({ color, alpha: 0.06 });
-    // Zone circle stroke
-    gfx.circle(sz.x, sz.y, sz.radius);
+    // Zone rectangular stroke
+    gfx.rect(sz.x - hw, sz.y - hh, hw * 2, hh * 2);
     gfx.stroke({ color, alpha: 0.5, width: isSelected ? 2.5 : 1.5 });
 
     // Center marker
     gfx.circle(sz.x, sz.y, 8);
     gfx.fill({ color, alpha: 0.7 });
 
-    // Selection ring
+    // Selection box
     if (isSelected) {
-      gfx.circle(sz.x, sz.y, sz.radius + 8);
+      gfx.rect(sz.x - hw - 8, sz.y - hh - 8, hw * 2 + 16, hh * 2 + 16);
       gfx.stroke({ color: 0xffee00, alpha: 0.9, width: 2 });
     }
   }
@@ -938,6 +941,8 @@ export class EditorScene {
     const sz = this.editState.speedZones.get(id);
     if (!sz) return;
     if (changes.radius !== undefined) sz.radius = changes.radius;
+    if (changes.width  !== undefined) sz.width  = changes.width;
+    if (changes.height !== undefined) sz.height = changes.height;
     if (changes.type   !== undefined) sz.type   = changes.type as SpeedZoneType;
   }
 
@@ -978,12 +983,16 @@ export class EditorScene {
       if (d <= r && d < bestDist) { bestDist = d; best = id; }
     });
 
-    // Test speed zones — click within radius
+    // Test speed zones — click within rectangular bounds
     this.editState.speedZones.forEach((sz, id) => {
-      const dx = sz.x - wx;
-      const dy = sz.y - wy;
-      const d  = Math.sqrt(dx * dx + dy * dy);
-      if (d <= sz.radius && d < bestDist) { bestDist = d; best = id; }
+      const hw = sz.width ?? sz.radius;
+      const hh = sz.height ?? sz.radius;
+      const dx = Math.abs(wx - sz.x);
+      const dy = Math.abs(wy - sz.y);
+      if (dx <= hw && dy <= hh) {
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < bestDist) { bestDist = d; best = id; }
+      }
     });
 
     // Test portals — click within 45px
@@ -1066,7 +1075,15 @@ export class EditorScene {
 
     const speedZones: SpeedZoneDef[] = [];
     this.editState.speedZones.forEach(sz => {
-      speedZones.push({ id: sz.id, x: sz.x, y: sz.y, radius: sz.radius, type: sz.type });
+      speedZones.push({
+        id: sz.id,
+        x: sz.x,
+        y: sz.y,
+        radius: sz.radius,
+        width: sz.width,
+        height: sz.height,
+        type: sz.type,
+      });
     });
 
     const portals: PortalDef[] = [];
@@ -1435,6 +1452,8 @@ export class EditorScene {
         this.editState.speedZones.set(sz.id, {
           ...defaultSpeedZone(sz.id, sz.x, sz.y),
           radius: sz.radius,
+          width: sz.width,
+          height: sz.height,
           type: sz.type,
         });
         const num = parseInt(sz.id.replace(/\\D/g, ''), 10);
