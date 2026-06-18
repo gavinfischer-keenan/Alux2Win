@@ -1560,8 +1560,6 @@ export class MainMenuScene {
   }
 
   private buildTopTimesBlock(top: any[], appendTo: HTMLElement): void {
-    if (top.length === 0) return;
-
     const wrapper = document.createElement('div');
     wrapper.style.cssText = `
       margin-top: 6px;
@@ -1581,30 +1579,43 @@ export class MainMenuScene {
     `;
     wrapper.appendChild(header);
 
-    const entries = top.slice(0, 5);
-    entries.forEach((entry, idx) => {
-      const rank = idx + 1;
+    if (top.length === 0) {
       const row = document.createElement('div');
-      row.textContent = `${rank}. ${HighScoreStore.formatTime(entry.bestTime)}`;
-      if (rank === 1) {
-        row.style.cssText = `
-          font-family: 'Rajdhani', sans-serif;
-          font-size: 0.72rem;
-          font-weight: 700;
-          color: rgba(255,215,0,0.95);
-          letter-spacing: 0.05em;
-        `;
-      } else {
-        row.style.cssText = `
-          font-family: 'Rajdhani', sans-serif;
-          font-size: 0.65rem;
-          font-weight: 400;
-          color: rgba(255,255,255,0.4);
-          letter-spacing: 0.05em;
-        `;
-      }
+      row.textContent = `1. --:--`;
+      row.style.cssText = `
+        font-family: 'Rajdhani', sans-serif;
+        font-size: 0.65rem;
+        font-weight: 400;
+        color: rgba(255,255,255,0.2);
+        letter-spacing: 0.05em;
+      `;
       wrapper.appendChild(row);
-    });
+    } else {
+      const entries = top.slice(0, 5);
+      entries.forEach((entry, idx) => {
+        const rank = idx + 1;
+        const row = document.createElement('div');
+        row.textContent = `${rank}. ${HighScoreStore.formatTime(entry.bestTime)}`;
+        if (rank === 1) {
+          row.style.cssText = `
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: rgba(255,215,0,0.95);
+            letter-spacing: 0.05em;
+          `;
+        } else {
+          row.style.cssText = `
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.65rem;
+            font-weight: 400;
+            color: rgba(255,255,255,0.4);
+            letter-spacing: 0.05em;
+          `;
+        }
+        wrapper.appendChild(row);
+      });
+    }
 
     appendTo.appendChild(wrapper);
   }
