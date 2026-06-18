@@ -63,6 +63,20 @@ export class MainMenuScene {
 
   show(): void {
     this.element.style.display = 'flex';
+    // Ensure the main card is visible (guard against leftover panel transitions)
+    if (this._mainCard) {
+      this._mainCard.style.opacity = '1';
+      this._mainCard.style.transform = 'translateX(0)';
+      this._mainCard.style.pointerEvents = 'auto';
+    }
+    // Close any lingering sub-panels
+    if (this.systemsPanel) {
+      this.systemsPanel.remove();
+      this.systemsPanel = null;
+    }
+    if (this.settingsPanel) {
+      this.settingsPanel.style.display = 'none';
+    }
     // Stagger-animate children
     const children = this.element.querySelectorAll<HTMLElement>('.menu-anim-child');
     children.forEach((child, i) => {
@@ -93,7 +107,7 @@ export class MainMenuScene {
       position: absolute;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      display: flex;
+      display: none;
       flex-direction: column;
       align-items: center;
       justify-content: center;
