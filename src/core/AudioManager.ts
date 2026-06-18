@@ -20,6 +20,7 @@ class AudioManager {
   private _shieldDamageBuffer: AudioBuffer | null = null;
   private _blackholeTrapBuffer: AudioBuffer | null = null;
   private _asteroidEnterBuffer: AudioBuffer | null = null;
+  private _gammaRayFireBuffer: AudioBuffer | null = null;
 
   // ── Init ─────────────────────────────────────────────────
 
@@ -78,6 +79,15 @@ class AudioManager {
       this._asteroidEnterBuffer = await this._ctx.decodeAudioData(arrayBuffer);
     } catch (err) {
       console.warn('Failed to load asteroid enter audio', err);
+    }
+
+    // Load gamma ray fire MP3
+    try {
+      const response = await fetch('/assets/audio/gamma_ray_fire.mp3');
+      const arrayBuffer = await response.arrayBuffer();
+      this._gammaRayFireBuffer = await this._ctx.decodeAudioData(arrayBuffer);
+    } catch (err) {
+      console.warn('Failed to load gamma ray fire audio', err);
     }
 
     if (this._ctx.state === 'suspended') {
@@ -530,6 +540,23 @@ class AudioManager {
 
     const source = ctx.createBufferSource();
     source.buffer = this._asteroidEnterBuffer;
+    
+    const g = ctx.createGain();
+    g.gain.value = 1.0;
+    source.connect(g);
+    g.connect(master);
+    
+    source.start();
+  }
+
+  /** Played when the Gamma Ray fires. */
+  playGammaRayFire(): void {
+    const ctx = this._ctx;
+    const master = this._masterGain;
+    if (!ctx || !master || !this._gammaRayFireBuffer) return;
+
+    const source = ctx.createBufferSource();
+    source.buffer = this._gammaRayFireBuffer;
     
     const g = ctx.createGain();
     g.gain.value = 1.0;

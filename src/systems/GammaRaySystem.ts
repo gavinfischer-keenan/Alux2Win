@@ -17,6 +17,7 @@ import {
   PLANET_RADIUS,
   FACTION_COLORS,
 } from '../types';
+import { audioManager } from '../core/AudioManager';
 
 // Maximum retries when generating a path that hits at least one planet.
 const MAX_PATH_RETRIES = 50;
@@ -80,6 +81,7 @@ export class GammaRaySystem {
       }
       gr.firing       = true;
       gr.fireProgress = 0;
+      audioManager.playGammaRayFire();
     }
   }
 
