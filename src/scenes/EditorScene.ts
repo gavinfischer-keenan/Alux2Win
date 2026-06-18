@@ -360,7 +360,12 @@ export class EditorScene {
 
     // Pull radius (influence zone)
     gfx.circle(bh.x, bh.y, bh.pullRadius);
-    gfx.stroke({ color: 0x9c27b0, alpha: 0.18, width: 1 });
+    if (isSelected) {
+      gfx.fill({ color: 0x9c27b0, alpha: 0.06 });
+      gfx.stroke({ color: 0xe040fb, alpha: 0.6, width: 2 });
+    } else {
+      gfx.stroke({ color: 0x9c27b0, alpha: 0.22, width: 1.2 });
+    }
 
     // Core swirl rings
     [1.0, 0.75, 0.5, 0.3].forEach((scale, i) => {
@@ -428,12 +433,15 @@ export class EditorScene {
   private drawTrappingBH(gfx: Graphics, tbh: TrappingBlackHoleData): void {
     const isSelected = tbh.id === this.editState.selectedEntityId;
 
-    // Pull radius zone fill
+    // Pull radius zone fill & stroke
     gfx.circle(tbh.x, tbh.y, tbh.pullRadius);
-    gfx.fill({ color: 0x000000, alpha: 0.12 });
-    // Pull radius zone stroke
-    gfx.circle(tbh.x, tbh.y, tbh.pullRadius);
-    gfx.stroke({ color: 0x6600cc, alpha: 0.4, width: 1 });
+    if (isSelected) {
+      gfx.fill({ color: 0x9933ff, alpha: 0.06 });
+      gfx.stroke({ color: 0xd500f9, alpha: 0.6, width: 2 });
+    } else {
+      gfx.fill({ color: 0x000000, alpha: 0.12 });
+      gfx.stroke({ color: 0x6600cc, alpha: 0.35, width: 1.2 });
+    }
 
     // Core fill
     gfx.circle(tbh.x, tbh.y, 28);
