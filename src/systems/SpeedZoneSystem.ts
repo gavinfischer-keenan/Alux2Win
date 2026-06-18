@@ -42,6 +42,9 @@ export class SpeedZoneSystem {
           } else {
             // 'slowdown'
             p.speedMod = 0.3;
+            if (p.faction === 'player') {
+              audioManager.playSlowZoneEnter();
+            }
           }
           break; // First zone wins; skip remaining zones.
         }
