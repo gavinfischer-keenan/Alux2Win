@@ -11,6 +11,7 @@
 
 import type { GameState, ParticleData } from '../types';
 import { PARTICLE_SPEED } from '../types';
+import { audioManager } from '../core/AudioManager';
 
 export class WhiteHoleSystem {
   // ---- Public entry point -------------------------------------------------
@@ -75,8 +76,12 @@ export class WhiteHoleSystem {
     }
   }
 
-  private _explode(whIndex: number, state: GameState): void {
-    const wh = state.whiteHoles[whIndex];
+  private _explode(index: number, state: GameState): void {
+    const wh = state.whiteHoles[index];
+    if (!wh) return;
+
+    audioManager.playWhiteHoleExplosion();
+
     wh.exploded = true;
 
     // Spawn 300 particles for the owning faction fanning out from the
