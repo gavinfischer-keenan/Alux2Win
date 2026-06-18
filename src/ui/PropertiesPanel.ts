@@ -57,6 +57,14 @@ export class PropertiesPanel {
       overflow-y: auto;
       font-family: 'Rajdhani', sans-serif;
     `;
+    
+    // Stop events from bubbling down to the canvas
+    panel.addEventListener('mousedown', (e) => e.stopPropagation());
+    panel.addEventListener('click', (e) => e.stopPropagation());
+    panel.addEventListener('wheel', (e) => e.stopPropagation());
+    panel.addEventListener('dblclick', (e) => e.stopPropagation());
+    panel.addEventListener('contextmenu', (e) => e.stopPropagation());
+
     return panel;
   }
 

@@ -22,11 +22,11 @@ const TOOLS: ToolDef[] = [
   { id: 'select',           label: 'Select',        title: 'Select / Move (S)' },
   { id: 'place_planet',     label: 'Planet',        title: 'Place Planet (P)' },
   { id: 'place_blackhole',  label: 'Black Hole',    title: 'Place Black Hole (B)' },
-  { id: 'place_speedzone',  label: 'Speed Zone',    title: 'Place Speed Zone (Z)' },
-  { id: 'place_portal',     label: 'Portal',        title: 'Place Portal (O)' },
-  { id: 'place_trappingbh', label: 'Trapping BH',   title: 'Place Trapping Black Hole (T)' },
-  { id: 'place_whitehole',  label: 'White Hole',    title: 'Place White Hole (H)' },
-  { id: 'delete',           label: 'Delete',        title: 'Delete Entity (X)' },
+  { id: 'place_speedzone',  label: 'Speed Zone',          title: 'Place Speed Zone (Z)' },
+  { id: 'place_portal',     label: 'Portal',              title: 'Place Portal (O)' },
+  { id: 'place_trappingbh', label: 'Trapping Black Hole', title: 'Place Trapping Black Hole (T)' },
+  { id: 'place_whitehole',  label: 'White Hole',          title: 'Place White Hole (H)' },
+  { id: 'delete',           label: 'Delete',              title: 'Delete Entity (X)' },
 ];
 
 export class EditorSidebar {
@@ -70,6 +70,13 @@ export class EditorSidebar {
       gap: 4px;
       pointer-events: auto;
     `;
+
+    // Stop events from bubbling down to the canvas
+    sidebar.addEventListener('mousedown', (e) => e.stopPropagation());
+    sidebar.addEventListener('click', (e) => e.stopPropagation());
+    sidebar.addEventListener('wheel', (e) => e.stopPropagation());
+    sidebar.addEventListener('dblclick', (e) => e.stopPropagation());
+    sidebar.addEventListener('contextmenu', (e) => e.stopPropagation());
 
     // ── Back button (top) ───────────────────────────────────
     const backBtn = this.createIconBtn('←', 'Back to Menu', '#78909c');
