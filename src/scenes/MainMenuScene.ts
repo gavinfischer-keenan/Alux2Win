@@ -50,6 +50,9 @@ export class MainMenuScene {
   private settingsPanel: HTMLElement | null = null;
   private systemsPanel: HTMLElement | null = null;
   private _mainCard: HTMLElement | null = null;
+  private _scrollContainer: HTMLElement | null = null;
+  private rootGalaxies: any[] = [];
+  private currentCategoryList: any[] | null = null;
 
   onPlay: (levelData: LevelData, isTutorial?: boolean, tutorialId?: string) => void = () => {};
   onOpenEditor: () => void = () => {};
@@ -247,6 +250,7 @@ export class MainMenuScene {
       padding: 10px 10px 30px 10px;
       width: 100%;
     `;
+    this._scrollContainer = scrollContainer;
 
     const customLevels = LevelStore.loadLevels();
     const customGroups: Record<string, LevelData[]> = {};
@@ -255,6 +259,18 @@ export class MainMenuScene {
       if (!customGroups[cat]) customGroups[cat] = [];
       customGroups[cat].push(level);
     });
+
+    const singleHazards = [
+      { name: 'Plasma Storms', desc: 'Beware the volatile plasma fields. Units that enter will gradually lose health.', image: '/assets/galaxies/plasma.png',    locked: false, tutorialId: 'plasma',     levels: [tutorialPlasmaData as LevelData, plasmaStorm1Data as LevelData, plasmaStorm2Data as LevelData, ...(customGroups['Plasma Storms'] || [])], isTutorial: false },
+      { name: 'Asteroids',     desc: 'Asteroids fly through space killing all they touch except the most developed planets. Big Rock Bad', image: '/assets/galaxies/asteroid.png',  locked: false, tutorialId: 'asteroids',  levels: [tutorialAsteroidsData as LevelData, asteroids1Data as LevelData, asteroids2Data as LevelData, ...(customGroups['Asteroids'] || [])], isTutorial: false },
+      { name: 'Gamma Rays',    desc: 'Intense bursts of radiation that frequently sweep the system, destroying caught units and planets.', image: '/assets/galaxies/nebula.png',    locked: false, tutorialId: 'gamma',      levels: [tutorialGammaData as LevelData, gammaRays1Data as LevelData, gammaRays2Data as LevelData, ...(customGroups['Gamma Rays'] || [])], isTutorial: false },
+      { name: 'Speed Traps',   desc: 'Areas of altered spacetime. Passing through these zones will drastically slow down OR SPEED UP units.', image: '/assets/galaxies/ice.png',       locked: false, tutorialId: 'speed',      levels: [tutorialSpeedData as LevelData, speedTraps1Data as LevelData, speedTraps2Data as LevelData, ...(customGroups['Speed Traps'] || [])], isTutorial: false },
+      { name: 'Portals',       desc: 'Instantaneous travel across the system. Send units into one portal to emerge at the exit.', image: '/assets/galaxies/lava.png',      locked: false, tutorialId: 'portals',    levels: [tutorialPortalsData as LevelData, portals1Data as LevelData, portals2Data as LevelData, ...(customGroups['Portals'] || [])], isTutorial: false },
+      { name: 'Black Holes',   desc: 'Massive gravitational anomalies. They pull in and crush units that stray too close. There is no escape.', image: '/assets/galaxies/void.png',      locked: false, tutorialId: 'blackholes', levels: [tutorialBlackholesData as LevelData, blackholes1Data as LevelData, blackholes2Data as LevelData, ...(customGroups['Black Holes'] || [])], isTutorial: false },
+      { name: 'White Holes',   desc: 'Sending units into the white hole rewards you with a valuable resource bounty.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: 'whiteholes', levels: [tutorialWhiteholesData as LevelData, whiteholes1Data as LevelData, whiteholes2Data as LevelData, ...(customGroups['White Holes'] || [])], isTutorial: false },
+      { name: 'Shielded Planets', desc: 'Master the art of defense. Shielded planets slowly generate a protective energy barrier over time that absorbs incoming attacks.', image: '/assets/galaxies/normal.png', locked: false, tutorialId: 'shield', levels: [shielded1Data as LevelData, shielded2Data as LevelData, shielded3Data as LevelData, ...(customGroups['Shielded Planets'] || [])], isTutorial: false },
+      { name: 'Fog of War',    desc: 'The galaxy is shrouded in darkness. Upgrading your planets expands your limited vision.', image: '/assets/galaxies/nebula.png', locked: false, tutorialId: 'fogofwar', levels: [tutorialFogOfWarData as LevelData, fogOfWar1Data as LevelData, ...(customGroups['Fog of War'] || [])], isTutorial: false },
+    ];
 
     const galaxies = [
       { name: 'Tutorial',      desc: 'Learn the basics of fleet command and cosmic hazards.', image: '/assets/galaxies/tutorial.png',  locked: false, tutorialId: 'commander', levels: [
@@ -269,21 +285,82 @@ export class MainMenuScene {
           tutorialWhiteholesData as LevelData,
           tutorialMovementData as LevelData,
         ], isTutorial: true },
-      { name: 'Normal',        desc: 'Balanced systems with no extreme anomalies. A true test of strategic fundamentals...but beware black holes.', image: '/assets/galaxies/normal.png',    locked: false, tutorialId: 'normal',     levels: [tutorialNormalData as LevelData, skirmishData as LevelData, skirmishData2 as LevelData, skirmish3Data as LevelData, ...(customGroups['Normal'] || [])], isTutorial: false },
-      { name: 'Plasma Storms', desc: 'Beware the volatile plasma fields. Units that enter will gradually lose health.', image: '/assets/galaxies/plasma.png',    locked: false, tutorialId: 'plasma',     levels: [tutorialPlasmaData as LevelData, plasmaStorm1Data as LevelData, plasmaStorm2Data as LevelData, ...(customGroups['Plasma Storms'] || [])], isTutorial: false },
-      { name: 'Asteroids',     desc: 'Asteroids fly through space killing all they touch except the most developed planets. Big Rock Bad', image: '/assets/galaxies/asteroid.png',  locked: false, tutorialId: 'asteroids',  levels: [tutorialAsteroidsData as LevelData, asteroids1Data as LevelData, asteroids2Data as LevelData, ...(customGroups['Asteroids'] || [])], isTutorial: false },
-      { name: 'Gamma Rays',    desc: 'Intense bursts of radiation that frequently sweep the system, destroying caught units and planets.', image: '/assets/galaxies/nebula.png',    locked: false, tutorialId: 'gamma',      levels: [tutorialGammaData as LevelData, gammaRays1Data as LevelData, gammaRays2Data as LevelData, ...(customGroups['Gamma Rays'] || [])], isTutorial: false },
-      { name: 'Speed Traps',   desc: 'Areas of altered spacetime. Passing through these zones will drastically slow down OR SPEED UP units.', image: '/assets/galaxies/ice.png',       locked: false, tutorialId: 'speed',      levels: [tutorialSpeedData as LevelData, speedTraps1Data as LevelData, speedTraps2Data as LevelData, ...(customGroups['Speed Traps'] || [])], isTutorial: false },
-      { name: 'Portals',       desc: 'Instantaneous travel across the system. Send units into one portal to emerge at the exit.', image: '/assets/galaxies/lava.png',      locked: false, tutorialId: 'portals',    levels: [tutorialPortalsData as LevelData, portals1Data as LevelData, portals2Data as LevelData, ...(customGroups['Portals'] || [])], isTutorial: false },
-      { name: 'Black Holes',   desc: 'Massive gravitational anomalies. They pull in and crush units that stray too close. There is no escape.', image: '/assets/galaxies/void.png',      locked: false, tutorialId: 'blackholes', levels: [tutorialBlackholesData as LevelData, blackholes1Data as LevelData, blackholes2Data as LevelData, ...(customGroups['Black Holes'] || [])], isTutorial: false },
-      { name: 'White Holes',   desc: 'Sending units into the white hole rewards you with a valuable resource bounty.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: 'whiteholes', levels: [tutorialWhiteholesData as LevelData, whiteholes1Data as LevelData, whiteholes2Data as LevelData, ...(customGroups['White Holes'] || [])], isTutorial: false },
-      { name: 'Shielded Planets', desc: 'Master the art of defense. Shielded planets slowly generate a protective energy barrier over time that absorbs incoming attacks.', image: '/assets/galaxies/normal.png', locked: false, tutorialId: 'shield', levels: [shielded1Data as LevelData, shielded2Data as LevelData, shielded3Data as LevelData, ...(customGroups['Shielded Planets'] || [])], isTutorial: false },
-      { name: 'Fog of War',    desc: 'The galaxy is shrouded in darkness. Upgrading your planets expands your limited vision.', image: '/assets/galaxies/nebula.png', locked: false, tutorialId: 'fogofwar', levels: [tutorialFogOfWarData as LevelData, fogOfWar1Data as LevelData, ...(customGroups['Fog of War'] || [])], isTutorial: false },
+      { name: 'Intro Missions', desc: 'Balanced systems with no extreme anomalies. A true test of strategic fundamentals...but beware black holes.', image: '/assets/galaxies/normal.png',    locked: false, tutorialId: 'normal',     levels: [tutorialNormalData as LevelData, skirmishData as LevelData, skirmishData2 as LevelData, skirmish3Data as LevelData, ...(customGroups['Normal'] || [])], isTutorial: false },
+      { name: 'Single Hazard Universes', desc: 'Galaxies featuring exactly one extreme cosmic anomaly to master.', image: '/assets/galaxies/nebula.png', locked: false, tutorialId: '', levels: [], isTutorial: false, subcategories: singleHazards },
+      { name: 'Dual Hazard Universes', desc: 'Combine two distinct anomalies for complex strategic challenges.', image: '/assets/galaxies/plasma.png', locked: false, tutorialId: '', levels: [], isTutorial: false, isPlaceholder: true },
+      { name: 'Triple Hazard Universes', desc: 'Survive in the most hostile environments the cosmos has to offer.', image: '/assets/galaxies/void.png', locked: false, tutorialId: '', levels: [], isTutorial: false, isPlaceholder: true },
       { name: 'Custom',        desc: 'Explore custom user-generated systems and experimental battlegrounds.', image: '/assets/galaxies/normal.png',    locked: false, tutorialId: '',           levels: customGroups['Custom'] || [], isTutorial: false },
       { name: 'Random',        desc: 'An unpredictable, procedurally generated system. Every battle is unique.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: '',           levels: [], isTutorial: false },
     ];
 
-    galaxies.forEach((g, idx) => {
+    this.rootGalaxies = galaxies;
+    this.renderGalaxyGrid();
+
+    card.appendChild(scrollContainer);
+
+    // ── Version text ───────────────────────────────────────
+    const version = document.createElement('div');
+    version.className = 'menu-anim-child';
+    version.textContent = 'v' + __APP_VERSION__;
+    version.style.cssText = `
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      color: rgba(255,255,255,0.2);
+      letter-spacing: 0.1em;
+      margin-top: 10px;
+      text-align: right;
+      width: 100%;
+    `;
+    card.appendChild(version);
+
+    return overlay;
+  }
+
+  // ── renderGalaxyGrid ────────────────────────────────────────
+  private renderGalaxyGrid(): void {
+    if (!this._scrollContainer) return;
+    const container = this._scrollContainer;
+    container.innerHTML = '';
+
+    const listToRender = this.currentCategoryList || this.rootGalaxies;
+
+    if (this.currentCategoryList) {
+      // Add a BACK tile
+      const backTile = document.createElement('div');
+      backTile.className = 'menu-anim-child';
+      backTile.style.cssText = `
+        height: 100%;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px dashed rgba(255, 255, 255, 0.3);
+        border-radius: 16px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        transition: transform 0.2s ease, background 0.2s ease;
+      `;
+      backTile.addEventListener('mouseenter', () => { backTile.style.background = 'rgba(255,255,255,0.1)'; });
+      backTile.addEventListener('mouseleave', () => { backTile.style.background = 'rgba(255,255,255,0.05)'; });
+      backTile.addEventListener('click', () => {
+        audioManager.playClick();
+        this.currentCategoryList = null;
+        this.renderGalaxyGrid();
+      });
+
+      const backText = document.createElement('div');
+      backText.textContent = '← BACK';
+      backText.style.cssText = `
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: rgba(255,255,255,0.8);
+      `;
+      backTile.appendChild(backText);
+      container.appendChild(backTile);
+    }
+
+    listToRender.forEach((g) => {
       const tile = document.createElement('div');
       tile.className = 'menu-anim-child';
       
@@ -295,7 +372,7 @@ export class MainMenuScene {
         overflow: hidden;
         display: flex;
         flex-direction: column;
-        cursor: ${g.locked ? 'not-allowed' : 'pointer'};
+        cursor: ${(g.locked || g.isPlaceholder) ? 'not-allowed' : 'pointer'};
         transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
         position: relative;
         opacity: ${g.locked ? '0.6' : '1'};
@@ -335,7 +412,7 @@ export class MainMenuScene {
       `;
       descOverlay.appendChild(descText);
 
-      if (!g.locked) {
+      if (!g.locked && !g.isPlaceholder) {
         tile.addEventListener('mouseenter', () => {
           tile.style.transform = 'translateY(-6px)';
           tile.style.boxShadow = '0 12px 24px rgba(79, 195, 247, 0.2)';
@@ -350,6 +427,11 @@ export class MainMenuScene {
         });
         tile.addEventListener('click', () => {
           audioManager.playClick();
+          if (g.subcategories) {
+            this.currentCategoryList = g.subcategories;
+            this.renderGalaxyGrid();
+            return;
+          }
           if (g.name === 'Random') {
             const randomLevel = generateRandomLevel();
             this.onPlay(randomLevel, false);
@@ -368,7 +450,7 @@ export class MainMenuScene {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        filter: ${g.locked ? 'grayscale(80%)' : 'none'};
+        filter: ${(g.locked || g.isPlaceholder) ? 'grayscale(80%)' : 'none'};
         z-index: 0;
       `;
       tile.appendChild(img);
@@ -394,13 +476,13 @@ export class MainMenuScene {
         font-family: 'Orbitron', sans-serif;
         font-size: 1.3rem;
         font-weight: 800;
-        color: ${g.locked ? 'rgba(255,255,255,0.5)' : '#4fc3f7'};
+        color: ${(g.locked || g.isPlaceholder) ? 'rgba(255,255,255,0.5)' : '#4fc3f7'};
         letter-spacing: 0.1em;
         text-shadow: 0px 2px 4px rgba(0,0,0,0.8);
       `;
       labelContainer.appendChild(titleLabel);
 
-      if (g.locked) {
+      if (g.locked || g.isPlaceholder) {
         const soonLabel = document.createElement('div');
         soonLabel.textContent = 'Coming Soon';
         soonLabel.style.cssText = `
@@ -410,13 +492,35 @@ export class MainMenuScene {
           letter-spacing: 0.15em;
           margin-top: 4px;
         `;
+        
+        // Add a giant coming soon badge in the middle
+        const giantBadge = document.createElement('div');
+        giantBadge.textContent = 'COMING SOON';
+        giantBadge.style.cssText = `
+          position: absolute;
+          top: 50%; left: 50%;
+          transform: translate(-50%, -50%) rotate(-10deg);
+          background: rgba(200, 40, 40, 0.9);
+          border: 2px solid #ffaaaa;
+          color: white;
+          padding: 8px 16px;
+          font-family: 'Orbitron', sans-serif;
+          font-size: 1.2rem;
+          font-weight: bold;
+          border-radius: 8px;
+          z-index: 4;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+          pointer-events: none;
+        `;
+        tile.appendChild(giantBadge);
+        
         labelContainer.appendChild(soonLabel);
       } else {
         // Bright dots representing active systems
         const dotsContainer = document.createElement('div');
         dotsContainer.style.cssText = 'display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; justify-content: center; max-width: 90%;';
         
-        const numSystems = g.name === 'Random' ? 1 : g.levels.length; // Random map is technically 1 infinite system
+        const numSystems = g.name === 'Random' ? 1 : (g.levels ? g.levels.length : 0);
         for (let i = 0; i < numSystems; i++) {
           const dot = document.createElement('div');
           dot.style.cssText = `
@@ -429,7 +533,7 @@ export class MainMenuScene {
           dotsContainer.appendChild(dot);
         }
 
-        if (numSystems === 0) {
+        if (numSystems === 0 && !g.subcategories) {
            const noSysLabel = document.createElement('div');
            noSysLabel.textContent = '0 SYSTEMS';
            noSysLabel.style.cssText = `
@@ -440,33 +544,25 @@ export class MainMenuScene {
              margin-top: 6px;
            `;
            dotsContainer.appendChild(noSysLabel);
+        } else if (g.subcategories) {
+           const countLabel = document.createElement('div');
+           countLabel.textContent = g.subcategories.length + ' HAZARDS';
+           countLabel.style.cssText = `
+             font-family: 'Rajdhani', sans-serif;
+             font-size: 0.8rem;
+             color: rgba(100, 255, 100, 0.8);
+             letter-spacing: 0.1em;
+             margin-top: 6px;
+           `;
+           dotsContainer.appendChild(countLabel);
         }
         
         labelContainer.appendChild(dotsContainer);
       }
 
       tile.appendChild(labelContainer);
-      scrollContainer.appendChild(tile);
+      container.appendChild(tile);
     });
-
-    card.appendChild(scrollContainer);
-
-    // ── Version text ───────────────────────────────────────
-    const version = document.createElement('div');
-    version.className = 'menu-anim-child';
-    version.textContent = 'v' + __APP_VERSION__;
-    version.style.cssText = `
-      font-family: 'Rajdhani', sans-serif;
-      font-size: 12px;
-      color: rgba(255,255,255,0.2);
-      letter-spacing: 0.1em;
-      margin-top: 10px;
-      text-align: right;
-      width: 100%;
-    `;
-    card.appendChild(version);
-
-    return overlay;
   }
 
   // ── Settings panel ────────────────────────────────────────
