@@ -38,22 +38,20 @@ export class FogRenderer {
 
     this.fogGfx.clear();
     this.fogGfx.alpha = this.currentOpacity;
-    this.fogGfx.beginFill(0x111116, 0.98); // Very dark, almost opaque
-    this.fogGfx.drawRect(0, 0, worldWidth, worldHeight);
+    
+    // Draw the full fog rectangle
+    this.fogGfx.rect(0, 0, worldWidth, worldHeight);
 
     // Punch holes for player planets
     for (const planet of state.planets.values()) {
       if (planet.faction === 'player') {
         const radius = this.getVisionRadius(planet.upgradeLevel);
-        // @ts-ignore
-        this.fogGfx.beginHole();
-        this.fogGfx.drawCircle(planet.x, planet.y, radius);
-        // @ts-ignore
-        this.fogGfx.endHole();
+        this.fogGfx.cut();
+        this.fogGfx.circle(planet.x, planet.y, radius);
       }
     }
 
-    this.fogGfx.endFill();
+    this.fogGfx.fill({ color: 0x111116, alpha: 0.98 });
   }
 
   private getVisionRadius(level: number): number {
