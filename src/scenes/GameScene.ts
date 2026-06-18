@@ -295,6 +295,11 @@ export class GameScene {
       this.showResultOverlay(payload.winner);
     });
 
+    // Listen for early player elimination
+    this.eventBus.on('player:eliminated', () => {
+      this.showResultOverlay(null, { isEarlyDeath: true });
+    });
+
     // Listen for planet captures for audio feedback
     this.eventBus.on('planet:captured', (payload: { planetId: string; newFaction: string }) => {
       audioManager.playCapture(payload.newFaction);
@@ -1324,14 +1329,15 @@ export class GameScene {
 
   // ── Result Overlay ────────────────────────────────────────
 
-  private showResultOverlay(winner: Faction | null): void {
+  private showResultOverlay(winner: Faction | null, options?: { isEarlyDeath?: boolean }): void {
     if (this.resultOverlay) return;
     this.stop();
     audioManager.stopAmbient();
     audioManager.playGameOver(winner === 'player');
 
+    const isEarlyDeath = options?.isEarlyDeath ?? false;
     const isVictory = winner === 'player';
-    const colorHex  = isVictory ? '#4fc3f7' : winner ? '#ef5350' : '#78909c';
+    const colorHex  = isVictory ? '#4fc3f7' : (winner || isEarlyDeath) ? '#ef5350' : '#78909c';
 
     // Gather final stats
     const finalParticles = this.state.particles.filter(p => p.alive && p.faction === 'player').length;
@@ -1380,7 +1386,7 @@ export class GameScene {
       margin-bottom: 8px;
       animation: pulse-glow 2s ease-in-out infinite;
     `;
-    title.textContent = isVictory ? '⚡ VICTORY' : winner ? '☠ YOU DIED' : '💀 ANNIHILATED';
+    title.textContent = isVictory ? '⚡ VICTORY' : (winner || isEarlyDeath) ? '☠ YOU DIED' : '💀 ANNIHILATED';
 
     // Subtitle
     const sub = document.createElement('div');
@@ -1391,9 +1397,12 @@ export class GameScene {
       letter-spacing: 0.2em;
       text-transform: uppercase;
       margin-bottom: 32px;
+      text-align: center;
     `;
     sub.textContent = isVictory
       ? 'The galaxy bows before you.'
+      : isEarlyDeath
+      ? 'Your forces have been eliminated, but the war rages on.'
       : winner
       ? `${winner.replace(/_/g, ' ').toUpperCase()} has crushed you into dust.`
       : 'All forces have been annihilated.';
@@ -1458,7 +1467,7 @@ export class GameScene {
 
     // Buttons
     const btnRow = document.createElement('div');
-    btnRow.style.cssText = 'display:flex; gap:16px;';
+    btnRow.style.cssText = 'display:flex; gap:16px; flex-wrap: wrap; justify-content: center; max-width: 400px;';
 
     const retryBtn = document.createElement('button');
     retryBtn.textContent = '↺  RETRY';
@@ -1498,6 +1507,36 @@ export class GameScene {
 
     btnRow.appendChild(retryBtn);
     btnRow.appendChild(menuBtn);
+
+    if (isEarlyDeath) {
+      const watchBtn = document.createElement('button');
+      watchBtn.textContent = '👁 WATCH THE REST OF THE FIGHT';
+      watchBtn.style.cssText = `
+        padding: 12px 28px;
+        background: rgba(100,200,255,0.1);
+        color: #4fc3f7;
+        border: 1px solid rgba(79,195,247,0.3);
+        border-radius: 8px;
+        font-family: 'Orbitron', sans-serif;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        cursor: pointer;
+        transition: background 0.2s;
+        width: 100%;
+        margin-top: 8px;
+      `;
+      watchBtn.addEventListener('mouseenter', () => { watchBtn.style.background = 'rgba(100,200,255,0.2)'; });
+      watchBtn.addEventListener('mouseleave', () => { watchBtn.style.background = 'rgba(100,200,255,0.1)'; });
+      watchBtn.addEventListener('click', () => {
+        audioManager.playClick();
+        this.resultOverlay?.remove();
+        this.resultOverlay = null;
+        this.state!.running = true; // explicitly set state back to running
+        this.start();
+      });
+      btnRow.appendChild(watchBtn);
+    }
     overlay.appendChild(title);
     overlay.appendChild(sub);
     overlay.appendChild(statsCard);

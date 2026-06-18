@@ -282,6 +282,7 @@ export interface GameState {
   tick: number;
   running: boolean;
   winner: Faction | null;
+  playerNotifiedDead?: boolean;
   worldWidth: number;
   worldHeight: number;
   // hazard systems (populated from level data; empty arrays/defaults if not present)
