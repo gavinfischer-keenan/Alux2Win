@@ -16,6 +16,7 @@ class AudioManager {
   private _lastWarningTime = 0;
 
   private _ohNoBuffer: AudioBuffer | null = null;
+  private _captureBuffer: AudioBuffer | null = null;
 
   // ── Init ─────────────────────────────────────────────────
 
@@ -38,6 +39,15 @@ class AudioManager {
       this._ohNoBuffer = await this._ctx.decodeAudioData(arrayBuffer);
     } catch (err) {
       console.warn('Failed to load oh_no audio', err);
+    }
+
+    // Load capture MP3
+    try {
+      const response = await fetch('/assets/audio/capture.mp3');
+      const arrayBuffer = await response.arrayBuffer();
+      this._captureBuffer = await this._ctx.decodeAudioData(arrayBuffer);
+    } catch (err) {
+      console.warn('Failed to load capture audio', err);
     }
 
     if (this._ctx.state === 'suspended') {
@@ -410,6 +420,23 @@ class AudioManager {
 
     const source = ctx.createBufferSource();
     source.buffer = this._ohNoBuffer;
+    
+    const g = ctx.createGain();
+    g.gain.value = 1.0;
+    source.connect(g);
+    g.connect(master);
+    
+    source.start();
+  }
+
+  /** Played when the player successfully captures a planet. */
+  playPlanetCapture(): void {
+    const ctx = this._ctx;
+    const master = this._masterGain;
+    if (!ctx || !master || !this._captureBuffer) return;
+
+    const source = ctx.createBufferSource();
+    source.buffer = this._captureBuffer;
     
     const g = ctx.createGain();
     g.gain.value = 1.0;

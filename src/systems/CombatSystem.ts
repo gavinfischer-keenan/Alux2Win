@@ -194,6 +194,10 @@ export class CombatSystem {
       planet.faction = 'neutral';
     }
 
+    if (planet.faction === 'player') {
+      audioManager.playPlanetCapture();
+    }
+
     // Kill orbiting particles that belonged to the old faction on this planet
     for (const p of state.particles) {
       if (p.homePlanetId === planet.id && p.faction === oldFaction && p.mode === 'orbiting') {
