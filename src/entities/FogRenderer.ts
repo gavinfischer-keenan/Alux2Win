@@ -1,18 +1,23 @@
-import { Graphics, Container } from 'pixi.js';
+import { Graphics, Container, AlphaFilter } from 'pixi.js';
 import type { GameState, PlanetData } from '../types';
 
 export class FogRenderer {
   private container: Container;
   private fogGfx: Graphics;
   private holeGfx: Graphics;
+  private alphaFilter: AlphaFilter;
   private currentOpacity: number = 0;
 
   constructor(parent: Container) {
     this.container = new Container();
     this.container.zIndex = 100; // Above everything except UI
     
-    // In PixiJS v8, isRenderGroup isolates blending so 'erase' doesn't erase the background
-    (this.container as any).isRenderGroup = true;
+    // Apply an AlphaFilter to force PixiJS to render this container into an offscreen texture.
+    // This perfectly isolates the 'erase' blend mode so it only erases the fog overlay,
+    // rather than punching straight through the WebGL canvas.
+    this.alphaFilter = new AlphaFilter({ alpha: 1 });
+    this.container.filters = [this.alphaFilter];
+    
     parent.addChild(this.container);
 
     this.fogGfx = new Graphics();
@@ -46,13 +51,13 @@ export class FogRenderer {
       return;
     }
 
-    // Use alpha hack to guarantee isolated render group fallback if isRenderGroup isn't supported natively
-    this.container.alpha = this.currentOpacity * 0.999;
+    // Set the filter alpha for the global opacity
+    this.alphaFilter.alpha = this.currentOpacity;
 
     this.fogGfx.clear();
     const margin = 5000;
     this.fogGfx.rect(-margin, -margin, worldWidth + margin * 2, worldHeight + margin * 2);
-    this.fogGfx.fill({ color: 0x111116, alpha: 1 }); // Alpha handled by container
+    this.fogGfx.fill({ color: 0x111116, alpha: 0.98 }); 
 
     this.holeGfx.clear();
     for (const planet of state.planets.values()) {
@@ -74,4 +79,5 @@ export class FogRenderer {
     this.container.destroy({ children: true });
   }
 }
+
 

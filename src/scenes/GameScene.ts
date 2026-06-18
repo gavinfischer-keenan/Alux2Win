@@ -1233,7 +1233,7 @@ export class GameScene {
         shieldHtml = `
           <div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.08)">
             <span style="color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;letter-spacing:0.1em">🛡️ Shield Level</span><br>
-            <span style="color:#ff3333;font-weight:600">${shieldPoints} Points</span>
+            <span style="color:#00e5ff;font-weight:600">${shieldPoints} Units</span>
           </div>`;
       }
 

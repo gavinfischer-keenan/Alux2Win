@@ -172,12 +172,12 @@ export class Planet {
       // Calculate shield intensity based on shield points
       // We'll cap the visual intensity increase at 20 points, but it keeps absorbing damage.
       const intensity = Math.min(shieldPoints / 20, 1.0);
-      const alpha = 0.2 + (intensity * 0.8);
-      const strokeWidth = 2 + (intensity * 2);
+      const alpha = 0.4 + (intensity * 0.6);
+      const strokeWidth = 2 + (intensity * 4);
       
       this.shieldGraphics
         .circle(0, 0, baseRadius)
-        .stroke({ color: 0xff0000, width: strokeWidth, alpha: alpha, alignment: 0.5 });
+        .stroke({ color: 0x00e5ff, width: strokeWidth, alpha: alpha, alignment: 0.5 });
     }
   }
 

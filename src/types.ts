@@ -47,6 +47,7 @@ export interface PlanetData {
   isShielded?: boolean;
   shieldPoints?: number;
   shieldTimer?: number;
+  _shieldAltToggle?: boolean;
 }
 
 // ---- Particle Data (runtime) ----

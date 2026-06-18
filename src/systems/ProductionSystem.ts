@@ -41,14 +41,19 @@ export class ProductionSystem {
 
       // Shield regeneration
       if (planet.isShielded) {
-        let rate = 1.0;
-        if (planet.upgradeLevel === 2) rate = 1.1;
-        if (planet.upgradeLevel === 3) rate = 1.5;
-
-        planet.shieldTimer = (planet.shieldTimer ?? 0) + (dt * rate);
+        planet.shieldTimer = (planet.shieldTimer ?? 0) + dt;
         if (planet.shieldTimer >= 15.0) {
           planet.shieldTimer -= 15.0;
-          planet.shieldPoints = (planet.shieldPoints ?? 0) + 1;
+          
+          let generated = 1;
+          if (planet.upgradeLevel === 3) {
+            generated = 2;
+          } else if (planet.upgradeLevel === 2) {
+            planet._shieldAltToggle = !planet._shieldAltToggle;
+            generated = planet._shieldAltToggle ? 2 : 1;
+          }
+          
+          planet.shieldPoints = (planet.shieldPoints ?? 0) + generated;
         }
       }
     }
