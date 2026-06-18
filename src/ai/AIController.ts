@@ -128,7 +128,7 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     expandWeight:     0.7,
     maxUpgrade:       2,
     hazardToleranceThreshold: -999,  // only avoids BHs (lethal = -1000)
-    usesWaypoints:    false,
+    usesWaypoints:    true,
   },
 
   // ── NORMAL ──────────────────────────────────────────────────────────────────
@@ -216,8 +216,8 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     upgradeWeight:    0.20,
     expandWeight:     0.50,
     maxUpgrade:       3,
-    hazardToleranceThreshold: -9999, // charges through everything — no avoidance
-    usesWaypoints:    false,
+    hazardToleranceThreshold: -999, // charges through storms but avoids BHs
+    usesWaypoints:    true,
   },
   economic: {
     evalInterval:     2.5,
@@ -739,9 +739,17 @@ export class AIController {
             src.x, src.y, target.x, target.y,
             state, state.worldWidth, state.worldHeight, 50
           );
-          if (wp) { waypointX = wp.wpx; waypointY = wp.wpy; }
+          if (wp) { 
+            waypointX = wp.wpx; 
+            waypointY = wp.wpy; 
+          } else if (routeScore <= -900) {
+            // Lethal hazard with no viable waypoint! Abort attack.
+            return;
+          }
+        } else if (routeScore <= -900) {
+          // Lethal hazard, and role doesn't use waypoints! Abort attack.
+          return;
         }
-        // No waypoint found or role doesn't use them — deploy straight (graceful degradation)
       }
     }
 
