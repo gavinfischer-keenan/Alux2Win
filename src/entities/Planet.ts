@@ -340,4 +340,5 @@ export class Planet {
     this.selectionRing.circle(0, 0, ringRadius).stroke({ color: 0xffffff, alpha: 0.85, width: 1.5 });
     this.selectionRing.circle(0, 0, ringRadius + 4).stroke({ color: 0xffffff, alpha: 0.25, width: 1 });
   }
+
 }

@@ -62,6 +62,7 @@ export class App {
   // ── Scene: Main Menu ──────────────────────────────────────
 
   private showMenu(): void {
+    this.destroyMenu();
     this.currentScene = 'menu';
     this.menuScene    = new MainMenuScene(this.container);
 
