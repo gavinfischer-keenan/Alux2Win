@@ -474,6 +474,7 @@ export class GameScene {
       })),
       hazardEffects:         [],
       hazardEffectIdCounter: 0,
+      fogOfWarConfig:        levelData.fogOfWarConfig,
     };
 
     // Spawn default starting particles around home planets
