@@ -39,15 +39,22 @@ export class FogRenderer {
     this.fogGfx.clear();
     this.fogGfx.alpha = this.currentOpacity;
     
-    // Draw the full fog rectangle
-    this.fogGfx.rect(0, 0, worldWidth, worldHeight);
+    // Draw the full fog rectangle covering everything
+    // Outer rect drawn clockwise
+    const margin = 5000;
+    this.fogGfx.moveTo(-margin, -margin);
+    this.fogGfx.lineTo(worldWidth + margin, -margin);
+    this.fogGfx.lineTo(worldWidth + margin, worldHeight + margin);
+    this.fogGfx.lineTo(-margin, worldHeight + margin);
+    this.fogGfx.closePath();
 
-    // Punch holes for player planets
+    // Punch holes for player planets using counter-clockwise arcs (Non-Zero Winding Rule)
     for (const planet of state.planets.values()) {
       if (planet.faction === 'player') {
         const radius = this.getVisionRadius(planet.upgradeLevel);
-        this.fogGfx.cut();
-        this.fogGfx.circle(planet.x, planet.y, radius);
+        this.fogGfx.moveTo(planet.x + radius, planet.y);
+        this.fogGfx.arc(planet.x, planet.y, radius, 0, Math.PI * 2, true);
+        this.fogGfx.closePath();
       }
     }
 
