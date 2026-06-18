@@ -65,9 +65,13 @@ export class GammaRaySystem {
 
     // Generate the warning path once we enter the warning window.
     if (gr.timer <= WARNING_SECS && gr.path === null) {
-      gr.path = this._firstShotDone
-        ? this._generatePathWithRetry(state)   // subsequent: plain random
-        : this._generateSafePath(state);        // first: 3-tier priority
+      if (state.gammaRay?.targetMode === 'locked' && state.gammaRay?.lockedPath) {
+        gr.path = this._getLockedPath(state);
+      } else {
+        gr.path = this._firstShotDone
+          ? this._generatePathWithRetry(state)   // subsequent: plain random
+          : this._generateSafePath(state);        // first: 3-tier priority
+      }
     }
 
     // Begin firing when the countdown expires.
@@ -75,9 +79,13 @@ export class GammaRaySystem {
       // If somehow we still have no path (e.g. zero planets), generate one
       // last time — even an empty-target path is fine to fire.
       if (gr.path === null) {
-        gr.path = this._firstShotDone
-          ? this._generatePathWithRetry(state)
-          : this._generateSafePath(state);
+        if (state.gammaRay?.targetMode === 'locked' && state.gammaRay?.lockedPath) {
+          gr.path = this._getLockedPath(state);
+        } else {
+          gr.path = this._firstShotDone
+            ? this._generatePathWithRetry(state)
+            : this._generateSafePath(state);
+        }
       }
       gr.firing       = true;
       gr.fireProgress = 0;
@@ -86,6 +94,32 @@ export class GammaRaySystem {
   }
 
   // ── Private helpers ────────────────────────────────────────
+
+  /**
+   * Generates the path for 'locked' targeting mode, calculating targeted planets.
+   */
+  private _getLockedPath(state: GameState): GammaRayPath {
+    const configPath = state.gammaRay?.lockedPath;
+    if (!configPath) throw new Error("Missing lockedPath");
+
+    const targetedPlanetIds: string[] = [];
+    const draft: GammaRayPath = {
+      x1: configPath.x1,
+      y1: configPath.y1,
+      x2: configPath.x2,
+      y2: configPath.y2,
+      width: configPath.width ?? 320,
+      targetedPlanetIds,
+    };
+
+    for (const planet of state.planets.values()) {
+      if (this._checkPathHitsPlanet(draft, planet)) {
+        targetedPlanetIds.push(planet.id);
+      }
+    }
+
+    return draft;
+  }
 
   /**
    * 3-tier path selection:

@@ -17,7 +17,7 @@ import type {
   SpeedZoneDef, SpeedZoneData, SpeedZoneType,
   PortalDef, PortalData,
   TrappingBlackHoleDef, TrappingBlackHoleData,
-  WhiteHoleDef, WhiteHoleData,
+  WhiteHoleDef, WhiteHoleData, GammaRayPath,
 } from '../types';
 import {
   PLANET_RADIUS,
@@ -94,8 +94,13 @@ interface EditState {
   worldWidth:          number;
   worldHeight:         number;
   fogOfWarConfig?:     { enabled: boolean };
-  gammaRayConfig?:     { enabled: boolean; intervalSeconds?: number };
-  asteroidConfig?:     { enabled: boolean };
+  gammaRayConfig?:     { 
+    enabled: boolean; 
+    intervalSeconds?: number; 
+    targetMode?: 'random' | 'locked'; 
+    lockedPath?: GammaRayPath; 
+  };
+  asteroidConfig?:     { enabled: boolean; damageLevel?: 1 | 2 | 3 };
 }
 
 export class EditorScene {
@@ -173,10 +178,10 @@ export class EditorScene {
     this.sidebar.onSaveLevel  = () => this.showSaveOverlay();
     this.sidebar.onLoadLevel  = () => this.showLoadOverlay();
     this.sidebar.onTestLevel  = () => this.testLevel();
-    this.sidebar.onLevelNameChange = (name) => { this.editState.levelName = name; };
-    this.sidebar.onFogChange = (enabled) => { this.editState.fogOfWarConfig = enabled ? { enabled: true } : undefined; };
-    this.sidebar.onGammaRayChange = (enabled) => { this.editState.gammaRayConfig = enabled ? { enabled: true, intervalSeconds: 30 } : undefined; };
-    this.sidebar.onAsteroidsChange = (enabled) => { this.editState.asteroidConfig = enabled ? { enabled: true } : undefined; };
+    (this.sidebar as any).onLevelNameChange = (name: string) => { this.editState.levelName = name; };
+    (this.sidebar as any).onFogChange = (enabled: boolean) => { this.editState.fogOfWarConfig = enabled ? { enabled: true } : undefined; };
+    (this.sidebar as any).onGammaRayChange = (enabled: boolean) => { this.editState.gammaRayConfig = enabled ? { enabled: true, intervalSeconds: 30 } : undefined; };
+    (this.sidebar as any).onAsteroidsChange = (enabled: boolean) => { this.editState.asteroidConfig = enabled ? { enabled: true } : undefined; };
 
     // Properties panel
     this.propertiesPanel = new PropertiesPanel(container);
@@ -185,6 +190,9 @@ export class EditorScene {
     this.propertiesPanel.onSpeedZoneChange  = (id, changes) => this.updateSpeedZoneProperty(id, changes);
     this.propertiesPanel.onPortalChange     = (id, changes) => this.updatePortalProperty(id, changes);
     this.propertiesPanel.onTrappingBHChange = (id, changes) => this.updateTrappingBHProperty(id, changes);
+    this.propertiesPanel.onLevelSettingsChange = (changes) => {
+      Object.assign(this.editState, changes);
+    };
     this.propertiesPanel.onDeselect        = () => this.selectEntity(null);
     this.propertiesPanel.onDeleteEntity    = (id) => {
       this.deleteEntity(id);
@@ -196,6 +204,9 @@ export class EditorScene {
 
     // Bind mouse events to canvas
     this.bindCanvasEvents();
+
+    // Show level settings by default
+    this.selectEntity(null);
 
     // Start render loop
     this._onRaf = requestAnimationFrame(this.rafLoop);
@@ -233,16 +244,18 @@ export class EditorScene {
     // Update orbiting planets
     this.editState.planets.forEach(planet => {
       if (planet.isOrbiting) {
+        // Pause the orbit animation if this planet is currently being edited
+        if (this.editState.selectedEntityId !== planet.id) {
+          const orbitSpeed   = planet.orbitSpeed ?? 0.3;
+          planet.orbitAngle = ((planet.orbitAngle ?? 0) + orbitSpeed * dt);
+        }
         const orbitCenterX = planet.orbitCenterX ?? planet.x;
         const orbitCenterY = planet.orbitCenterY ?? planet.y;
         const orbitRadiusX = planet.orbitRadius ?? 120;
         const orbitRadiusY = planet.orbitShape === 'ellipse' ? (planet.orbitRadiusY ?? orbitRadiusX) : orbitRadiusX;
-        const orbitSpeed   = planet.orbitSpeed ?? 0.3;
 
-        planet.orbitAngle = ((planet.orbitAngle ?? 0) + orbitSpeed * dt);
-
-        planet.x = orbitCenterX + orbitRadiusX * Math.cos(planet.orbitAngle);
-        planet.y = orbitCenterY + orbitRadiusY * Math.sin(planet.orbitAngle);
+        planet.x = orbitCenterX + orbitRadiusX * Math.cos(planet.orbitAngle ?? 0);
+        planet.y = orbitCenterY + orbitRadiusY * Math.sin(planet.orbitAngle ?? 0);
       }
     });
 
@@ -302,8 +315,37 @@ export class EditorScene {
       this.drawWhiteHole(gfx, wh);
     });
 
+    // ── Gamma Ray ─────────────────────────────────────────
+    this.drawGammaRay(gfx);
+
     // ── Labels ────────────────────────────────────────────
     this.updateLabels();
+  }
+
+  private drawGammaRay(gfx: Graphics): void {
+    const config = this.editState.gammaRayConfig;
+    if (!config || !config.enabled || config.targetMode !== 'locked') return;
+
+    if (!config.lockedPath) {
+      config.lockedPath = { x1: 100, y1: this.editState.worldHeight / 2, x2: this.editState.worldWidth - 100, y2: this.editState.worldHeight / 2, width: 320, targetedPlanetIds: [] };
+    }
+
+    const { x1, y1, x2, y2 } = config.lockedPath;
+
+    // Draw the main path line
+    gfx.moveTo(x1, y1);
+    gfx.lineTo(x2, y2);
+    gfx.stroke({ color: 0xff0000, alpha: 0.15, width: config.lockedPath.width || 320 });
+    gfx.moveTo(x1, y1);
+    gfx.lineTo(x2, y2);
+    gfx.stroke({ color: 0xff0000, alpha: 0.6, width: 4 });
+
+    // Draw handles
+    const isSelected = this.editState.selectedEntityId === 'gammaRayHandle1' || this.editState.selectedEntityId === 'gammaRayHandle2';
+    const handleAlpha = isSelected ? 1.0 : 0.6;
+
+    gfx.circle(x1, y1, 16).fill({ color: 0xff4444, alpha: handleAlpha }).stroke({ color: 0xffffff, alpha: handleAlpha, width: 2 });
+    gfx.circle(x2, y2, 16).fill({ color: 0xff4444, alpha: handleAlpha }).stroke({ color: 0xffffff, alpha: handleAlpha, width: 2 });
   }
 
   private drawGrid(gfx: Graphics): void {
@@ -727,7 +769,7 @@ export class EditorScene {
 
   private selectEntity(id: string | null): void {
     this.editState.selectedEntityId = id;
-    if (!id) { this.propertiesPanel.hide(); return; }
+    if (!id) { this.propertiesPanel.showLevelSettings(this.editState); return; }
     const planet = this.editState.planets.get(id);
     if (planet) { this.propertiesPanel.showPlanet(planet); return; }
     const bh = this.editState.blackHoles.get(id);
@@ -826,6 +868,15 @@ export class EditorScene {
   }
 
   private moveEntity(id: string, nx: number, ny: number): void {
+    if (id === 'gammaRayHandle1' || id === 'gammaRayHandle2') {
+      const p = this.editState.gammaRayConfig?.lockedPath;
+      if (p) {
+        if (id === 'gammaRayHandle1') { p.x1 = Math.round(nx); p.y1 = Math.round(ny); }
+        if (id === 'gammaRayHandle2') { p.x2 = Math.round(nx); p.y2 = Math.round(ny); }
+      }
+      return;
+    }
+
     const planet = this.editState.planets.get(id);
     if (planet) {
       if (planet.isOrbiting && planet.orbitCenterX !== undefined && planet.orbitCenterY !== undefined) {
@@ -968,6 +1019,15 @@ export class EditorScene {
   private hitTestEntity(wx: number, wy: number): string | null {
     let best: string | null = null;
     let bestDist = Infinity;
+
+    // Test Gamma Ray handles
+    if (this.editState.gammaRayConfig?.enabled && this.editState.gammaRayConfig?.targetMode === 'locked' && this.editState.gammaRayConfig?.lockedPath) {
+      const p = this.editState.gammaRayConfig.lockedPath;
+      const d1 = Math.sqrt((p.x1 - wx) ** 2 + (p.y1 - wy) ** 2);
+      if (d1 <= 20 && d1 < bestDist) { bestDist = d1; best = 'gammaRayHandle1'; }
+      const d2 = Math.sqrt((p.x2 - wx) ** 2 + (p.y2 - wy) ** 2);
+      if (d2 <= 20 && d2 < bestDist) { bestDist = d2; best = 'gammaRayHandle2'; }
+    }
 
     // Test planets
     this.editState.planets.forEach((planet, id) => {

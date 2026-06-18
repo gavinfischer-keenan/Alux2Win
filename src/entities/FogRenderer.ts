@@ -4,15 +4,23 @@ import type { GameState, PlanetData } from '../types';
 export class FogRenderer {
   private container: Container;
   private fogGfx: Graphics;
+  private holeGfx: Graphics;
   private currentOpacity: number = 0;
 
   constructor(parent: Container) {
     this.container = new Container();
     this.container.zIndex = 100; // Above everything except UI
+    
+    // In PixiJS v8, isRenderGroup isolates blending so 'erase' doesn't erase the background
+    (this.container as any).isRenderGroup = true;
     parent.addChild(this.container);
 
     this.fogGfx = new Graphics();
     this.container.addChild(this.fogGfx);
+
+    this.holeGfx = new Graphics();
+    this.holeGfx.blendMode = 'erase';
+    this.container.addChild(this.holeGfx);
   }
 
   public render(state: GameState, worldWidth: number, worldHeight: number, elapsedTime: number): void {
@@ -20,6 +28,7 @@ export class FogRenderer {
     
     if (!isFogEnabled) {
       this.fogGfx.clear();
+      this.holeGfx.clear();
       return;
     }
 
@@ -33,32 +42,26 @@ export class FogRenderer {
 
     if (this.currentOpacity <= 0) {
       this.fogGfx.clear();
+      this.holeGfx.clear();
       return;
     }
 
-    this.fogGfx.clear();
-    this.fogGfx.alpha = this.currentOpacity;
-    
-    // Draw the full fog rectangle covering everything
-    // Outer rect drawn clockwise
-    const margin = 5000;
-    this.fogGfx.moveTo(-margin, -margin);
-    this.fogGfx.lineTo(worldWidth + margin, -margin);
-    this.fogGfx.lineTo(worldWidth + margin, worldHeight + margin);
-    this.fogGfx.lineTo(-margin, worldHeight + margin);
-    this.fogGfx.closePath();
+    // Use alpha hack to guarantee isolated render group fallback if isRenderGroup isn't supported natively
+    this.container.alpha = this.currentOpacity * 0.999;
 
-    // Punch holes for player planets using counter-clockwise arcs (Non-Zero Winding Rule)
+    this.fogGfx.clear();
+    const margin = 5000;
+    this.fogGfx.rect(-margin, -margin, worldWidth + margin * 2, worldHeight + margin * 2);
+    this.fogGfx.fill({ color: 0x111116, alpha: 1 }); // Alpha handled by container
+
+    this.holeGfx.clear();
     for (const planet of state.planets.values()) {
       if (planet.faction === 'player') {
         const radius = this.getVisionRadius(planet.upgradeLevel);
-        this.fogGfx.moveTo(planet.x + radius, planet.y);
-        this.fogGfx.arc(planet.x, planet.y, radius, 0, Math.PI * 2, true);
-        this.fogGfx.closePath();
+        this.holeGfx.circle(planet.x, planet.y, radius);
       }
     }
-
-    this.fogGfx.fill({ color: 0x111116, alpha: 0.98 });
+    this.holeGfx.fill({ color: 0xffffff, alpha: 1 });
   }
 
   private getVisionRadius(level: number): number {
@@ -71,3 +74,4 @@ export class FogRenderer {
     this.container.destroy({ children: true });
   }
 }
+

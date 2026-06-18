@@ -21,6 +21,7 @@ export class PropertiesPanel {
   onSpeedZoneChange:  (id: string, changes: Partial<SpeedZoneDef>)               => void = () => {};
   onPortalChange:     (id: string, changes: Partial<PortalDef>)                  => void = () => {};
   onTrappingBHChange: (id: string, changes: Partial<TrappingBlackHoleDef>)       => void = () => {};
+  onLevelSettingsChange: (changes: any)                                            => void = () => {};
   onDeleteEntity:     (id: string)                                                => void = () => {};
   onDeselect:         ()                                                          => void = () => {};
 
@@ -465,6 +466,132 @@ export class PropertiesPanel {
 
     // Delete button
     this.element.appendChild(this.buildDeleteBtn(() => this.currentWhiteHoleId));
+  }
+
+  showLevelSettings(state: any): void {
+    this.clearCurrentIds();
+    this.element.innerHTML = '';
+    this.element.style.display = 'flex';
+
+    this.element.appendChild(this.buildHeader('⚙️ Level Settings', ''));
+
+    // Level Name
+    this.element.appendChild(this.buildLabel('Level Name'));
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.value = state.levelName || '';
+    nameInput.maxLength = 24;
+    nameInput.style.cssText = `width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; color: #e0e0e0; font-size: 11px; font-family: 'Rajdhani', sans-serif; padding: 4px; text-align: center; outline: none; margin-bottom: 8px;`;
+    nameInput.addEventListener('input', () => this.onLevelSettingsChange({ levelName: nameInput.value }));
+    this.element.appendChild(nameInput);
+
+    // Fog of War
+    const fogLabel = document.createElement('label');
+    fogLabel.style.cssText = `display: flex; align-items: center; gap: 6px; cursor: pointer; color: rgba(255,255,255,0.7); font-size: 11px; margin-bottom: 8px;`;
+    const fogCheckbox = document.createElement('input');
+    fogCheckbox.type = 'checkbox';
+    fogCheckbox.style.cssText = 'appearance: auto; -webkit-appearance: auto; accent-color: #4fc3f7; margin-right: 2px;';
+    fogCheckbox.checked = state.fogOfWarConfig?.enabled || false;
+    fogCheckbox.addEventListener('change', () => this.onLevelSettingsChange({ fogOfWarConfig: fogCheckbox.checked ? { enabled: true } : undefined }));
+    fogLabel.appendChild(fogCheckbox);
+    fogLabel.appendChild(document.createTextNode('Fog of War Enabled'));
+    this.element.appendChild(fogLabel);
+
+    // Gamma Ray
+    this.element.appendChild(this.buildHeader('☢️ Gamma Ray', ''));
+    const gammaLabel = document.createElement('label');
+    gammaLabel.style.cssText = fogLabel.style.cssText;
+    const gammaCheckbox = document.createElement('input');
+    gammaCheckbox.type = 'checkbox';
+    gammaCheckbox.style.cssText = fogCheckbox.style.cssText;
+    const gammaEnabled = state.gammaRayConfig?.enabled || false;
+    gammaCheckbox.checked = gammaEnabled;
+    gammaCheckbox.addEventListener('change', () => {
+      const newConfig = { ...(state.gammaRayConfig || {}), enabled: gammaCheckbox.checked };
+      if (newConfig.enabled && !newConfig.intervalSeconds) newConfig.intervalSeconds = 60;
+      if (newConfig.enabled && !newConfig.targetMode) newConfig.targetMode = 'random';
+      this.onLevelSettingsChange({ gammaRayConfig: newConfig });
+      this.showLevelSettings({ ...state, gammaRayConfig: newConfig });
+    });
+    gammaLabel.appendChild(gammaCheckbox);
+    gammaLabel.appendChild(document.createTextNode('Enabled'));
+    this.element.appendChild(gammaLabel);
+
+    if (gammaEnabled) {
+      this.element.appendChild(this.buildLabel('Fire Frequency (seconds)'));
+      const freqWrapper = document.createElement('div');
+      freqWrapper.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 6px;';
+      const freqValue = document.createElement('span');
+      freqValue.style.cssText = 'font-size: 11px; color: #fff; min-width: 24px; text-align: right;';
+      freqValue.textContent = `${state.gammaRayConfig?.intervalSeconds || 60}s`;
+      const freqSlider = this.buildSlider(state.gammaRayConfig?.intervalSeconds || 60, 15, 180, (val) => {
+        freqValue.textContent = `${val}s`;
+        this.onLevelSettingsChange({ gammaRayConfig: { ...state.gammaRayConfig, intervalSeconds: val } });
+      });
+      freqWrapper.appendChild(freqSlider);
+      freqWrapper.appendChild(freqValue);
+      this.element.appendChild(freqWrapper);
+
+      this.element.appendChild(this.buildLabel('Targeting Mode'));
+      const modeSelect = document.createElement('select');
+      modeSelect.style.cssText = `width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; color: #e0e0e0; font-size: 11px; font-family: 'Rajdhani', sans-serif; padding: 4px; outline: none; margin-bottom: 8px;`;
+      ['random', 'locked'].forEach(mode => {
+        const option = document.createElement('option');
+        option.value = mode;
+        option.textContent = mode.toUpperCase();
+        option.selected = (state.gammaRayConfig?.targetMode || 'random') === mode;
+        modeSelect.appendChild(option);
+      });
+      modeSelect.addEventListener('change', () => {
+        this.onLevelSettingsChange({ gammaRayConfig: { ...state.gammaRayConfig, targetMode: modeSelect.value } });
+        this.showLevelSettings({ ...state, gammaRayConfig: { ...state.gammaRayConfig, targetMode: modeSelect.value } });
+      });
+      this.element.appendChild(modeSelect);
+    }
+
+    // Asteroids
+    this.element.appendChild(this.buildHeader('☄️ Asteroids', ''));
+    const astLabel = document.createElement('label');
+    astLabel.style.cssText = fogLabel.style.cssText;
+    const astCheckbox = document.createElement('input');
+    astCheckbox.type = 'checkbox';
+    astCheckbox.style.cssText = fogCheckbox.style.cssText;
+    const astEnabled = state.asteroidConfig?.enabled || false;
+    astCheckbox.checked = astEnabled;
+    astCheckbox.addEventListener('change', () => {
+      const newConfig = { ...(state.asteroidConfig || {}), enabled: astCheckbox.checked };
+      if (newConfig.enabled && !newConfig.damageLevel) newConfig.damageLevel = 1;
+      this.onLevelSettingsChange({ asteroidConfig: newConfig });
+      this.showLevelSettings({ ...state, asteroidConfig: newConfig });
+    });
+    astLabel.appendChild(astCheckbox);
+    astLabel.appendChild(document.createTextNode('Enabled'));
+    this.element.appendChild(astLabel);
+
+    if (astEnabled) {
+      this.element.appendChild(this.buildLabel('Damage Level (Upgrade Drops)'));
+      const dmgSelect = document.createElement('select');
+      dmgSelect.style.cssText = `width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; color: #e0e0e0; font-size: 11px; font-family: 'Rajdhani', sans-serif; padding: 4px; outline: none; margin-bottom: 8px;`;
+      [1, 2, 3].forEach(level => {
+        const option = document.createElement('option');
+        option.value = String(level);
+        option.textContent = `Level ${level}`;
+        option.selected = (state.asteroidConfig?.damageLevel || 1) === level;
+        dmgSelect.appendChild(option);
+      });
+      dmgSelect.addEventListener('change', () => {
+        this.onLevelSettingsChange({ asteroidConfig: { ...state.asteroidConfig, damageLevel: parseInt(dmgSelect.value, 10) } });
+      });
+      this.element.appendChild(dmgSelect);
+    }
+
+    // Spacer
+    const spacer = document.createElement('div');
+    spacer.style.flex = '1';
+    this.element.appendChild(spacer);
+
+    // OK Button
+    this.element.appendChild(this.buildOkBtn());
   }
 
   hide(): void {

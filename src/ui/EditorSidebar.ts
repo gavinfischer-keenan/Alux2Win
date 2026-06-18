@@ -37,16 +37,8 @@ export class EditorSidebar {
   onSaveLevel: () => void = () => {};
   onLoadLevel: () => void = () => {};
   onBack: () => void = () => {};
-  onLevelNameChange: (name: string) => void = () => {};
-  onFogChange: (enabled: boolean) => void = () => {};
-  onGammaRayChange: (enabled: boolean) => void = () => {};
-  onAsteroidsChange: (enabled: boolean) => void = () => {};
 
   private toolButtons: Map<EditorTool, HTMLElement> = new Map();
-  private nameInput!: HTMLInputElement;
-  private fogCheckbox!: HTMLInputElement;
-  private gammaCheckbox!: HTMLInputElement;
-  private asteroidsCheckbox!: HTMLInputElement;
 
   constructor(container: HTMLElement) {
     this.element = this.createElement();
@@ -103,90 +95,7 @@ export class EditorSidebar {
     spacer.style.flex = '1';
     sidebar.appendChild(spacer);
 
-    // ── Level name input ──────────────────────────────────────
-    const nameWrapper = document.createElement('div');
-    nameWrapper.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 100%;
-      padding: 0 6px;
-      margin-bottom: 6px;
-    `;
-    const nameLabel = document.createElement('div');
-    nameLabel.style.cssText = `
-      font-size: 8px;
-      color: rgba(255,255,255,0.35);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      font-family: 'Rajdhani', sans-serif;
-      margin-bottom: 4px;
-    `;
-    nameLabel.textContent = 'NAME';
-    this.nameInput = document.createElement('input');
-    this.nameInput.type = 'text';
-    this.nameInput.placeholder = 'Level';
-    this.nameInput.maxLength = 24;
-    this.nameInput.style.cssText = `
-      width: 100%;
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 4px;
-      color: #e0e0e0;
-      font-size: 9px;
-      font-family: 'Rajdhani', sans-serif;
-      padding: 3px 4px;
-      text-align: center;
-      outline: none;
-    `;
-    this.nameInput.addEventListener('input', () => this.onLevelNameChange(this.nameInput.value));
-    nameWrapper.appendChild(nameLabel);
-    nameWrapper.appendChild(this.nameInput);
 
-    // ── Fog of War Toggle ──────────────────────────────────────
-    const fogLabel = document.createElement('label');
-    fogLabel.style.cssText = `
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      cursor: pointer;
-      color: rgba(255,255,255,0.65);
-      font-size: 10px;
-      margin-top: 6px;
-    `;
-    this.fogCheckbox = document.createElement('input');
-    this.fogCheckbox.type = 'checkbox';
-    this.fogCheckbox.style.cssText = 'appearance: auto; -webkit-appearance: auto; accent-color: #4fc3f7; margin-right: 2px;';
-    this.fogCheckbox.addEventListener('change', () => this.onFogChange(this.fogCheckbox.checked));
-    fogLabel.appendChild(this.fogCheckbox);
-    fogLabel.appendChild(document.createTextNode('FOG OF WAR'));
-    nameWrapper.appendChild(fogLabel);
-
-    // ── Gamma Ray Toggle ──────────────────────────────────────
-    const gammaLabel = document.createElement('label');
-    gammaLabel.style.cssText = fogLabel.style.cssText;
-    this.gammaCheckbox = document.createElement('input');
-    this.gammaCheckbox.type = 'checkbox';
-    this.gammaCheckbox.style.cssText = this.fogCheckbox.style.cssText;
-    this.gammaCheckbox.addEventListener('change', () => this.onGammaRayChange(this.gammaCheckbox.checked));
-    gammaLabel.appendChild(this.gammaCheckbox);
-    gammaLabel.appendChild(document.createTextNode('GAMMA RAY'));
-    nameWrapper.appendChild(gammaLabel);
-
-    // ── Asteroids Toggle ──────────────────────────────────────
-    const asteroidsLabel = document.createElement('label');
-    asteroidsLabel.style.cssText = fogLabel.style.cssText;
-    this.asteroidsCheckbox = document.createElement('input');
-    this.asteroidsCheckbox.type = 'checkbox';
-    this.asteroidsCheckbox.style.cssText = this.fogCheckbox.style.cssText;
-    this.asteroidsCheckbox.addEventListener('change', () => this.onAsteroidsChange(this.asteroidsCheckbox.checked));
-    asteroidsLabel.appendChild(this.asteroidsCheckbox);
-    asteroidsLabel.appendChild(document.createTextNode('ASTEROIDS'));
-    nameWrapper.appendChild(asteroidsLabel);
-
-    sidebar.appendChild(nameWrapper);
-
-    sidebar.appendChild(this.createDivider());
 
     // ── Save Level button ────────────────────────────────────
     const saveBtn = this.createIconBtn('💾', 'Save Level', '#4fc3f7');
@@ -319,38 +228,6 @@ export class EditorSidebar {
     this.activeTool = tool;
     this.refreshActiveState();
     this.onToolChange(tool);
-  }
-
-  setLevelName(name: string): void {
-    if (this.nameInput) {
-      this.nameInput.value = name;
-    }
-    this.onLevelNameChange(name);
-  }
-
-  setState(name: string, fogEnabled: boolean, gammaEnabled: boolean = false, asteroidsEnabled: boolean = false): void {
-    this.nameInput.value = name;
-    this.fogCheckbox.checked = fogEnabled;
-    this.gammaCheckbox.checked = gammaEnabled;
-    this.asteroidsCheckbox.checked = asteroidsEnabled;
-  }
-
-  setFogEnabled(enabled: boolean): void {
-    if (this.fogCheckbox) {
-      this.fogCheckbox.checked = enabled;
-    }
-  }
-
-  setGammaEnabled(enabled: boolean): void {
-    if (this.gammaCheckbox) {
-      this.gammaCheckbox.checked = enabled;
-    }
-  }
-
-  setAsteroidsEnabled(enabled: boolean): void {
-    if (this.asteroidsCheckbox) {
-      this.asteroidsCheckbox.checked = enabled;
-    }
   }
 
   destroy(): void {

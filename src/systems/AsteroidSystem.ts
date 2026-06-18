@@ -191,17 +191,14 @@ export class AsteroidSystem {
           });
           (state as any)._pendingPlanetHazardDeaths = ((state as any)._pendingPlanetHazardDeaths ?? 0) + 1;
 
-          if (planet.upgradeLevel === 3) {
-            planet.upgradeLevel  = 2;
+          const damageLevel = state.asteroidConfig?.damageLevel ?? 1;
+          const newLevel = planet.upgradeLevel - damageLevel;
+
+          if (newLevel >= 1) {
+            planet.upgradeLevel  = newLevel as any;
             planet.absorbedCount = 0;
-            planet.maxHealth     = PLANET_MAX_HEALTH[2];
-            planet.productionRate = PLANET_PRODUCTION[2];
-            planet.health        = Math.min(planet.health, planet.maxHealth);
-          } else if (planet.upgradeLevel === 2) {
-            planet.upgradeLevel  = 1;
-            planet.absorbedCount = 0;
-            planet.maxHealth     = PLANET_MAX_HEALTH[1];
-            planet.productionRate = PLANET_PRODUCTION[1];
+            planet.maxHealth     = PLANET_MAX_HEALTH[planet.upgradeLevel];
+            planet.productionRate = PLANET_PRODUCTION[planet.upgradeLevel];
             planet.health        = Math.min(planet.health, planet.maxHealth);
           } else {
             // Reset planet to neutral level-1 state.

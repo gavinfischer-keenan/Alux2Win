@@ -140,6 +140,8 @@ export interface GammaRayState {
   enabled: boolean;
   timer: number;          // seconds until next fire
   intervalSeconds: number;
+  targetMode?: 'random' | 'locked';
+  lockedPath?: GammaRayPath;
   path: GammaRayPath | null;
   firing: boolean;        // beam is actively crossing
   fireProgress: number;   // 0..1 — beam sweep progress
@@ -215,8 +217,13 @@ export interface LevelData {
   planets: PlanetDef[];
   blackHoles: BlackHoleDef[];
   plasmaStorms?:       PlasmaStormDef[];
-  asteroidConfig?:     { enabled: boolean };
-  gammaRayConfig?:     { enabled: boolean; intervalSeconds?: number };
+  asteroidConfig?:     { enabled: boolean; damageLevel?: 1 | 2 | 3 };
+  gammaRayConfig?:     { 
+    enabled: boolean; 
+    intervalSeconds?: number; 
+    targetMode?: 'random' | 'locked'; 
+    lockedPath?: GammaRayPath; 
+  };
   speedZones?:         SpeedZoneDef[];
   portals?:            PortalDef[];
   trappingBlackHoles?: TrappingBlackHoleDef[];
@@ -280,6 +287,7 @@ export interface GameState {
   plasmaStorms: PlasmaStormData[];
   asteroids: AsteroidData[];
   asteroidRespawnTimer: number;
+  asteroidConfig?: { enabled: boolean; damageLevel?: 1 | 2 | 3 };
   gammaRay: GammaRayState;
   // new hazard systems
   speedZones:          SpeedZoneData[];

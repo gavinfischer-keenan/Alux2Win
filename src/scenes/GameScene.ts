@@ -453,10 +453,13 @@ export class GameScene {
       asteroids:            [],
       // Give players 30 seconds to establish themselves before the first asteroid.
       asteroidRespawnTimer: (levelData.asteroidConfig?.enabled) ? 30 : 9999,
+      asteroidConfig:       levelData.asteroidConfig,
       gammaRay: {
         enabled:         !!(levelData.gammaRayConfig?.enabled),
-        timer:           levelData.gammaRayConfig?.intervalSeconds ?? 120,
-        intervalSeconds: levelData.gammaRayConfig?.intervalSeconds ?? 120,
+        timer:           levelData.gammaRayConfig?.intervalSeconds ?? 60,
+        intervalSeconds: levelData.gammaRayConfig?.intervalSeconds ?? 60,
+        targetMode:      levelData.gammaRayConfig?.targetMode ?? 'random',
+        lockedPath:      levelData.gammaRayConfig?.lockedPath,
         path:            null,
         firing:          false,
         fireProgress:    0,
