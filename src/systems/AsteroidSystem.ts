@@ -14,7 +14,7 @@
 // ============================================================
 
 import type { AsteroidData, GameState, ParticleData } from '../types';
-import { PLANET_RADIUS, FACTION_COLORS } from '../types';
+import { PLANET_RADIUS, FACTION_COLORS, PLANET_MAX_HEALTH, PLANET_PRODUCTION } from '../types';
 import { audioManager } from '../core/AudioManager';
 
 /** Maximum cumulative hits before an asteroid is destroyed. */
@@ -173,9 +173,8 @@ export class AsteroidSystem {
           asteroid.x += nx * overlap;
           asteroid.y += ny * overlap;
 
-          // Asteroid knocks the planet down 2 levels.
-          // A fully upgraded planet (Level 3) drops to Level 1 but survives.
-          // Lesser planets (Level 1, 2) drop below Level 1 and are lost to neutral.
+          // Asteroid knocks the planet down 1 level.
+          // Level 3 -> 2. Level 2 -> 1. Level 1 -> lost to neutral.
           // Planet death shockwave effect
           state.hazardEffects.push({
             id:       ++state.hazardEffectIdCounter,
@@ -190,17 +189,27 @@ export class AsteroidSystem {
           (state as any)._pendingPlanetHazardDeaths = ((state as any)._pendingPlanetHazardDeaths ?? 0) + 1;
 
           if (planet.upgradeLevel === 3) {
+            planet.upgradeLevel  = 2;
+            planet.absorbedCount = 0;
+            planet.maxHealth     = PLANET_MAX_HEALTH[2];
+            planet.productionRate = PLANET_PRODUCTION[2];
+            planet.health        = Math.min(planet.health, planet.maxHealth);
+          } else if (planet.upgradeLevel === 2) {
             planet.upgradeLevel  = 1;
             planet.absorbedCount = 0;
-            planet.maxHealth     = 40;
+            planet.maxHealth     = PLANET_MAX_HEALTH[1];
+            planet.productionRate = PLANET_PRODUCTION[1];
             planet.health        = Math.min(planet.health, planet.maxHealth);
           } else {
             // Reset planet to neutral level-1 state.
             planet.faction       = 'neutral';
             planet.absorbedCount = 0;
             planet.upgradeLevel  = 1;
-            planet.maxHealth     = 40;
-            planet.health        = 40;
+            planet.maxHealth     = PLANET_MAX_HEALTH[1];
+            planet.productionRate = PLANET_PRODUCTION[1];
+            planet.health        = planet.maxHealth;
+            planet.shieldPoints  = 0;
+            planet.shieldTimer   = 0;
           }
 
           // Kill all orbiting particles that call this planet home.
