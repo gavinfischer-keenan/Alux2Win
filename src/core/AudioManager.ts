@@ -15,6 +15,8 @@ class AudioManager {
   private _shimmerTimeout: ReturnType<typeof setTimeout> | null = null;
   private _lastWarningTime = 0;
 
+  private _regretBuffer: AudioBuffer | null = null;
+
   // ── Init ─────────────────────────────────────────────────
 
   async ensureReady(): Promise<void> {
@@ -28,6 +30,16 @@ class AudioManager {
     this._masterGain = this._ctx.createGain();
     this._masterGain.gain.setValueAtTime(this._volume, this._ctx.currentTime);
     this._masterGain.connect(this._ctx.destination);
+    
+    // Load regret MP3
+    try {
+      const response = await fetch('/assets/audio/regret.mp3');
+      const arrayBuffer = await response.arrayBuffer();
+      this._regretBuffer = await this._ctx.decodeAudioData(arrayBuffer);
+    } catch (err) {
+      console.warn('Failed to load regret audio', err);
+    }
+
     if (this._ctx.state === 'suspended') {
       await this._ctx.resume();
     }
@@ -437,32 +449,20 @@ class AudioManager {
   playParticleHazardDeath(): void {
     const ctx = this._ctx;
     const master = this._masterGain;
-    if (!ctx || !master) return;
+    if (!ctx || !master || !this._regretBuffer) return;
     if (ctx.currentTime - this._lastRegretTime < 3.0) return; // 3s cooldown
     this._lastRegretTime = ctx.currentTime;
 
-    const t = ctx.currentTime;
+    const source = ctx.createBufferSource();
+    source.buffer = this._regretBuffer;
+    
+    // Slight gain reduction for the voice line to balance it
     const g = ctx.createGain();
-    g.gain.setValueAtTime(0.14, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 2.5);
+    g.gain.value = 1.2;
+    source.connect(g);
     g.connect(master);
-
-    // Deep monotone — flat syllable pulses at ~120Hz
-    const syllableTimings = [0, 0.22, 0.45, 0.65, 0.85, 1.05, 1.3, 1.55, 1.78, 2.0];
-    const baseFreq = 110;
-    syllableTimings.forEach((st) => {
-      const osc = ctx.createOscillator();
-      const og  = ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(baseFreq, t + st);
-      og.gain.setValueAtTime(0.0, t + st);
-      og.gain.linearRampToValueAtTime(0.9, t + st + 0.02);
-      og.gain.setValueAtTime(0.9, t + st + 0.12);
-      og.gain.linearRampToValueAtTime(0.0, t + st + 0.18);
-      osc.connect(og); og.connect(g);
-      osc.start(t + st);
-      osc.stop(t + st + 0.22);
-    });
+    
+    source.start();
   }
 
   // ── Cleanup ───────────────────────────────────────────────
