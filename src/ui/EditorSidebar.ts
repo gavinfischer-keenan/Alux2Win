@@ -39,10 +39,14 @@ export class EditorSidebar {
   onBack: () => void = () => {};
   onLevelNameChange: (name: string) => void = () => {};
   onFogChange: (enabled: boolean) => void = () => {};
+  onGammaRayChange: (enabled: boolean) => void = () => {};
+  onAsteroidsChange: (enabled: boolean) => void = () => {};
 
   private toolButtons: Map<EditorTool, HTMLElement> = new Map();
   private nameInput!: HTMLInputElement;
   private fogCheckbox!: HTMLInputElement;
+  private gammaCheckbox!: HTMLInputElement;
+  private asteroidsCheckbox!: HTMLInputElement;
 
   constructor(container: HTMLElement) {
     this.element = this.createElement();
@@ -157,6 +161,28 @@ export class EditorSidebar {
     fogLabel.appendChild(this.fogCheckbox);
     fogLabel.appendChild(document.createTextNode('FOG OF WAR'));
     nameWrapper.appendChild(fogLabel);
+
+    // ── Gamma Ray Toggle ──────────────────────────────────────
+    const gammaLabel = document.createElement('label');
+    gammaLabel.style.cssText = fogLabel.style.cssText;
+    this.gammaCheckbox = document.createElement('input');
+    this.gammaCheckbox.type = 'checkbox';
+    this.gammaCheckbox.style.cssText = this.fogCheckbox.style.cssText;
+    this.gammaCheckbox.addEventListener('change', () => this.onGammaRayChange(this.gammaCheckbox.checked));
+    gammaLabel.appendChild(this.gammaCheckbox);
+    gammaLabel.appendChild(document.createTextNode('GAMMA RAY'));
+    nameWrapper.appendChild(gammaLabel);
+
+    // ── Asteroids Toggle ──────────────────────────────────────
+    const asteroidsLabel = document.createElement('label');
+    asteroidsLabel.style.cssText = fogLabel.style.cssText;
+    this.asteroidsCheckbox = document.createElement('input');
+    this.asteroidsCheckbox.type = 'checkbox';
+    this.asteroidsCheckbox.style.cssText = this.fogCheckbox.style.cssText;
+    this.asteroidsCheckbox.addEventListener('change', () => this.onAsteroidsChange(this.asteroidsCheckbox.checked));
+    asteroidsLabel.appendChild(this.asteroidsCheckbox);
+    asteroidsLabel.appendChild(document.createTextNode('ASTEROIDS'));
+    nameWrapper.appendChild(asteroidsLabel);
 
     sidebar.appendChild(nameWrapper);
 
@@ -302,9 +328,28 @@ export class EditorSidebar {
     this.onLevelNameChange(name);
   }
 
+  setState(name: string, fogEnabled: boolean, gammaEnabled: boolean = false, asteroidsEnabled: boolean = false): void {
+    this.nameInput.value = name;
+    this.fogCheckbox.checked = fogEnabled;
+    this.gammaCheckbox.checked = gammaEnabled;
+    this.asteroidsCheckbox.checked = asteroidsEnabled;
+  }
+
   setFogEnabled(enabled: boolean): void {
     if (this.fogCheckbox) {
       this.fogCheckbox.checked = enabled;
+    }
+  }
+
+  setGammaEnabled(enabled: boolean): void {
+    if (this.gammaCheckbox) {
+      this.gammaCheckbox.checked = enabled;
+    }
+  }
+
+  setAsteroidsEnabled(enabled: boolean): void {
+    if (this.asteroidsCheckbox) {
+      this.asteroidsCheckbox.checked = enabled;
     }
   }
 

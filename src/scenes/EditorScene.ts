@@ -94,6 +94,8 @@ interface EditState {
   worldWidth:          number;
   worldHeight:         number;
   fogOfWarConfig?:     { enabled: boolean };
+  gammaRayConfig?:     { enabled: boolean; intervalSeconds?: number };
+  asteroidConfig?:     { enabled: boolean };
 }
 
 export class EditorScene {
@@ -173,6 +175,8 @@ export class EditorScene {
     this.sidebar.onTestLevel  = () => this.testLevel();
     this.sidebar.onLevelNameChange = (name) => { this.editState.levelName = name; };
     this.sidebar.onFogChange = (enabled) => { this.editState.fogOfWarConfig = enabled ? { enabled: true } : undefined; };
+    this.sidebar.onGammaRayChange = (enabled) => { this.editState.gammaRayConfig = enabled ? { enabled: true, intervalSeconds: 30 } : undefined; };
+    this.sidebar.onAsteroidsChange = (enabled) => { this.editState.asteroidConfig = enabled ? { enabled: true } : undefined; };
 
     // Properties panel
     this.propertiesPanel = new PropertiesPanel(container);
@@ -1107,6 +1111,8 @@ export class EditorScene {
       worldWidth:  this.editState.worldWidth,
       worldHeight: this.editState.worldHeight,
       fogOfWarConfig: this.editState.fogOfWarConfig,
+      gammaRayConfig: this.editState.gammaRayConfig,
+      asteroidConfig: this.editState.asteroidConfig,
       planets,
       blackHoles,
       speedZones:          speedZones.length > 0          ? speedZones          : undefined,
@@ -1411,6 +1417,12 @@ export class EditorScene {
     }
     if ((this.sidebar as any).setFogEnabled) {
       (this.sidebar as any).setFogEnabled(ld.fogOfWarConfig?.enabled ?? false);
+    }
+    if ((this.sidebar as any).setGammaEnabled) {
+      (this.sidebar as any).setGammaEnabled(ld.gammaRayConfig?.enabled ?? false);
+    }
+    if ((this.sidebar as any).setAsteroidsEnabled) {
+      (this.sidebar as any).setAsteroidsEnabled(ld.asteroidConfig?.enabled ?? false);
     }
 
     let maxPid = 0, maxBhId = 0, maxSzId = 0, maxPortalId = 0, maxTbhId = 0, maxWhId = 0;
