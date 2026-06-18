@@ -418,6 +418,9 @@ export class GameScene {
         orbitAngle: def.orbitStartAngle ?? 0,
         inStorm: false,
         wasInStorm: false,
+        isShielded: def.isShielded ?? false,
+        shieldPoints: 0,
+        shieldTimer: 0,
       };
       planets.set(def.id, data);
     });
