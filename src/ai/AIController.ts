@@ -1250,6 +1250,12 @@ export class AIController {
     state: GameState,
     assessment: SituationAssessment,
   ): number {
+    // Player immunity period based on difficulty
+    if (target.faction === 'player') {
+      if (this._difficulty === 'easy' && this._gameElapsed < 120) return -Infinity;
+      if (this._difficulty === 'normal' && this._gameElapsed < 30) return -Infinity;
+    }
+
     let score = 0;
 
     // Distance penalty (use nearest source)
