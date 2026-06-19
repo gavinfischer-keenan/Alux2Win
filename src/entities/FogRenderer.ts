@@ -111,9 +111,9 @@ export class FogRenderer {
   }
 
   private getVisionRadius(level: number): number {
-    if (level === 1) return 500;
-    if (level === 2) return 850;
-    return 1300; // level 3
+    if (level === 1) return 250;
+    if (level === 2) return 425;
+    return 650; // level 3
   }
 
   public destroy(): void {

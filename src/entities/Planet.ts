@@ -125,6 +125,8 @@ export class Planet {
 
   update(selected: boolean): void {
     const d = this.data;
+    this.updatePosition();
+
     const needRedraw =
       d.faction      !== this.lastFaction ||
       d.upgradeLevel !== this.lastUpgradeLevel;
@@ -250,6 +252,7 @@ export class Planet {
         0xff3333;                          // critical — red
 
       this.healthArc
+        .moveTo(Math.cos(startAngle) * radius, Math.sin(startAngle) * radius)
         .arc(0, 0, radius, startAngle, fillEnd)
         .stroke({ color, alpha: 0.9, width: 3 });
     }

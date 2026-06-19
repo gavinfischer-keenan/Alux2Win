@@ -661,6 +661,7 @@ export class PropertiesPanel {
       { value: 'player',  label: 'Player'   },
       { value: 'enemy_a', label: 'AI Red'   },
       { value: 'enemy_b', label: 'AI Green' },
+      { value: 'enemy_c', label: 'AI Purple'},
       { value: 'neutral', label: 'Neutral'  },
     ];
 

@@ -70,6 +70,7 @@ export class WhiteHoleRenderer {
         g.circle(x, y, 52).stroke({ color: factionColor, width: 1.5, alpha: 0.2 });
 
         // Real arc from top (-π/2) sweeping clockwise by progressFraction * 2π.
+        g.moveTo(x, y - 52);
         g.arc(x, y, 52, -Math.PI / 2, -Math.PI / 2 + progressFraction * Math.PI * 2)
           .stroke({ color: factionColor, width: 4, alpha: 0.9 });
 

@@ -26,6 +26,7 @@ export class App {
   private activeLevel: LevelData | null = null;
   private activeIsTutorial = false;
   private activeTutorialId = 'basics';
+  private returnToEditorLevel: LevelData | null = null;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -91,11 +92,17 @@ export class App {
     this.destroyEditor();
 
     this.currentScene = 'game';
-    this.gameScene    = new GameScene(this.renderer, this.eventBus);
+    this.gameScene    = new GameScene(this.renderer, this.eventBus, !!this.returnToEditorLevel);
 
     this.gameScene.onGameOver = (_winner: Faction | null) => {
       this.destroyGame();
-      this.showMenu();
+      if (this.returnToEditorLevel) {
+        const ld = this.returnToEditorLevel;
+        this.returnToEditorLevel = null;
+        this.openEditor(ld);
+      } else {
+        this.showMenu();
+      }
     };
 
     this.gameScene.loadLevel(levelData, this.container, isTutorial, tutorialId)
@@ -118,7 +125,7 @@ export class App {
 
   // ── Scene: Editor ─────────────────────────────────────────
 
-  private openEditor(): void {
+  private openEditor(initialData?: LevelData): void {
     this.destroyMenu();
     this.destroyGame();
 
@@ -130,11 +137,15 @@ export class App {
       this.showMenu();
     };
     this.editorScene.onTestLevel = (levelData: LevelData) => {
+      this.returnToEditorLevel = levelData;
       this.destroyEditor();
       this.startGame(levelData);
     };
 
     this.editorScene.show(this.container);
+    if (initialData) {
+      this.editorScene.loadLevelData(initialData);
+    }
   }
 
   private destroyEditor(): void {
@@ -149,7 +160,13 @@ export class App {
       case 'menu':
         this.destroyGame();
         this.destroyEditor();
-        this.showMenu();
+        if (this.returnToEditorLevel) {
+          const ld = this.returnToEditorLevel;
+          this.returnToEditorLevel = null;
+          this.openEditor(ld);
+        } else {
+          this.showMenu();
+        }
         break;
       case 'game':
         if (this.activeLevel) this.startGame(this.activeLevel, this.activeIsTutorial, this.activeTutorialId);

@@ -1725,9 +1725,9 @@ export class AIController {
 
     for (const p of state.planets.values()) {
       if (p.faction === faction) {
-        let r = 500;
-        if (p.upgradeLevel === 2) r = 850;
-        if (p.upgradeLevel === 3) r = 1300;
+        let r = 250;
+        if (p.upgradeLevel === 2) r = 425;
+        if (p.upgradeLevel === 3) r = 650;
         r *= diff;
         const dx = target.x - p.x;
         const dy = target.y - p.y;

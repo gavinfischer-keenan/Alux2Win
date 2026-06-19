@@ -180,9 +180,12 @@ export class GameScene {
 
   onGameOver: (winner: Faction | null) => void = () => {};
 
-  constructor(renderer: Renderer, eventBus: EventBus) {
+  private isEditorTest: boolean;
+
+  constructor(renderer: Renderer, eventBus: EventBus, isEditorTest: boolean = false) {
     this.renderer = renderer;
     this.eventBus = eventBus;
+    this.isEditorTest = isEditorTest;
   }
 
   // ── Public API ────────────────────────────────────────────
@@ -237,7 +240,7 @@ export class GameScene {
     this.hud = new HUD(this.hudContainer, () => this.togglePause());
 
     // Pause menu (hidden initially)
-    this.pauseMenu = new PauseMenu(this.container, this._timeScale);
+    this.pauseMenu = new PauseMenu(this.container, this._timeScale, this.isEditorTest);
     this.pauseMenu.onResume      = () => this.togglePause();
     this.pauseMenu.onSpeedChange = (s) => { this._timeScale = s; };
     this.pauseMenu.onQuitToMenu  = () => {

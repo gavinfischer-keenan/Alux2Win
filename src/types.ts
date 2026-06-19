@@ -4,7 +4,7 @@
 // ============================================================
 
 // ---- Factions ----
-export type Faction = 'player' | 'enemy_a' | 'enemy_b' | 'neutral';
+export type Faction = 'player' | 'enemy_a' | 'enemy_b' | 'enemy_c' | 'neutral';
 
 // ---- Upgrade Levels ----
 export type UpgradeLevel = 1 | 2 | 3;
@@ -331,6 +331,7 @@ export const FACTION_COLORS: Record<Faction, number> = {
   player:  0x4fc3f7,
   enemy_a: 0xef5350,
   enemy_b: 0x66bb6a,
+  enemy_c: 0xab47bc,
   neutral: 0x78909c,
 };
 
@@ -338,6 +339,7 @@ export const FACTION_COLORS_HEX: Record<Faction, string> = {
   player:  '#4fc3f7',
   enemy_a: '#ef5350',
   enemy_b: '#66bb6a',
+  enemy_c: '#ab47bc',
   neutral: '#78909c',
 };
 

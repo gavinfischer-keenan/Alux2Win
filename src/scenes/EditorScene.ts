@@ -91,6 +91,7 @@ interface EditState {
   nextPortalPairId:    number;
   pendingPortalPairId: string | null;
   levelName:           string;
+  category?:           string;
   worldWidth:          number;
   worldHeight:         number;
   fogOfWarConfig?:     { enabled: boolean };
@@ -745,6 +746,9 @@ export class EditorScene {
 
   /** Get x position of any entity by id */
   private getEntityX(id: string): number {
+    if (id === 'gammaRayHandle1') return this.editState.gammaRayConfig?.lockedPath?.x1 ?? 0;
+    if (id === 'gammaRayHandle2') return this.editState.gammaRayConfig?.lockedPath?.x2 ?? 0;
+
     return this.editState.planets.get(id)?.x
       ?? this.editState.blackHoles.get(id)?.x
       ?? this.editState.speedZones.get(id)?.x
@@ -756,6 +760,9 @@ export class EditorScene {
 
   /** Get y position of any entity by id */
   private getEntityY(id: string): number {
+    if (id === 'gammaRayHandle1') return this.editState.gammaRayConfig?.lockedPath?.y1 ?? 0;
+    if (id === 'gammaRayHandle2') return this.editState.gammaRayConfig?.lockedPath?.y2 ?? 0;
+
     return this.editState.planets.get(id)?.y
       ?? this.editState.blackHoles.get(id)?.y
       ?? this.editState.speedZones.get(id)?.y
@@ -1183,7 +1190,7 @@ export class EditorScene {
   }
 
   private evaluateLevel(): { category: string, players: number, particles: number } {
-    let category = 'Normal';
+    let category = 'Custom';
     const hasSpeedZones = this.editState.speedZones.size > 0;
     const hasPortals = this.editState.portals.size > 0;
     const hasBH = this.editState.blackHoles.size > 0 || this.editState.trappingBlackHoles.size > 0;
@@ -1198,13 +1205,15 @@ export class EditorScene {
     
     const activeHazardTypes = Object.entries(hazardCounts).filter(([_, count]) => count > 0).map(([k, _]) => k);
 
-    if (activeHazardTypes.length === 0) {
-      category = 'Normal';
-    } else if (activeHazardTypes.length === 1) {
+    if (activeHazardTypes.length === 1) {
       if (activeHazardTypes[0] === 'speedZones') category = 'Speed Traps';
       else if (activeHazardTypes[0] === 'portals') category = 'Portals';
       else if (activeHazardTypes[0] === 'bh') category = 'Black Holes';
       else if (activeHazardTypes[0] === 'whiteHoles') category = 'White Holes';
+    } else if (activeHazardTypes.length === 2) {
+      category = 'Dual Hazard Universes';
+    } else if (activeHazardTypes.length === 3) {
+      category = 'Triple Hazard Universes';
     } else {
       category = 'Custom';
     }
@@ -1295,11 +1304,35 @@ export class EditorScene {
     catLabel.textContent = 'Category';
     catLabel.style.fontSize = '12px';
     catLabel.style.color = 'rgba(255,255,255,0.6)';
-    const catInput = document.createElement('input');
-    catInput.value = category;
-    catInput.style.cssText = 'background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 6px; border-radius: 4px; font-family: inherit;';
+    
+    const catSelect = document.createElement('select');
+    catSelect.style.cssText = 'background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 6px; border-radius: 4px; font-family: inherit;';
+    
+    const groups = [
+      { label: 'Core', options: ['Normal'] },
+      { label: 'Single Hazard Universes', options: ['Plasma Storms', 'Asteroids', 'Gamma Rays', 'Speed Traps', 'Portals', 'Black Holes', 'White Holes', 'Shielded Planets', 'Fog of War'] },
+      { label: 'Multi Hazard Universes', options: ['Dual Hazard Universes', 'Triple Hazard Universes'] },
+      { label: 'Other', options: ['Custom'] }
+    ];
+
+    groups.forEach(g => {
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = g.label;
+      optgroup.style.background = 'rgba(20,20,40,1)';
+      g.options.forEach(optName => {
+        const option = document.createElement('option');
+        option.value = optName;
+        option.textContent = optName;
+        optgroup.appendChild(option);
+      });
+      catSelect.appendChild(optgroup);
+    });
+
+    // Default to the previously saved category or the newly guessed one
+    catSelect.value = this.editState.category || category;
+    
     catWrapper.appendChild(catLabel);
-    catWrapper.appendChild(catInput);
+    catWrapper.appendChild(catSelect);
     form.appendChild(catWrapper);
 
     const info = document.createElement('div');
@@ -1322,8 +1355,9 @@ export class EditorScene {
     exportBtn.style.cssText = 'padding: 8px 16px; background: rgba(79, 195, 247, 0.3); border: 1px solid #4fc3f7; color: #4fc3f7; border-radius: 4px; cursor: pointer;';
     exportBtn.onclick = () => {
       this.editState.levelName = nameField.input.value;
+      this.editState.category = catSelect.value || 'Custom';
       const ld = this.buildLevelData();
-      ld.category = catInput.value;
+      ld.category = this.editState.category;
       this.exportLevel(ld);
       if ((this.sidebar as any).setLevelName) {
         (this.sidebar as any).setLevelName(this.editState.levelName);
@@ -1336,8 +1370,9 @@ export class EditorScene {
     saveBtn.style.cssText = 'padding: 8px 16px; background: rgba(34, 197, 94, 0.3); border: 1px solid #22c55e; color: #22c55e; border-radius: 4px; cursor: pointer;';
     saveBtn.onclick = () => {
       this.editState.levelName = nameField.input.value;
+      this.editState.category = catSelect.value || 'Custom';
       const ld = this.buildLevelData();
-      ld.category = catInput.value;
+      ld.category = this.editState.category;
       LevelStore.saveLevel(ld);
       if ((this.sidebar as any).setLevelName) {
         (this.sidebar as any).setLevelName(this.editState.levelName);
@@ -1457,7 +1492,7 @@ export class EditorScene {
     this.uiContainer.appendChild(overlay);
   }
 
-  private loadLevelData(ld: LevelData): void {
+  public loadLevelData(ld: LevelData): void {
     this.editState.planets.clear();
     this.editState.blackHoles.clear();
     this.editState.speedZones.clear();

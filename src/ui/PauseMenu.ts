@@ -25,9 +25,9 @@ export class PauseMenu {
   onSpeedChange: (speed: GameSpeed) => void = () => {};
   onQuitToMenu: () => void = () => {};
 
-  constructor(container: HTMLElement, initialSpeed?: GameSpeed) {
+  constructor(container: HTMLElement, initialSpeed?: GameSpeed, isEditorTest: boolean = false) {
     this._currentSpeed = initialSpeed ?? (SettingsStore.get().gameSpeed as GameSpeed);
-    this.element = this._build();
+    this.element = this._build(isEditorTest);
     container.appendChild(this.element);
     this._setActiveSpeed(this._currentSpeed);
   }
@@ -69,7 +69,7 @@ export class PauseMenu {
 
   // ── Private build ─────────────────────────────────────────
 
-  private _build(): HTMLElement {
+  private _build(isEditorTest: boolean): HTMLElement {
     const overlay = document.createElement('div');
     overlay.style.cssText = `
       position: absolute;
@@ -198,8 +198,9 @@ export class PauseMenu {
     });
     card.appendChild(resumeBtn);
 
-    // ── Quit button ───────────────────────────────────────────
-    const quitBtn = this._buildActionBtn('⌂  QUIT TO MENU', '#78909c', '#90a4ae');
+    // ■ Quit button ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+    const quitText = isEditorTest ? '⏹  QUIT TO EDITOR' : '⏹  QUIT TO MENU';
+    const quitBtn = this._buildActionBtn(quitText, '#78909c', '#90a4ae');
     quitBtn.addEventListener('click', () => {
       audioManager.playClick();
       this.onQuitToMenu();
