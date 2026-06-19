@@ -60,6 +60,7 @@ export class Planet {
   private selectionRing: Graphics;
   private label:         Text;
   private levelLabel:    Text;
+  private lockoutLabel:  Text;
 
   private lastFaction:      Faction;
   private lastUpgradeLevel: UpgradeLevel;
@@ -99,6 +100,17 @@ export class Planet {
     this.levelLabel = new Text({ text: '', style: levelStyle });
     this.levelLabel.anchor.set(0.5, 0);
 
+    const lockoutStyle = new TextStyle({
+      fontFamily: 'Orbitron',
+      fontSize:   10,
+      fontWeight: 'bold',
+      fill:       0xff5252,
+      align:      'center',
+    });
+    this.lockoutLabel = new Text({ text: '', style: lockoutStyle });
+    this.lockoutLabel.anchor.set(0.5, 1);
+    this.lockoutLabel.visible = false;
+
     // Stacking order: glow → healthArc → upgradeArc → planet body → shieldGraphics → selection ring → labels
     layer.addChild(this.glowGraphics);
     layer.addChild(this.healthArc);
@@ -108,6 +120,7 @@ export class Planet {
     layer.addChild(this.selectionRing);
     layer.addChild(this.label);
     layer.addChild(this.levelLabel);
+    layer.addChild(this.lockoutLabel);
 
     this._redraw();
     this.updatePosition();
@@ -126,6 +139,16 @@ export class Planet {
   update(selected: boolean): void {
     const d = this.data;
     this.updatePosition();
+
+    if (d.lockoutTimer !== undefined && d.lockoutTimer > 0) {
+      this.lockoutLabel.visible = true;
+      this.lockoutLabel.text = `LOCKED ${Math.ceil(d.lockoutTimer)}s`;
+      // Position just above the planet
+      this.lockoutLabel.x = this.graphics.x;
+      this.lockoutLabel.y = this.graphics.y - PLANET_RADIUS[d.upgradeLevel] - 5;
+    } else {
+      this.lockoutLabel.visible = false;
+    }
 
     const needRedraw =
       d.faction      !== this.lastFaction ||

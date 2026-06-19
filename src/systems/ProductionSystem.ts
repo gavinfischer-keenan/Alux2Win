@@ -28,6 +28,10 @@ export class ProductionSystem {
 
   private _produceParticles(dt: number, state: GameState): void {
     for (const planet of state.planets.values()) {
+      if (planet.lockoutTimer !== undefined && planet.lockoutTimer > 0) {
+        planet.lockoutTimer = Math.max(0, planet.lockoutTimer - dt);
+      }
+
       if (planet.faction === 'neutral') continue;
       if (planet.inStorm) continue; // no production while in plasma storm
 

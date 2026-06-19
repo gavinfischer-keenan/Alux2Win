@@ -1256,6 +1256,11 @@ export class AIController {
       if (this._difficulty === 'normal' && this._gameElapsed < 30) return -Infinity;
     }
 
+    // Ignore locked neutral planets unless we are the previous owner
+    if (target.faction === 'neutral' && target.lockoutTimer !== undefined && target.lockoutTimer > 0 && target.previousOwner !== faction) {
+      return -Infinity;
+    }
+
     let score = 0;
 
     // Distance penalty (use nearest source)
@@ -1268,7 +1273,13 @@ export class AIController {
     }
 
     // Weakness bonus (fewer defenders = easier target)
-    const defense = target.health + this.getOrbitingCount(target.id, state);
+    let defense = target.health + this.getOrbitingCount(target.id, state);
+    
+    // Retake discount logic
+    if (target.faction === 'neutral' && target.previousOwner === faction && (target.rebellionBonus || 0) > 0) {
+      defense -= 20;
+    }
+
     score += Math.max(0, 80 - defense) * 0.6; // up to +48 for undefended
 
     // Value bonus (higher upgrade = more valuable to capture)

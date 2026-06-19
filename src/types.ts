@@ -48,6 +48,10 @@ export interface PlanetData {
   shieldPoints?: number;
   shieldTimer?: number;
   _shieldAltToggle?: boolean;
+  // rebellion feature
+  lockoutTimer?: number;
+  previousOwner?: Faction;
+  rebellionBonus?: number;
 }
 
 // ---- Particle Data (runtime) ----

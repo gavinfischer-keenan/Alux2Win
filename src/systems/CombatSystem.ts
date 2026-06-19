@@ -114,6 +114,14 @@ export class CombatSystem {
           }
         } else {
           // ---- Enemy / Neutral interaction ----
+          if (planet.lockoutTimer !== undefined && planet.lockoutTimer > 0 && particle.faction !== planet.previousOwner) {
+            particle.alive = false;
+            anyDied = true;
+            // Play deflection sound? Not necessary but could reuse warning
+            if (particle.faction === 'player') audioManager.playWarning();
+            break;
+          }
+
           if (planet.faction === 'player') {
             audioManager.playWarning();
           }
@@ -166,7 +174,13 @@ export class CombatSystem {
                 audioManager.playPlanetDamage();
               }
 
-              if (planet.health <= 0) {
+              // Determine capture threshold (retake discount)
+              let captureThreshold = 0;
+              if (planet.faction === 'neutral' && planet.previousOwner === particle.faction && (planet.rebellionBonus || 0) > 0) {
+                captureThreshold = 20;
+              }
+
+              if (planet.health <= captureThreshold) {
                 this._capturePlanet(planet, particle, state, eventBus);
               }
             }
@@ -194,8 +208,6 @@ export class CombatSystem {
 
     // Instantly reset health & level to base
     planet.upgradeLevel = 1;
-    planet.maxHealth = PLANET_MAX_HEALTH[1];
-    planet.health = planet.maxHealth;
     planet.absorbedCount = 0;
     planet.productionRate = PLANET_PRODUCTION[1];
     planet.shieldPoints = 0;
@@ -203,8 +215,15 @@ export class CombatSystem {
 
     if (oldFaction === 'neutral') {
       planet.faction = attackParticle.faction;
+      planet.maxHealth = PLANET_MAX_HEALTH[1]; // Reset to standard health
+      planet.health = planet.maxHealth;
     } else {
       planet.faction = 'neutral';
+      planet.previousOwner = oldFaction;
+      planet.lockoutTimer = 15;
+      planet.rebellionBonus = Math.min((planet.rebellionBonus || 0) + 20, 80);
+      planet.maxHealth = PLANET_MAX_HEALTH[1] + planet.rebellionBonus;
+      planet.health = planet.maxHealth;
     }
 
     if (planet.faction === 'player') {
