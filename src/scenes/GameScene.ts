@@ -249,6 +249,7 @@ export class GameScene {
     // Only pass active factions to the HUD
     const activeFactions: Faction[] = ['player', ...Array.from(aiFactions)];
     this.hud = new HUD(this.hudContainer, () => this.togglePause(), activeFactions);
+    this.hud.loadRecords(this._levelId);
 
     // Pause menu (hidden initially)
     this.pauseMenu = new PauseMenu(this.container, this._timeScale, this.isEditorTest);
@@ -677,6 +678,7 @@ export class GameScene {
 
     // HUD update
     this.hud.update(this.state);
+    this.hud.updateTimer(this._elapsedTime);
     this.hud.tick(performance.now());
   }
 

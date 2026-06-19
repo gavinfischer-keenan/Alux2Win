@@ -6,6 +6,7 @@
 import type { GameState, Faction } from '../types';
 import { FACTION_COLORS_HEX } from '../types';
 import { audioManager } from '../core/AudioManager';
+import { HighScoreStore } from '../core/HighScoreStore';
 
 interface FactionDisplay {
   faction: Faction;
@@ -24,6 +25,14 @@ export class HUD {
   private gammaCountdownEl: HTMLElement;   // gamma-ray countdown widget
   private hintEl: HTMLElement;             // control hint (hidden when countdown is active)
 
+  private timerEl: HTMLElement;
+  private bestTimeEl: HTMLElement;
+  private bummerEl: HTMLElement;
+
+  private bestTime: number | null = null;
+  private fifthBestTime: number | null = null;
+  private hasCrossedBest = false;
+
   private lastFpsUpdate = 0;
   private frameCount    = 0;
   private currentFps    = 0;
@@ -33,6 +42,9 @@ export class HUD {
     container.appendChild(this.element);
 
     this.fpsEl        = this.element.querySelector<HTMLElement>('#hud-fps')!;
+    this.timerEl      = this.element.querySelector<HTMLElement>('#hud-timer')!;
+    this.bestTimeEl   = this.element.querySelector<HTMLElement>('#hud-best-time')!;
+    this.bummerEl     = this.element.querySelector<HTMLElement>('#hud-bummer')!;
     this.pauseBtn     = this.element.querySelector<HTMLElement>('#hud-pause-btn')!;
     this.pausedBanner = this.element.querySelector<HTMLElement>('#hud-paused-banner')!;
     this.gammaCountdownEl = this.element.querySelector<HTMLElement>('#hud-gamma-countdown')!;
@@ -78,6 +90,45 @@ export class HUD {
       this.frameCount    = 0;
       this.lastFpsUpdate = now;
       this.fpsEl.textContent = `${this.currentFps} FPS`;
+    }
+  }
+
+  loadRecords(levelId: string): void {
+    const records = HighScoreStore.getTop(levelId);
+    this.bestTime = records.length > 0 ? records[0].bestTime : null;
+    this.fifthBestTime = records.length >= 5 ? records[4].bestTime : null;
+    this.hasCrossedBest = false;
+
+    if (this.bestTime !== null) {
+      this.bestTimeEl.textContent = `BEST: ${HighScoreStore.formatTime(this.bestTime)}`;
+    } else {
+      this.bestTimeEl.textContent = '';
+    }
+  }
+
+  updateTimer(elapsedTime: number): void {
+    this.timerEl.textContent = HighScoreStore.formatTime(elapsedTime);
+
+    // Color logic
+    if (this.bestTime !== null) {
+      if (elapsedTime <= this.bestTime) {
+        this.timerEl.style.color = '#4fc3f7'; // Green/Blue (using the same victory color or actual green)
+      } else if (this.fifthBestTime === null || elapsedTime <= this.fifthBestTime) {
+        this.timerEl.style.color = '#ffd54f'; // Yellow
+        if (!this.hasCrossedBest) {
+          this.hasCrossedBest = true;
+          this.bummerEl.style.opacity = '1';
+          this.bummerEl.style.transform = 'translateY(0)';
+          // Fade out after a bit? Or keep it? The prompt says "push a small banner right below the box saying BUMMER"
+          setTimeout(() => {
+            this.bummerEl.style.opacity = '0';
+          }, 3000);
+        }
+      } else {
+        this.timerEl.style.color = '#ef5350'; // Red
+      }
+    } else {
+      this.timerEl.style.color = 'rgba(255,255,255,0.8)';
     }
   }
 
@@ -147,12 +198,19 @@ export class HUD {
       font-family: 'Rajdhani', sans-serif;
     `;
 
-    // ── FPS counter (top-left) ─────────────────────────────
+    // ── FPS counter & Timer (top-left) ─────────────────────────────
+    const topLeftContainer = document.createElement('div');
+    topLeftContainer.style.cssText = `
+      position: absolute;
+      top: 10px; left: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    `;
+
     const fpsEl = document.createElement('div');
     fpsEl.id = 'hud-fps';
     fpsEl.style.cssText = `
-      position: absolute;
-      top: 10px; left: 12px;
       font-size: 11px;
       color: rgba(255,255,255,0.28);
       font-family: 'Orbitron', sans-serif;
@@ -160,7 +218,56 @@ export class HUD {
       user-select: none;
     `;
     fpsEl.textContent = '60 FPS';
-    el.appendChild(fpsEl);
+    topLeftContainer.appendChild(fpsEl);
+
+    const timerEl = document.createElement('div');
+    timerEl.id = 'hud-timer';
+    timerEl.style.cssText = `
+      font-size: 16px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.8);
+      font-family: 'Orbitron', sans-serif;
+      letter-spacing: 0.05em;
+      user-select: none;
+      transition: color 0.3s;
+    `;
+    timerEl.textContent = '00:00.00';
+    topLeftContainer.appendChild(timerEl);
+
+    const bestTimeEl = document.createElement('div');
+    bestTimeEl.id = 'hud-best-time';
+    bestTimeEl.style.cssText = `
+      font-size: 10px;
+      color: rgba(255,255,255,0.45);
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 0.1em;
+      user-select: none;
+    `;
+    topLeftContainer.appendChild(bestTimeEl);
+
+    const bummerEl = document.createElement('div');
+    bummerEl.id = 'hud-bummer';
+    bummerEl.style.cssText = `
+      font-size: 11px;
+      font-weight: 700;
+      color: #ef5350;
+      font-family: 'Orbitron', sans-serif;
+      letter-spacing: 0.1em;
+      user-select: none;
+      background: rgba(239, 83, 80, 0.15);
+      border: 1px solid rgba(239, 83, 80, 0.4);
+      padding: 2px 6px;
+      border-radius: 4px;
+      opacity: 0;
+      transform: translateY(-5px);
+      transition: opacity 0.3s, transform 0.3s;
+      margin-top: 2px;
+      align-self: flex-start;
+    `;
+    bummerEl.textContent = 'BUMMER';
+    topLeftContainer.appendChild(bummerEl);
+
+    el.appendChild(topLeftContainer);
 
     // ── Faction counts (top-center) ────────────────────────
     const factionsBar = document.createElement('div');
