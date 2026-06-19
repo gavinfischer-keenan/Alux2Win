@@ -28,8 +28,8 @@ export class HUD {
   private frameCount    = 0;
   private currentFps    = 0;
 
-  constructor(container: HTMLElement, onPauseClick: () => void = () => {}) {
-    this.element      = this._build(onPauseClick);
+  constructor(container: HTMLElement, onPauseClick: () => void = () => {}, activeFactions: Faction[] = ['player', 'enemy_a', 'enemy_b']) {
+    this.element      = this._build(onPauseClick, activeFactions);
     container.appendChild(this.element);
 
     this.fpsEl        = this.element.querySelector<HTMLElement>('#hud-fps')!;
@@ -39,10 +39,10 @@ export class HUD {
     this.hintEl           = this.element.querySelector<HTMLElement>('#hud-hint')!;
 
     const factionDefs: Array<{ faction: Faction; label: string }> = [
-      { faction: 'player',  label: 'You'   },
-      { faction: 'enemy_a', label: 'Red'   },
-      { faction: 'enemy_b', label: 'Green' },
-    ];
+      { faction: 'player' as Faction,  label: 'You'   },
+      { faction: 'enemy_a' as Faction, label: 'Red'   },
+      { faction: 'enemy_b' as Faction, label: 'Green' },
+    ].filter(f => activeFactions.includes(f.faction));
 
     this.factionDisplays = factionDefs.map(({ faction, label }) => ({
       faction,
@@ -135,7 +135,7 @@ export class HUD {
 
   // ── Build ─────────────────────────────────────────────────
 
-  private _build(onPauseClick: () => void): HTMLElement {
+  private _build(onPauseClick: () => void, activeFactions: Faction[]): HTMLElement {
     const el = document.createElement('div');
     el.id = 'game-hud';
     el.style.cssText = `
@@ -176,10 +176,10 @@ export class HUD {
     `;
 
     const factionDefs: Array<{ faction: Faction; label: string }> = [
-      { faction: 'player',  label: 'You'   },
-      { faction: 'enemy_a', label: 'Red'   },
-      { faction: 'enemy_b', label: 'Green' },
-    ];
+      { faction: 'player' as Faction,  label: 'You'   },
+      { faction: 'enemy_a' as Faction, label: 'Red'   },
+      { faction: 'enemy_b' as Faction, label: 'Green' },
+    ].filter(f => activeFactions.includes(f.faction));
 
     factionDefs.forEach(({ faction, label }) => {
       const colorHex = FACTION_COLORS_HEX[faction];

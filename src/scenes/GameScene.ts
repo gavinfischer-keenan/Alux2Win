@@ -233,11 +233,22 @@ export class GameScene {
       this._effectsGraphics = new Graphics();
       this.renderer.layers.particles.addChild(this._effectsGraphics); }
 
+    // Determine AI factions from level data
+    const aiFactions = new Set<Faction>();
+    levelData.planets.forEach(p => {
+      if (p.faction !== 'player' && p.faction !== 'neutral') {
+        aiFactions.add(p.faction);
+      }
+    });
+
     // HUD overlay
     this.hudContainer = document.createElement('div');
     this.hudContainer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:15;';
     this.container.appendChild(this.hudContainer);
-    this.hud = new HUD(this.hudContainer, () => this.togglePause());
+    
+    // Only pass active factions to the HUD
+    const activeFactions: Faction[] = ['player', ...Array.from(aiFactions)];
+    this.hud = new HUD(this.hudContainer, () => this.togglePause(), activeFactions);
 
     // Pause menu (hidden initially)
     this.pauseMenu = new PauseMenu(this.container, this._timeScale, this.isEditorTest);
@@ -248,13 +259,6 @@ export class GameScene {
       this.onGameOver(null);
     };
 
-    // Determine AI factions from level data
-    const aiFactions = new Set<Faction>();
-    levelData.planets.forEach(p => {
-      if (p.faction !== 'player' && p.faction !== 'neutral') {
-        aiFactions.add(p.faction);
-      }
-    });
     // In tutorial mode, the TutorialController handles enemy faction directly
     // — spin up a no-op AIController with an empty faction list.
     this.aiController = new AIController(
