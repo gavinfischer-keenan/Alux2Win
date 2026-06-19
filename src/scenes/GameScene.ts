@@ -307,7 +307,7 @@ export class GameScene {
     this.cameraController.attach(this.container);
 
     // Listen for game:over emitted by CombatSystem
-    this.eventBus.on('game:over', (payload: { winner: Faction }) => {
+    this.eventBus.on('game:over', (payload: { winner: Faction | null }) => {
       this.showResultOverlay(payload.winner);
     });
 
@@ -1498,7 +1498,7 @@ export class GameScene {
     });
 
     const menuBtn = document.createElement('button');
-    menuBtn.textContent = '⌂  MENU';
+    menuBtn.textContent = this.isEditorTest ? '✎  EDIT' : '⌂  MENU';
     menuBtn.style.cssText = `
       padding: 12px 28px;
       background: rgba(255,255,255,0.08);

@@ -10,7 +10,7 @@ export interface EventMap {
   'planet:selected':  { ids: string[] };
   'particles:deploy': { fromIds: string[]; targetX: number; targetY: number; targetPlanetId?: string };
   'planet:captured':  { planetId: string; newFaction: Faction; oldFaction: Faction };
-  'game:over':        { winner: Faction };
+  'game:over':        { winner: Faction | null };
   'player:eliminated': {};
   'level:load':       { levelData: LevelData };
 }

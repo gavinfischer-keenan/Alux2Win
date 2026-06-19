@@ -276,10 +276,17 @@ export class CombatSystem {
 
     if (!state.playerNotifiedDead && !livingFactions.has('player')) {
       state.playerNotifiedDead = true;
-      if (livingFactions.size > 1 || livingFactions.size === 0) {
+      if (livingFactions.size > 1) {
         state.running = false; // Pause the game for the screen
         eventBus.emit('player:eliminated', {});
       }
+    }
+
+    if (livingFactions.size === 0) {
+      state.winner = null;
+      state.running = false;
+      eventBus.emit('game:over', { winner: null });
+      return;
     }
 
     if (livingFactions.size !== 1) return;
