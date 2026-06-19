@@ -234,21 +234,49 @@ export class CombatSystem {
   private _checkWinCondition(state: GameState, eventBus: EventBus): void {
     if (state.winner) return;
 
-    const livingFactions = new Set<string>();
-
+    // 1. Calculate the minimum cost to capture any available planet
+    let minCaptureCost = Infinity;
     for (const planet of state.planets.values()) {
-      if (planet.faction !== 'neutral') livingFactions.add(planet.faction);
+      let defenders = 0;
+      for (const p of state.particles) {
+        if (p.alive && p.mode === 'orbiting' && p.homePlanetId === planet.id && p.faction === planet.faction) {
+          defenders += p.strength;
+        }
+      }
+      const captureCost = defenders + planet.health + (planet.faction === 'neutral' ? 0 : PLANET_MAX_HEALTH[1]);
+      if (captureCost < minCaptureCost) {
+        minCaptureCost = captureCost;
+      }
     }
 
+    const livingFactions = new Set<string>();
+    const factionStrength = new Map<string, number>();
+
+    // 2. Factions with at least one planet are alive
+    for (const planet of state.planets.values()) {
+      if (planet.faction !== 'neutral') {
+        livingFactions.add(planet.faction);
+      }
+    }
+
+    // 3. Tally total strength of wandering particles for each faction
     for (const p of state.particles) {
-      if (p.alive && p.faction !== 'neutral' && (p.mode === 'traveling' || p.mode === 'combat')) {
-        livingFactions.add(p.faction);
+      if (p.alive && p.faction !== 'neutral' && (p.mode === 'traveling' || p.mode === 'combat' || p.mode === 'stationed')) {
+        const current = factionStrength.get(p.faction) || 0;
+        factionStrength.set(p.faction, current + p.strength);
+      }
+    }
+
+    // 4. Factions without a planet are ONLY alive if they can afford the cheapest capture
+    for (const [faction, strength] of factionStrength.entries()) {
+      if (!livingFactions.has(faction) && strength >= minCaptureCost) {
+        livingFactions.add(faction);
       }
     }
 
     if (!state.playerNotifiedDead && !livingFactions.has('player')) {
       state.playerNotifiedDead = true;
-      if (livingFactions.size > 1) {
+      if (livingFactions.size > 1 || livingFactions.size === 0) {
         state.running = false; // Pause the game for the screen
         eventBus.emit('player:eliminated', {});
       }
