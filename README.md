@@ -49,5 +49,8 @@ Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
 - **Custom AI Personalities:** Battle against different AI archetypes (Berserker, Fortress, Opportunist, Economic, etc.) that will dynamically shift strategies based on the current board state.
 - **Built-in Level Editor:** Press `[~]` in the main menu to open the level editor and create your own custom star systems.
 
+## 🛣️ Future Development
+- **Custom AI Selection:** Allow the player to explicitly specify the AI types/personalities they want to fight against in a given simulation, rather than relying on randomized subroles.
+
 ---
 *Command the light. Annihilate the dark.*

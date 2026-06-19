@@ -262,6 +262,15 @@ export class GameScene {
       SettingsStore.get().difficulty
     );
     this.aiController.subscribeEvents(this.eventBus);
+    
+    // Pass AI sub-roles to the HUD for development
+    Array.from(aiFactions).forEach(f => {
+      const subRole = this.aiController.getSubRole(f);
+      if (subRole) {
+        this.hud.setFactionSubRole(f, subRole);
+      }
+    });
+
     this.spatialHash = new SpatialHash(64);
 
     // Create tutorial controller if needed (after hudContainer is set up below)

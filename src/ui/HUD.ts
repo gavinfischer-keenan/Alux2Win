@@ -12,6 +12,7 @@ interface FactionDisplay {
   label: string;
   colorHex: string;
   countEl: HTMLElement;
+  labelEl: HTMLElement;
 }
 
 export class HUD {
@@ -48,6 +49,7 @@ export class HUD {
       label,
       colorHex: FACTION_COLORS_HEX[faction],
       countEl: this.element.querySelector<HTMLElement>(`#hud-count-${faction}`)!,
+      labelEl: this.element.querySelector<HTMLElement>(`#hud-label-${faction}`)!,
     }));
   }
 
@@ -58,6 +60,14 @@ export class HUD {
     this.pauseBtn.textContent     = paused ? '▶' : '⏸';
     this.pauseBtn.title           = paused ? 'Resume (ESC)' : 'Pause (ESC)';
     this.pausedBanner.style.opacity = paused ? '1' : '0';
+  }
+
+  /** Append the AI type/subrole to the faction label */
+  setFactionSubRole(faction: Faction, subRole: string): void {
+    const fd = this.factionDisplays.find(f => f.faction === faction);
+    if (fd && faction !== 'player') {
+      fd.labelEl.textContent = `${fd.label} (${subRole})`;
+    }
   }
 
   /** Call once per frame to keep FPS accurate. */
@@ -186,6 +196,7 @@ export class HUD {
       `;
 
       const labelEl = document.createElement('span');
+      labelEl.id = `hud-label-${faction}`;
       labelEl.style.cssText = `
         font-size: 11px;
         color: rgba(255,255,255,0.45);
