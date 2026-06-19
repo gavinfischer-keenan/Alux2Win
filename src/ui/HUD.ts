@@ -54,6 +54,7 @@ export class HUD {
       { faction: 'player' as Faction,  label: 'You'   },
       { faction: 'enemy_a' as Faction, label: 'Red'   },
       { faction: 'enemy_b' as Faction, label: 'Green' },
+      { faction: 'enemy_c' as Faction, label: 'Purple' },
     ].filter(f => activeFactions.includes(f.faction));
 
     this.factionDisplays = factionDefs.map(({ faction, label }) => ({
@@ -286,6 +287,7 @@ export class HUD {
       { faction: 'player' as Faction,  label: 'You'   },
       { faction: 'enemy_a' as Faction, label: 'Red'   },
       { faction: 'enemy_b' as Faction, label: 'Green' },
+      { faction: 'enemy_c' as Faction, label: 'Purple' },
     ].filter(f => activeFactions.includes(f.faction));
 
     factionDefs.forEach(({ faction, label }) => {
