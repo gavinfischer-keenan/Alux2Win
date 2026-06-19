@@ -1,85 +1,53 @@
-# Alux2Win (Lux) v1.4.0
+# LUX (Alux2Win) - v1.4.1
 
-Alux2Win is an ambient, real-time strategy (RTS) game heavily inspired by Auralux. It emphasizes slow, deliberate macro-strategy over rapid micro-management. The universe beats at a steady rhythm, and your goal is to manage your particle swarms, upgrade your planets, and conquer the galaxy.
+Welcome to **LUX**, an ambient, macro-strategic real-time strategy game inspired by the minimalist flow of *Auralux*. Command massive swarms of luminescent particles to conquer star systems across a beautifully treacherous galaxy.
 
----
+## 🚀 What's New in v1.4.1?
+The latest bundle of updates brings a massive leap in aesthetics, UI architecture, and gameplay balance!
 
-## What's New in v1.4.0
+- **Spectator Mode:** When the player is eliminated early in the match, the simulation will pause with a "YOU DIED" screen. An "👁 WATCH THE REST OF THE FIGHT" button allows the player to seamlessly transition into a spectator to watch the remaining AIs battle for galactic supremacy until a final victor emerges.
+- **Nested Main Menu System:** The main menu has been entirely overhauled to support drill-down sub-menus. The `Single Hazard Universes` folder now neatly organizes all 9 cosmic anomaly galaxies. `Dual` and `Triple Hazard` universes are teased with prominent "COMING SOON" badges. 
+- **Shield Mechanics Overhaul:** Shielded Planets are now fully active, accurately rendering varying rates of shield regeneration based on their upgrade levels. A new vibrant cyan intensity ring visually communicates exact shield strength directly on the map.
+- **Fog of War Tweaks:** The detection ranges for the Fog of War have been halved across all planet levels (250/425/650), demanding much more aggressive and deliberate expansion to reveal enemy movements.
+- **Visual FX Polish:** Hard lines and strokes have been eliminated in favor of organic, breathing nebulas and particle blooms. Plasma Storms and Speed Traps now feature dynamic tendrils, White Holes show progressive charging arcs, and Gamma Rays have intense writhing distortion and terminus bloom effects. 
+- **AI Improvements:** The AI has received logic adjustments for colonization priorities and improved white-hole investment awareness.
 
-- **Fog of War**: Shrouded in darkness, players must explore and scout neutral and enemy systems. Upgrading your planets increases their vision radius to light up the dark.
-- **Top-5 High Score Leaderboard**: Level tiles now display a compact, styled list of your top 5 best completion times rather than just the single #1 best time.
-- **Level Editor Enhancements**:
-  - **Live Orbit Preview**: Orbiting planets now animate on their paths directly inside the editor so you can preview the system's motion.
-  - **Selected Black Hole Highlights**: Selecting a black hole (or trapping black hole) renders a soft purple fill showing the exact gravity pull boundary.
-  - **Rectangular Speed Zones**: Speed zones are now drawn as rectangular areas in the editor and in the game. You can adjust their width and height independently using new sliders in the Properties Panel.
-  - **Done / OK Button**: Click the green "✓ Done / OK" button in the Properties Panel to easily deselect the active entity and watch the live orbits.
-- **Selection Count Badge**: Drawing a lasso around your swarms displays a handy counter in the top-left corner showing exactly how many units you have selected.
-- **Double Right-Click (Repeat Command)**: Re-issue your last command to selected particles instantly without having to target and right-click them again.
-- **Performance Overhaul**: Re-architected the `SpatialHash` to use a flat pre-allocated array instead of a Map, and applied division-free ellipse checks and squared-distance physics checks. Headless simulation frame rate is boosted to over **620 FPS**!
-- **Volatile Visual FX Overhaul**: Concentric organic glowing shapes for Speed/Slow Zones and Plasma Storms, charging arc loops for White Holes, and writhing edge sweeps for Gamma Ray firing trails.
+## 🌌 The Cosmic Hazards
+To conquer the galaxy, you must master the anomalies that inhabit it. Single Hazard Universes introduce you to:
+1. **Plasma Storms:** Volatile fields that gradually drain the life force of any units within.
+2. **Asteroids:** Massive rocks that crash through space, annihilating weak planets and units. 
+3. **Gamma Rays:** Lethal sweeping beams that instantly incinerate anything caught in the crossfire.
+4. **Speed Traps:** Spacetime distortions that dramatically accelerate or decelerate passing swarms.
+5. **Portals:** Wormholes that allow for instantaneous tactical reinforcement across the system.
+6. **Black Holes:** Gravitational anomalies that crush any unit foolish enough to stray too close.
+7. **White Holes:** Risky investments; feed them with units to trigger a massive payout bounty.
+8. **Shielded Planets:** Defensive bastions that slowly generate protective energy barriers over time.
+9. **Fog of War:** Shrouds the galaxy in darkness, requiring you to expand your vision to survive.
 
----
-
-## Core Mechanics
-
-### 1. Planets & Particles
-- **Planets** are your bases. Every planet generates a new **Particle** once per second.
-- **Particles** are your currency, your military, and your builders. Everything costs particles.
-- **Upgrades**: You can upgrade a planet by sending your own particles to it. An upgraded planet holds more health, spawns particles faster, and has a larger defense radius.
-  - Level 1: 40 Health, 0.25 Particles/sec (1 per 4s)
-  - Level 2: 80 Health, 2.0 Particles/sec (2 per 1s)
-  - Level 3: 150 Health, 5.5 Particles/sec (5.5 per 1s)
-
-### 2. Controls
-- **Left-Click & Drag**: Draw a lasso around your particles to select a swarm. A counter will appear letting you know exactly how many units you have selected.
-- **Right-Click (Single)**: Send your selected particles to the clicked destination (an empty space, an enemy planet to attack, or a friendly planet to upgrade/defend).
-- **Right-Click (Double)**: Repeat your last command for the currently selected particles without having to re-select them.
-- **Escape**: Pause the game and bring up the menu.
-
-### 3. Combat
-- When particles collide with enemy particles, they annihilate each other 1-to-1.
-- When particles strike an enemy planet, they deplete its health. If a planet's health reaches 0, it turns neutral. Send more particles to capture it!
-- Some enemy planets may have **Shields**. Shields absorb incoming particle damage entirely until they break. They slowly regenerate over time.
-
-## Hazards & Anomalies
-
-The galaxy is a dangerous place. Keep an eye out for these cosmic anomalies:
-
-- **White Holes**: Giant cosmic batteries. Send 80 particles to charge a White Hole, and it explodes, showering the system with 300 free units! But beware: enemies can drain your charge by sending their own units.
-- **Trapping Black Holes**: These dark stars exert a massive gravitational pull. Any particle that strays too close will be sucked in and permanently trapped.
-- **Gamma Rays**: A devastating beam of pure energy that periodically sweeps across the map. It destroys any particles caught in its path. In some galaxies, it can even vaporize entire planets!
-- **Asteroid Showers**: Massive rocks occasionally drift through the system. They crush any particles they touch.
-- **Speed Zones (Rectangular)**: Green spacetime fields that drastically speed up particles passing through. Adjustable width/height.
-- **Slow Zones (Rectangular)**: Red spacetime fields that severely slow down particles caught inside.
-
-## The AI
-
-The AI Commanders you face are ruthless and calculating:
-- **Aggressive Flanking**: They will look for undefended flanks and attack your weakest planets.
-- **Back-capping**: If you send your entire army across the map, the AI will exploit the opening and attack your now-defenseless home.
-- **Consolidation**: The AI knows when to retreat and pool its forces if it is outnumbered.
-
-## Visuals & Audio
-- **Dynamic Audio System**: Alux2Win features a fully voiced, dynamic audio system that responds to your gameplay. It automatically discovers and randomizes audio clips from folders inside `src/assets/audio/` for events such as captures, shield blocks, and deaths.
-- **Silky Smooth Rendering**: Built on PIXI.js, the game maintains a solid 60 FPS even with over 10,000 particles on screen, utilizing a highly optimized zero-allocation Spatial Hash for collision detection.
-
-## Development & Build
+## 🎮 Getting Started
 
 ### Prerequisites
-- Node.js (v18+ recommended)
-- `npm` or `yarn`
+Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
 
-### Installation & Running
+### Installation
 1. Clone the repository.
-2. Run `npm install` to install dependencies (Vite, PIXI.js, TypeScript).
+2. Run `npm install` to install dependencies.
 3. Run `npm run dev` to start the local development server.
-4. Open the provided localhost URL in your browser.
+4. Navigate to `http://localhost:3000` to play!
 
-### Scripts
-- `npm run dev`: Start dev server
-- `npm run build`: Compile TypeScript and build for production
-- `npm run preview`: Preview the production build
-- `npm run test`: Run the `vitest` automated testing suite
+### Controls
+*   **Left Click & Drag:** Lasso select units.
+*   **Left Click:** Select a planet to control its orbiting defenders and production queue.
+*   **Right Click:** Issue a move or attack order to the selected units/planet.
+*   **Double Right Click:** Repeat the previous deploy action for the currently selected planet.
+*   **Middle Click / Drag:** Pan the camera around the system.
+*   **Scroll Wheel:** Zoom the camera in and out.
+*   **ESC:** Open the pause menu.
+
+## 🛠 Features Under the Hood
+- **PixiJS Rendering:** Silky smooth WebGL rendering capable of handling thousands of independent particles.
+- **Custom AI Personalities:** Battle against different AI archetypes (Berserker, Fortress, Opportunist, Economic, etc.) that will dynamically shift strategies based on the current board state.
+- **Built-in Level Editor:** Press `[~]` in the main menu to open the level editor and create your own custom star systems.
 
 ---
-*Created by Gavin Fischer-Keenan.*
+*Command the light. Annihilate the dark.*
