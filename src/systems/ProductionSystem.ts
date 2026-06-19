@@ -9,6 +9,7 @@ import {
   COMBO_ORBIT_THRESHOLD,
 } from '../types';
 import { randomRange } from '../utils/MathUtils';
+import { SettingsStore } from '../core/SettingsStore';
 
 export class ProductionSystem {
   /** Fractional particle accumulator keyed by planet id. */
@@ -30,7 +31,14 @@ export class ProductionSystem {
       if (planet.faction === 'neutral') continue;
       if (planet.inStorm) continue; // no production while in plasma storm
 
-      let acc = (this.accumulators.get(planet.id) ?? 0) + dt * planet.productionRate;
+      let rate = planet.productionRate;
+      if (planet.faction !== 'player') {
+        const difficulty = SettingsStore.get().difficulty;
+        if (difficulty === 'normal') rate *= 1.1;
+        else if (difficulty === 'hard') rate *= 1.2;
+      }
+
+      let acc = (this.accumulators.get(planet.id) ?? 0) + dt * rate;
 
       while (acc >= 1.0) {
         acc -= 1.0;
