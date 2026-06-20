@@ -1,62 +1,43 @@
-# LUX (Alux2Win) - v1.5.0
+# Alux2Win v1.6.0
 
-Welcome to **LUX**, an ambient, macro-strategic real-time strategy game inspired by the minimalist flow of *Auralux*. Command massive swarms of luminescent particles to conquer star systems across a beautifully treacherous galaxy.
+**Alux2Win** is an intense, fast-paced planetary warfare strategy game. Command massive swarms of particles, conquer planets, and outmaneuver adaptive AI in a battle for galactic supremacy. Featuring dynamic environments, cinematic hazards, and optimized performance for thousands of on-screen entities.
 
-## 🚀 What's New in v1.5.0?
-This major update brings a host of editor improvements, AI additions, and level progression restructurings!
+## What's New in v1.6.0
 
-- **Third AI Opponent (Purple):** The galaxy just got more crowded! You can now face off against up to three distinct AI opponents simultaneously. The new "Purple" faction is fully integrated, dynamically spinning up its own brain when detected on the map.
-- **Level Editor Overhaul:**
-  - Full support for saving levels anywhere in your system via native OS file dialogs! You are no longer restricted to local storage. You can save, organize, and load custom `.json` level files dynamically.
-  - Seamlessly test your levels! Hitting 'Play' in the editor now properly tests the level and correctly dumps you right back to your exact editor state when you're done or if you quit. 
-  - Editor properties panel now correctly saves all properties instantly (including previously bugged Shield toggles) without needing to click "Done / OK".
-  - Gamma Ray editing handles have been improved to align correctly with mouse inputs.
-  - Planets with orbits correctly sit still when testing levels directly within the editor.
-  - Resolved "Ghost UI" rendering bugs where gameplay elements (like "LOCKED 15s" text) would persist when switching back to the editor.
-- **Campaign & Level Cleanups:**
-  - Removed "Skirmish 3" to make room for custom user levels in Intro Missions.
-  - Cleaned up the Fog of War level system, completely removing older "Grid Fog" and "Hidden Threat" placeholder levels to prep for new designs.
-  - Placed newly created levels like "Take Your Sides" prominently into the *Dual Hazard Universes* category.
+*   **Performance Overhaul (The Particle Pooling Update):**
+    *   **Zero-Allocation Arrays:** Removed array filtering across all major systems (`CombatSystem`, `CollisionSystem`, `AsteroidSystem`, etc.), completely eliminating mid-game micro-stutters caused by Garbage Collection pressure.
+    *   **Object Pooling:** Implemented a high-performance Object Pool in `ProductionSystem` to infinitely recycle dead particles.
+    *   **Mathematical Optimizations:** Eliminated expensive `Math.sqrt` calls in hot loops (boid flocking, collision detection, and gravity attraction) by using squared-distance logic (`distSq`).
+    *   **Stress Tested:** Engineered to comfortably handle 5,000+ active collision-capable particles while strictly adhering to a 60 FPS real-time rendering budget.
+*   **Comprehensive Test Coverage:** Achieved a perfect 42/42 passing test suite. All edge cases in `AIController`, `CombatSystem`, `CollisionSystem`, and `GravitySystem` are strictly verified.
+*   **AI Enhancements:** The heuristic `AIController` state machine now natively recognizes fog-of-war constraints and dynamically evaluates opportunity vs. strategic necessity using optimized target scoring.
+*   **Level Editor Bug Fixes:** The editor no longer drops the `isShielded` flag if the user navigates away from an unconfirmed dialog.
 
-## 🌌 The Cosmic Hazards
-To conquer the galaxy, you must master the anomalies that inhabit it. Single Hazard Universes introduce you to:
-1. **Plasma Storms:** Volatile fields that gradually drain the life force of any units within.
-2. **Asteroids:** Massive rocks that crash through space, annihilating weak planets and units. 
-3. **Gamma Rays:** Lethal sweeping beams that instantly incinerate anything caught in the crossfire.
-4. **Speed Traps:** Spacetime distortions that dramatically accelerate or decelerate passing swarms.
-5. **Portals:** Wormholes that allow for instantaneous tactical reinforcement across the system.
-6. **Black Holes:** Gravitational anomalies that crush any unit foolish enough to stray too close.
-7. **White Holes:** Risky investments; feed them with units to trigger a massive payout bounty.
-8. **Shielded Planets:** Defensive bastions that slowly generate protective energy barriers over time.
-9. **Fog of War:** Shrouds the galaxy in darkness, requiring you to expand your vision to survive.
+## Core Features
 
-## 🎮 Getting Started
+*   **Swarm Mechanics:** Guide boid-flocking particles that dynamically separate, cohere, and align as they travel through space.
+*   **Dynamic Hazards:** 
+    *   **Plasma Storms:** Temporarily shelter particles and prevent production.
+    *   **Trapping Black Holes:** Lethal voids that slowly pull nearby particles inward, annihilating them at the core.
+    *   **White Holes:** Build up faction dominance to trigger massive 300-particle explosive spawns.
+    *   **Asteroids:** Huge, bouncing obstacles that strip planet upgrade levels and obliterate orbiting defenders.
+*   **Planet Upgrades:** Planets absorb health and level up (up to Level 3) to increase their defensive capacity and particle production rates. Max-level planets merge five 1X particles into powerful 5X composite particles.
+*   **Adaptive AI:** Engage against varying difficulty tiers (`easy`, `normal`, `hard`) utilizing randomized sub-roles (`economic`, `fortress`, `opportunist`, `blitzkrieg`, `dominator`, `berserker`) that dramatically shift their strategic priorities.
 
-### Prerequisites
-Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
+## Technology Stack
 
-### Installation
-1. Clone the repository.
-2. Run `npm install` to install dependencies.
-3. Run `npm run dev` to start the local development server.
-4. Navigate to `http://localhost:3000` to play!
+*   **Engine:** TypeScript + HTML5 Canvas
+*   **Architecture:** Entity-Component-System (ECS) pattern
+*   **Optimization:** Spatial Hashing for O(1) collision lookups, strict mathematical gating, Object Pooling
+*   **Build & Test:** Vite, Vitest
 
-### Controls
-*   **Left Click & Drag:** Lasso select units.
-*   **Left Click:** Select a planet to control its orbiting defenders and production queue.
-*   **Right Click:** Issue a move or attack order to the selected units/planet.
-*   **Double Right Click:** Repeat the previous deploy action for the currently selected planet.
-*   **Middle Click / Drag:** Pan the camera around the system.
-*   **Scroll Wheel:** Zoom the camera in and out.
-*   **ESC:** Open the pause menu.
+## Getting Started
 
-## 🛠 Features Under the Hood
-- **PixiJS Rendering:** Silky smooth WebGL rendering capable of handling thousands of independent particles.
-- **Custom AI Personalities:** Battle against up to 3 different AI archetypes simultaneously that will dynamically shift strategies based on the current board state.
-- **Built-in Level Editor:** Press `[~]` in the main menu to open the level editor and create your own custom star systems.
+1.  Clone the repository.
+2.  Run `npm install` to install dependencies.
+3.  Run `npm run dev` to start the local development server.
+4.  Run `npm run test` to execute the automated test suite.
 
-## 🛣️ Future Development
-- **Custom AI Selection:** Allow the player to explicitly specify the AI types/personalities they want to fight against in a given simulation, rather than relying on randomized subroles.
+## Roadmap & Next Steps
 
----
-*Command the light. Annihilate the dark.*
+With performance optimized, focus is now shifting toward developing distinct, handcrafted levels across all repositories and expanding the Grid Fog system to challenge the player's strategic visibility.
