@@ -118,11 +118,8 @@ export class CollisionSystem {
         }
       }
     }
-
-    if (anyDied) {
-      state.particles = particles.filter(p => p.alive);
-    }
-
+    // Do not filter state.particles to avoid GC pressure.
+    // Dead particles are left in the array and recycled by ProductionSystem.
     // Assign IDs to devolved particles and push them in
     for (const d of devolved) {
       d.id = ++state.particleIdCounter;

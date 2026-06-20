@@ -126,12 +126,17 @@ export class MovementSystem {
       const dSq = dx * dx + dy * dy;
       if (dSq > BOID_RADIUS_SQ) continue;
 
-      const dist = Math.sqrt(dSq);
       neighbours++;
 
-      if (dist > 0) {
-        sepX += (dx / dist) / Math.max(dist, 1);
-        sepY += (dy / dist) / Math.max(dist, 1);
+      if (dSq > 0) {
+        if (dSq > 1) {
+          sepX += dx / dSq;
+          sepY += dy / dSq;
+        } else {
+          const dist = Math.sqrt(dSq);
+          sepX += dx / dist;
+          sepY += dy / dist;
+        }
       }
       cohX += other.x;
       cohY += other.y;

@@ -74,7 +74,7 @@ describe('CollisionSystem', () => {
 
     runSystem();
 
-    expect(state.particles.length).toBe(2);
+    expect(state.particles.filter(p => p.alive).length).toBe(2);
     expect(state.particles[0].alive).toBe(true);
     expect(state.particles[1].alive).toBe(true);
   });
@@ -86,7 +86,7 @@ describe('CollisionSystem', () => {
 
     runSystem();
 
-    expect(state.particles.length).toBe(2);
+    expect(state.particles.filter(p => p.alive).length).toBe(2);
     expect(p1.alive).toBe(true);
     expect(p2.alive).toBe(true);
   });
@@ -98,7 +98,7 @@ describe('CollisionSystem', () => {
 
     runSystem();
 
-    expect(state.particles.length).toBe(0);
+    expect(state.particles.filter(p => p.alive).length).toBe(0);
   });
 
   it('should destroy 1X and devolve 5X into four 1X particles on collision', () => {
@@ -109,8 +109,8 @@ describe('CollisionSystem', () => {
     runSystem();
 
     // 1X is dead. 5X is dead but spawns four 1X particles.
-    expect(state.particles.length).toBe(4);
-    for (const p of state.particles) {
+    expect(state.particles.filter(p => p.alive).length).toBe(4);
+    for (const p of state.particles.filter(p => p.alive)) {
       expect(p.alive).toBe(true);
       expect(p.strength).toBe(1);
       expect(p.faction).toBe('player');
@@ -125,7 +125,7 @@ describe('CollisionSystem', () => {
 
     runSystem();
 
-    expect(state.particles.length).toBe(0);
+    expect(state.particles.filter(p => p.alive).length).toBe(0);
   });
 
   it('should properly accumulate damage if surrounded by multiple 1X enemies', () => {
@@ -139,8 +139,8 @@ describe('CollisionSystem', () => {
 
     // The two 1X enemies take 5 damage each, so they die.
     // The 5X player takes 1 + 1 = 2 damage, so it dies and devolves into 3 1X particles.
-    expect(state.particles.length).toBe(3);
-    for (const p of state.particles) {
+    expect(state.particles.filter(p => p.alive).length).toBe(3);
+    for (const p of state.particles.filter(p => p.alive)) {
       expect(p.alive).toBe(true);
       expect(p.strength).toBe(1);
       expect(p.faction).toBe('player');
@@ -154,7 +154,7 @@ describe('CollisionSystem', () => {
 
     runSystem();
 
-    expect(state.particles.length).toBe(2);
+    expect(state.particles.filter(p => p.alive).length).toBe(2);
     expect(p1.alive).toBe(true);
     expect(p2.alive).toBe(true);
   });
@@ -169,6 +169,6 @@ describe('CollisionSystem', () => {
     runSystem();
 
     // Even if p1 checks p2 and p2 checks p1, it should only count as 1 damage to p1
-    expect(state.particles.length).toBe(4); // 5 - 1 = 4 remaining 1X particles
+    expect(state.particles.filter(p => p.alive).length).toBe(4); // 5 - 1 = 4 remaining 1X particles
   });
 });

@@ -14,6 +14,7 @@ import { SettingsStore } from '../core/SettingsStore';
 export class ProductionSystem {
   /** Fractional particle accumulator keyed by planet id. */
   private accumulators: Map<string, number> = new Map();
+  private _lastDeadIndex = 0;
 
   update(dt: number, state: GameState): void {
     this._produceParticles(dt, state);
@@ -46,7 +47,12 @@ export class ProductionSystem {
 
       while (acc >= 1.0) {
         acc -= 1.0;
-        state.particles.push(this._spawnOrbiting(state, planet));
+        const recycled = this._getDeadParticle(state);
+        if (recycled) {
+          this._initOrbiting(recycled, state, planet);
+        } else {
+          state.particles.push(this._spawnOrbiting(state, planet));
+        }
       }
 
       this.accumulators.set(planet.id, acc);
@@ -112,33 +118,63 @@ export class ProductionSystem {
         // (Orbiting particles don't consume internal slots)
 
         const orbitRadius = PLANET_RADIUS[planet.upgradeLevel] * 1.8;
+        const vx = -Math.sin(avgAngle) * orbitRadius * 1.2;
+        const vy =  Math.cos(avgAngle) * orbitRadius * 1.2;
 
-        newComposites.push({
-          id:            ++state.particleIdCounter,
-          x:             avgX,
-          y:             avgY,
-          vx:            -Math.sin(avgAngle) * orbitRadius * 1.2,
-          vy:             Math.cos(avgAngle) * orbitRadius * 1.2,
-          faction:       planet.faction,
-          mode:          'orbiting',
-          strength:      5,
-          orbitTimer:    0,
-          damage:        0,
-          homePlanetId:  planetId,
-          orbitAngle:    avgAngle,
-          orbitRadius,
-          alive:         true,
-          stormTimer:    0,
-          inStorm:       false,
-          speedMod:      1.0,
-          portalCooldown: 0,
-          trappedByBH:   null,
-        });
+        const recycled = this._getDeadParticle(state);
+        if (recycled) {
+          recycled.x = avgX;
+          recycled.y = avgY;
+          recycled.vx = vx;
+          recycled.vy = vy;
+          recycled.faction = planet.faction;
+          recycled.mode = 'orbiting';
+          recycled.strength = 5;
+          recycled.orbitTimer = 0;
+          recycled.damage = 0;
+          recycled.homePlanetId = planetId;
+          recycled.targetPlanetId = undefined;
+          recycled.targetX = undefined;
+          recycled.targetY = undefined;
+          recycled.waypointX = undefined;
+          recycled.waypointY = undefined;
+          recycled.orbitAngle = avgAngle;
+          recycled.orbitRadius = orbitRadius;
+          recycled.alive = true;
+          recycled.stormTimer = 0;
+          recycled.inStorm = false;
+          recycled.speedMod = 1.0;
+          recycled.portalCooldown = 0;
+          recycled.trappedByBH = null;
+          recycled.deployTimer = 0;
+        } else {
+          newComposites.push({
+            id:            ++state.particleIdCounter,
+            x:             avgX,
+            y:             avgY,
+            vx,
+            vy,
+            faction:       planet.faction,
+            mode:          'orbiting',
+            strength:      5,
+            orbitTimer:    0,
+            damage:        0,
+            homePlanetId:  planetId,
+            orbitAngle:    avgAngle,
+            orbitRadius,
+            alive:         true,
+            stormTimer:    0,
+            inStorm:       false,
+            speedMod:      1.0,
+            portalCooldown: 0,
+            trappedByBH:   null,
+          });
+        }
       }
     }
 
-    // Remove consumed 1X particles
-    state.particles = state.particles.filter(p => p.alive);
+    // Optimization: Do not filter state.particles to avoid GC pressure.
+    // The consumed 1X particles are marked alive = false and will be recycled.
 
     // Add new 5X particles
     for (const c of newComposites) state.particles.push(c);
@@ -146,7 +182,21 @@ export class ProductionSystem {
 
   // ---- Spawn helpers ----
 
-  private _spawnOrbiting(state: GameState, planet: PlanetData): ParticleData {
+  private _getDeadParticle(state: GameState): ParticleData | null {
+    const len = state.particles.length;
+    if (len === 0) return null;
+    for (let i = 0; i < len; i++) {
+      const idx = (this._lastDeadIndex + i) % len;
+      const p = state.particles[idx];
+      if (!p.alive) {
+        this._lastDeadIndex = idx + 1;
+        return p;
+      }
+    }
+    return null;
+  }
+
+  private _initOrbiting(p: ParticleData, state: GameState, planet: PlanetData): void {
     const orbitAngle  = randomRange(0, Math.PI * 2);
     const orbitRadius = PLANET_RADIUS[planet.upgradeLevel] * 1.8;
     const x = planet.x + orbitRadius * Math.cos(orbitAngle);
@@ -155,23 +205,33 @@ export class ProductionSystem {
     const vx = -Math.sin(orbitAngle) * orbitRadius * orbitSpeed;
     const vy =  Math.cos(orbitAngle) * orbitRadius * orbitSpeed;
 
-    return {
-      id:           ++state.particleIdCounter,
-      x, y, vx, vy,
-      faction:      planet.faction,
-      mode:         'orbiting',
-      strength:     1,
-      orbitTimer:   0,
-      damage:       0,
-      homePlanetId: planet.id,
-      orbitAngle,
-      orbitRadius,
-      alive:        true,
-      stormTimer:   0,
-      inStorm:      false,
-      speedMod:     1.0,
-      portalCooldown: 0,
-      trappedByBH:  null,
-    };
+    p.x = x; p.y = y; p.vx = vx; p.vy = vy;
+    p.faction = planet.faction;
+    p.mode = 'orbiting';
+    p.strength = 1;
+    p.orbitTimer = 0;
+    p.damage = 0;
+    p.homePlanetId = planet.id;
+    p.targetPlanetId = undefined;
+    p.targetX = undefined;
+    p.targetY = undefined;
+    p.waypointX = undefined;
+    p.waypointY = undefined;
+    p.orbitAngle = orbitAngle;
+    p.orbitRadius = orbitRadius;
+    p.alive = true;
+    p.stormTimer = 0;
+    p.inStorm = false;
+    p.speedMod = 1.0;
+    p.portalCooldown = 0;
+    p.trappedByBH = null;
+    p.deployTimer = 0;
+  }
+
+  private _spawnOrbiting(state: GameState, planet: PlanetData): ParticleData {
+    const p = {} as ParticleData;
+    p.id = ++state.particleIdCounter;
+    this._initOrbiting(p, state, planet);
+    return p;
   }
 }

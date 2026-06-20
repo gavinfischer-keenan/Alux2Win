@@ -286,9 +286,8 @@ export class AsteroidSystem {
       }
     }
 
-    // ── Compact dead entries from state arrays ────────────────
     state.asteroids = state.asteroids.filter((a: AsteroidData) => a.alive);
-    state.particles = state.particles.filter((p: ParticleData) => p.alive);
+    // state.particles filtering removed to avoid GC pressure
 
     // Prime the respawn timer if the last asteroid just died.
     if (state.asteroids.length === 0 && state.asteroidRespawnTimer <= 0) {

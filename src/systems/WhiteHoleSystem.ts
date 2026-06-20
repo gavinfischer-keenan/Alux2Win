@@ -40,9 +40,9 @@ export class WhiteHoleSystem {
 
         const dx   = p.x - wh.x;
         const dy   = p.y - wh.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const distSq = dx * dx + dy * dy;
 
-        if (dist < 30) {
+        if (distSq < 900) { // 30 * 30
           this._absorb(p, wi, state);
           p.alive = false;
           break; // each particle only interacts with one white hole

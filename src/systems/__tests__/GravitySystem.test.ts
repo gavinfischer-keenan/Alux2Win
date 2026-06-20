@@ -50,7 +50,7 @@ describe('GravitySystem', () => {
 
     system.update(1.0, state);
     // Pruned from the particles array
-    expect(state.particles.length).toBe(0);
+    expect(state.particles.filter(p => p.alive).length).toBe(0);
   });
 
   it('applies gravity if inside pullRadius but outside event horizon', () => {

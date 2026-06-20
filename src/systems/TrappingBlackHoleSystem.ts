@@ -89,8 +89,7 @@ export class TrappingBlackHoleSystem {
       anyDied = true;
     }
 
-    if (anyDied) {
-      state.particles = state.particles.filter(p => p.alive);
-    }
+    // Do not filter state.particles to avoid GC pressure.
+    // They will be recycled.
   }
 }

@@ -23,11 +23,12 @@ export class CombatSystem {
       for (const planet of planets) {
         const dx   = planet.x - particle.x;
         const dy   = planet.y - particle.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const distSq = dx * dx + dy * dy;
         const planetRadius = PLANET_RADIUS[planet.upgradeLevel];
 
         // The interaction distance is increased by 40 (the aggro radius)
-        if (dist > planetRadius + 40) continue;
+        const interactionDist = planetRadius + 40;
+        if (distSq > interactionDist * interactionDist) continue;
 
         // Plasma storm protection: skip all combat if particle is in storm
         if (particle.inStorm) continue;
@@ -65,7 +66,8 @@ export class CombatSystem {
 
         if (particle.faction === planet.faction) {
           // Require particle to actually reach the planet surface for friendly interaction
-          if (dist > planetRadius + 5) {
+          const friendlyDist = planetRadius + 5;
+          if (distSq > friendlyDist * friendlyDist) {
             continue;
           }
 
@@ -191,9 +193,8 @@ export class CombatSystem {
       }
     }
 
-    if (anyDied) {
-      state.particles = state.particles.filter(p => p.alive);
-    }
+    // Do not filter dead particles from state.particles to avoid GC pressure.
+    // They will be recycled by ProductionSystem.
 
     this._checkWinCondition(state, eventBus);
   }

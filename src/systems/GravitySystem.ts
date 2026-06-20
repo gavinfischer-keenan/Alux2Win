@@ -54,8 +54,6 @@ export class GravitySystem {
     }
 
     // Prune dead particles once per update.
-    if (anyDied) {
-      state.particles = state.particles.filter((p) => p.alive);
-    }
+    // Optimization: we no longer filter state.particles to avoid GC pressure.
   }
 }
