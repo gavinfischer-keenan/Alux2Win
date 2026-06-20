@@ -1,0 +1,253 @@
+{
+  "version": 1,
+  "name": "grid fog",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "fogOfWarConfig": {
+    "enabled": true
+  },
+  "planets": [
+    {
+      "id": "ep1",
+      "x": 143,
+      "y": 113,
+      "faction": "player",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep2",
+      "x": 613,
+      "y": 106,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep3",
+      "x": 1152,
+      "y": 106,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep4",
+      "x": 1532,
+      "y": 116,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep5",
+      "x": 1971,
+      "y": 113,
+      "faction": "enemy_a",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep6",
+      "x": 1985,
+      "y": 541,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep7",
+      "x": 1553,
+      "y": 506,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep8",
+      "x": 1173,
+      "y": 468,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep9",
+      "x": 625,
+      "y": 432,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep10",
+      "x": 141,
+      "y": 420,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep11",
+      "x": 108.27911085777833,
+      "y": 807.6812815518674,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": true,
+      "orbitCenterX": 164,
+      "orbitCenterY": 714,
+      "orbitRadius": 109,
+      "orbitSpeed": 0.05,
+      "orbitStartAngle": 14.673748326794225
+    },
+    {
+      "id": "ep12",
+      "x": 621.7990486601761,
+      "y": 660.1907890723872,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": true,
+      "orbitCenterX": 648,
+      "orbitCenterY": 740,
+      "orbitRadius": 84,
+      "orbitSpeed": 0.05,
+      "orbitStartAngle": 16.96155052679293
+    },
+    {
+      "id": "ep13",
+      "x": 1147,
+      "y": 888,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep14",
+      "x": 1470.6921483265712,
+      "y": 834.3152322394391,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": true,
+      "orbitCenterX": 1260,
+      "orbitCenterY": 771,
+      "orbitRadius": 220,
+      "orbitSpeed": 0.05,
+      "orbitStartAngle": 19.14148112679169
+    },
+    {
+      "id": "ep15",
+      "x": 1778,
+      "y": 917,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep16",
+      "x": 1938.4045970442378,
+      "y": 1205.968011654872,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": true,
+      "orbitCenterX": 1778,
+      "orbitCenterY": 1368,
+      "orbitRadius": 228,
+      "orbitSpeed": 0.05,
+      "orbitStartAngle": 11.775925326794747
+    },
+    {
+      "id": "ep17",
+      "x": 1237,
+      "y": 1495,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep18",
+      "x": 710,
+      "y": 1455,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep19",
+      "x": 157,
+      "y": 1462,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep20",
+      "x": 148,
+      "y": 1944,
+      "faction": "enemy_b",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep21",
+      "x": 762,
+      "y": 1946,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep22",
+      "x": 1220,
+      "y": 1958,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep23",
+      "x": 1933,
+      "y": 1951,
+      "faction": "enemy_c",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false
+    },
+    {
+      "id": "ep24",
+      "x": 692.5445907174748,
+      "y": 1198.1531006836278,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": true,
+      "orbitCenterX": 757,
+      "orbitCenterY": 1363,
+      "orbitRadius": 177,
+      "orbitSpeed": 0.05,
+      "orbitStartAngle": 35.75559032679672
+    }
+  ],
+  "blackHoles": []
+}
