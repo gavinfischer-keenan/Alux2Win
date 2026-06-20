@@ -143,9 +143,6 @@ export class Planet {
     if (d.lockoutTimer !== undefined && d.lockoutTimer > 0) {
       this.lockoutLabel.visible = true;
       this.lockoutLabel.text = `LOCKED ${Math.ceil(d.lockoutTimer)}s`;
-      // Position just above the planet
-      this.lockoutLabel.x = this.graphics.x;
-      this.lockoutLabel.y = this.graphics.y - PLANET_RADIUS[d.upgradeLevel] - 5;
     } else {
       this.lockoutLabel.visible = false;
     }
@@ -227,6 +224,9 @@ export class Planet {
     // Level pips sit just below the particle count
     this.levelLabel.x    = x;
     this.levelLabel.y    = y + r + 4;
+    // Lockout label sits just above the planet
+    this.lockoutLabel.x  = x;
+    this.lockoutLabel.y  = y - r - 5;
   }
 
   destroy(): void {
