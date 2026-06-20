@@ -956,6 +956,7 @@ export class EditorScene {
       planet.productionRate = PLANET_PRODUCTION[planet.upgradeLevel];
     }
     if (changes.startingParticles !== undefined) planet.health = changes.startingParticles;
+    if (changes.isShielded !== undefined)        planet.isShielded = changes.isShielded;
     if (changes.isOrbiting !== undefined) {
       planet.isOrbiting = changes.isOrbiting;
       if (planet.isOrbiting) {
