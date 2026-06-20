@@ -34,8 +34,6 @@ import blackholes2Data from '../levels/blackholes_2.json';
 import whiteholes2Data from '../levels/whiteholes_2.json';
 import shielded3Data from '../levels/shielded/level_03.json';
 import tutorialFogOfWarData from '../levels/tutorial_fogofwar.json';
-import fogOfWar1Data from '../levels/fogofwar_1.json';
-import fogOfWar2Data from '../levels/fogofwar_2.json';
 
 import { SettingsStore } from '../core/SettingsStore';
 import type { GameSettings } from '../core/SettingsStore';
@@ -269,7 +267,7 @@ export class MainMenuScene {
       { name: 'Black Holes',   desc: 'Relentless gravity wells. They consume all particles that wander too close.', image: '/assets/galaxies/void.png',      locked: false, tutorialId: 'blackholes', levels: [tutorialBlackholesData as LevelData, blackholes1Data as LevelData, blackholes2Data as LevelData, ...(customGroups['Black Holes'] || [])], isTutorial: false },
       { name: 'White Holes',   desc: 'Sending units into the white hole rewards you with a valuable resource bounty.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: 'whiteholes', levels: [tutorialWhiteholesData as LevelData, whiteholes1Data as LevelData, whiteholes2Data as LevelData, ...(customGroups['White Holes'] || [])], isTutorial: false },
       { name: 'Shielded Planets', desc: 'Master the art of defense. Shielded planets slowly generate a protective energy barrier over time that absorbs incoming attacks.', image: '/assets/galaxies/normal.png', locked: false, tutorialId: 'shield', levels: [shielded1Data as LevelData, shielded2Data as LevelData, shielded3Data as LevelData, ...(customGroups['Shielded Planets'] || [])], isTutorial: false },
-      { name: 'Fog of War',    desc: 'The galaxy is shrouded in darkness. Upgrading your planets expands your limited vision.', image: '/assets/galaxies/nebula.png', locked: false, tutorialId: 'fogofwar', levels: [tutorialFogOfWarData as LevelData, fogOfWar1Data as LevelData, fogOfWar2Data as LevelData, ...(customGroups['Fog of War'] || [])], isTutorial: false },
+      { name: 'Fog of War',    desc: 'The galaxy is shrouded in darkness. Upgrading your planets expands your limited vision.', image: '/assets/galaxies/nebula.png', locked: false, tutorialId: 'fogofwar', levels: [tutorialFogOfWarData as LevelData, ...(customGroups['Fog of War'] || [])], isTutorial: false },
     ];
 
     const galaxies = [

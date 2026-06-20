@@ -1,16 +1,22 @@
-# LUX (Alux2Win) - v1.4.1
+# LUX (Alux2Win) - v1.5.0
 
 Welcome to **LUX**, an ambient, macro-strategic real-time strategy game inspired by the minimalist flow of *Auralux*. Command massive swarms of luminescent particles to conquer star systems across a beautifully treacherous galaxy.
 
-## 🚀 What's New in v1.4.1?
-The latest bundle of updates brings a massive leap in aesthetics, UI architecture, and gameplay balance!
+## 🚀 What's New in v1.5.0?
+This major update brings a host of editor improvements, AI additions, and level progression restructurings!
 
-- **Spectator Mode:** When the player is eliminated early in the match, the simulation will pause with a "YOU DIED" screen. An "👁 WATCH THE REST OF THE FIGHT" button allows the player to seamlessly transition into a spectator to watch the remaining AIs battle for galactic supremacy until a final victor emerges.
-- **Nested Main Menu System:** The main menu has been entirely overhauled to support drill-down sub-menus. The `Single Hazard Universes` folder now neatly organizes all 9 cosmic anomaly galaxies. `Dual` and `Triple Hazard` universes are teased with prominent "COMING SOON" badges. 
-- **Shield Mechanics Overhaul:** Shielded Planets are now fully active, accurately rendering varying rates of shield regeneration based on their upgrade levels. A new vibrant cyan intensity ring visually communicates exact shield strength directly on the map.
-- **Fog of War Tweaks:** The detection ranges for the Fog of War have been halved across all planet levels (250/425/650), demanding much more aggressive and deliberate expansion to reveal enemy movements.
-- **Visual FX Polish:** Hard lines and strokes have been eliminated in favor of organic, breathing nebulas and particle blooms. Plasma Storms and Speed Traps now feature dynamic tendrils, White Holes show progressive charging arcs, and Gamma Rays have intense writhing distortion and terminus bloom effects. 
-- **AI Improvements:** The AI has received logic adjustments for colonization priorities and improved white-hole investment awareness.
+- **Third AI Opponent (Purple):** The galaxy just got more crowded! You can now face off against up to three distinct AI opponents simultaneously. The new "Purple" faction is fully integrated, dynamically spinning up its own brain when detected on the map.
+- **Level Editor Overhaul:**
+  - Full support for saving levels anywhere in your system via native OS file dialogs! You are no longer restricted to local storage. You can save, organize, and load custom `.json` level files dynamically.
+  - Seamlessly test your levels! Hitting 'Play' in the editor now properly tests the level and correctly dumps you right back to your exact editor state when you're done or if you quit. 
+  - Editor properties panel now correctly saves all properties instantly (including previously bugged Shield toggles) without needing to click "Done / OK".
+  - Gamma Ray editing handles have been improved to align correctly with mouse inputs.
+  - Planets with orbits correctly sit still when testing levels directly within the editor.
+  - Resolved "Ghost UI" rendering bugs where gameplay elements (like "LOCKED 15s" text) would persist when switching back to the editor.
+- **Campaign & Level Cleanups:**
+  - Removed "Skirmish 3" to make room for custom user levels in Intro Missions.
+  - Cleaned up the Fog of War level system, completely removing older "Grid Fog" and "Hidden Threat" placeholder levels to prep for new designs.
+  - Placed newly created levels like "Take Your Sides" prominently into the *Dual Hazard Universes* category.
 
 ## 🌌 The Cosmic Hazards
 To conquer the galaxy, you must master the anomalies that inhabit it. Single Hazard Universes introduce you to:
@@ -46,7 +52,7 @@ Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
 
 ## 🛠 Features Under the Hood
 - **PixiJS Rendering:** Silky smooth WebGL rendering capable of handling thousands of independent particles.
-- **Custom AI Personalities:** Battle against different AI archetypes (Berserker, Fortress, Opportunist, Economic, etc.) that will dynamically shift strategies based on the current board state.
+- **Custom AI Personalities:** Battle against up to 3 different AI archetypes simultaneously that will dynamically shift strategies based on the current board state.
 - **Built-in Level Editor:** Press `[~]` in the main menu to open the level editor and create your own custom star systems.
 
 ## 🛣️ Future Development

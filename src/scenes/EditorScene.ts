@@ -1130,6 +1130,7 @@ export class EditorScene {
         orbitRadius:      p.orbitRadius,
         orbitSpeed:       p.orbitSpeed,
         orbitStartAngle:  p.orbitAngle,
+        isShielded:       p.isShielded,
       });
     });
 

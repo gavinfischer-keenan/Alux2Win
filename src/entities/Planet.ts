@@ -238,6 +238,7 @@ export class Planet {
     this.selectionRing.destroy();
     this.label.destroy();
     this.levelLabel.destroy();
+    this.lockoutLabel.destroy();
   }
 
   // ---- Private drawing helpers ----
