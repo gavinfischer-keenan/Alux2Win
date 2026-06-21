@@ -1311,7 +1311,7 @@ export class EditorScene {
     catSelect.style.cssText = 'background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 6px; border-radius: 4px; font-family: inherit;';
     
     const groups = [
-      { label: 'Core', options: ['Normal'] },
+      { label: 'Core', options: ['Intro Missions'] },
       { label: 'Single Hazard Universes', options: ['Plasma Storms', 'Asteroids', 'Gamma Rays', 'Speed Traps', 'Portals', 'Black Holes', 'White Holes', 'Shielded Planets', 'Fog of War'] },
       { label: 'Multi Hazard Universes', options: ['Dual Hazard Universes', 'Triple Hazard Universes'] },
       { label: 'Other', options: ['Custom'] }
