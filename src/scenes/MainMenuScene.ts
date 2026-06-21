@@ -1799,6 +1799,20 @@ export class MainMenuScene {
     // Draw elements
     if (level.planets) {
       level.planets.forEach((p: any) => {
+        if (p.isOrbiting && p.orbitRadius) {
+          ctx.beginPath();
+          if (typeof ctx.ellipse === 'function') {
+            const rx = p.orbitRadius;
+            const ry = p.orbitShape === 'ellipse' ? (p.orbitRadiusY ?? rx) : rx;
+            ctx.ellipse(mapX(p.orbitCenterX ?? p.x), mapY(p.orbitCenterY ?? p.y), rx * scale, ry * scale, 0, 0, Math.PI * 2);
+          } else {
+            ctx.arc(mapX(p.orbitCenterX ?? p.x), mapY(p.orbitCenterY ?? p.y), p.orbitRadius * scale, 0, Math.PI * 2);
+          }
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+
         ctx.beginPath();
         // size varies by upgrade level (1..3)
         const radius = Math.max(1, (p.upgradeLevel || 1) * 1.5);
