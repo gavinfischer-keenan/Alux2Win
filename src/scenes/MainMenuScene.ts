@@ -1559,14 +1559,67 @@ export class MainMenuScene {
         font-weight: 700;
         color: ${isLocked ? 'rgba(255, 255, 255, 0.6)' : '#4fc3f7'};
         text-align: center;
+        margin-bottom: 8px;
       `;
 
       tile.appendChild(numLabel);
       tile.appendChild(nameLabel);
 
       if (level) {
+        // Container for map and times side-by-side
+        const infoRow = document.createElement('div');
+        infoRow.style.cssText = `
+          display: flex;
+          flex-direction: row;
+          width: 100%;
+          justify-content: space-around;
+          align-items: flex-start;
+          gap: 12px;
+          margin-top: 4px;
+          flex: 1;
+        `;
+
+        // Map Column
+        const mapContainer = document.createElement('div');
+        mapContainer.style.cssText = `
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+        `;
+        const mapHeader = document.createElement('div');
+        mapHeader.textContent = 'MAP';
+        mapHeader.style.cssText = `
+          font-family: 'Rajdhani', sans-serif;
+          font-size: 0.6rem;
+          color: rgba(255,255,255,0.25);
+          letter-spacing: 0.2em;
+        `;
+        const canvas = document.createElement('canvas');
+        canvas.width = 100;
+        canvas.height = 100;
+        canvas.style.cssText = `
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 4px;
+          background: rgba(0, 0, 0, 0.3);
+        `;
+        this.drawMiniMap(level, canvas);
+        mapContainer.appendChild(mapHeader);
+        mapContainer.appendChild(canvas);
+        infoRow.appendChild(mapContainer);
+
+        // Times Column
+        const timesContainer = document.createElement('div');
+        timesContainer.style.cssText = `
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+        `;
         const top = HighScoreStore.getTop(level.id!);
-        this.buildTopTimesBlock(top, tile);
+        this.buildTopTimesBlock(top, timesContainer);
+        infoRow.appendChild(timesContainer);
+
+        tile.appendChild(infoRow);
       }
 
       if (isLocked) {
@@ -1615,54 +1668,6 @@ export class MainMenuScene {
           }
         });
         tile.appendChild(deleteBtn);
-      }
-
-      if (level) {
-        // Display top 5 times
-        const levelKey = level.id || level.name;
-        const topTimes = HighScoreStore.getTop(levelKey).slice(0, 5);
-        
-        if (topTimes.length > 0) {
-          const timesContainer = document.createElement('div');
-          timesContainer.style.cssText = `
-            margin-top: 12px;
-            padding-top: 8px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-          `;
-
-          const timesHeader = document.createElement('div');
-          timesHeader.textContent = 'TOP TIMES';
-          timesHeader.style.cssText = `
-            font-family: 'Rajdhani', sans-serif;
-            font-size: 0.75rem;
-            color: rgba(79, 195, 247, 0.8);
-            letter-spacing: 0.1em;
-            margin-bottom: 4px;
-          `;
-          timesContainer.appendChild(timesHeader);
-
-          topTimes.forEach((score, idx) => {
-            const timeRow = document.createElement('div');
-            
-            // Format time as MM:SS
-            const timeStr = HighScoreStore.formatTime(score.bestTime);
-            
-            timeRow.textContent = `${idx + 1}. ${timeStr}`;
-            timeRow.style.cssText = `
-              font-family: 'Orbitron', sans-serif;
-              font-size: 0.8rem;
-              color: ${idx === 0 ? '#ffca28' : 'rgba(255, 255, 255, 0.6)'};
-              margin: 1px 0;
-            `;
-            timesContainer.appendChild(timeRow);
-          });
-          
-          tile.appendChild(timesContainer);
-        }
       }
 
       grid.appendChild(tile);
@@ -1728,5 +1733,91 @@ export class MainMenuScene {
     }
 
     appendTo.appendChild(wrapper);
+  }
+
+  private drawMiniMap(level: any, canvas: HTMLCanvasElement): void {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const w = canvas.width;
+    const h = canvas.height;
+    
+    // Calculate scale to fit world inside canvas with 10% padding
+    const padding = 10;
+    const availW = w - padding * 2;
+    const availH = h - padding * 2;
+    const worldW = level.worldWidth || 2048;
+    const worldH = level.worldHeight || 2048;
+    
+    const scaleX = availW / worldW;
+    const scaleY = availH / worldH;
+    const scale = Math.min(scaleX, scaleY);
+    
+    const offsetX = (w - worldW * scale) / 2;
+    const offsetY = (h - worldH * scale) / 2;
+
+    // Helper
+    const mapX = (wx: number) => offsetX + wx * scale;
+    const mapY = (wy: number) => offsetY + wy * scale;
+
+    // Draw elements
+    if (level.planets) {
+      level.planets.forEach((p: any) => {
+        ctx.beginPath();
+        // size varies by upgrade level (1..3)
+        const radius = Math.max(1, (p.upgradeLevel || 1) * 1.5);
+        ctx.arc(mapX(p.x), mapY(p.y), radius, 0, Math.PI * 2);
+        
+        let color = '#9e9e9e'; // neutral
+        if (p.faction === 'player') color = '#4fc3f7';
+        else if (p.faction?.startsWith('enemy')) color = '#f44336';
+        
+        ctx.fillStyle = color;
+        ctx.fill();
+        
+        if (p.isShielded) {
+          ctx.beginPath();
+          ctx.arc(mapX(p.x), mapY(p.y), radius + 1.5, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(100, 255, 255, 0.5)';
+          ctx.stroke();
+        }
+      });
+    }
+
+    if (level.blackHoles) {
+      level.blackHoles.forEach((bh: any) => {
+        ctx.beginPath();
+        ctx.arc(mapX(bh.x), mapY(bh.y), 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#673ab7'; // purple
+        ctx.fill();
+      });
+    }
+
+    if (level.whiteHoles) {
+      level.whiteHoles.forEach((wh: any) => {
+        ctx.beginPath();
+        ctx.arc(mapX(wh.x), mapY(wh.y), 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+      });
+    }
+
+    if (level.asteroids) {
+      level.asteroids.forEach((ast: any) => {
+        ctx.beginPath();
+        ctx.arc(mapX(ast.x), mapY(ast.y), 2, 0, Math.PI * 2);
+        ctx.fillStyle = '#795548'; // brown
+        ctx.fill();
+      });
+    }
+
+    if (level.portals) {
+      level.portals.forEach((pt: any) => {
+        ctx.beginPath();
+        ctx.arc(mapX(pt.x), mapY(pt.y), 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ff9800'; // orange
+        ctx.fill();
+      });
+    }
   }
 }
