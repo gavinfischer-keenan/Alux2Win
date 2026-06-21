@@ -42,7 +42,7 @@ export class MainMenuScene {
   private currentCategoryList: any[] | null = null;
 
   onPlay: (levelData: LevelData, isTutorial?: boolean, tutorialId?: string) => void = () => {};
-  onOpenEditor: () => void = () => {};
+  onOpenEditor: (levelData?: LevelData) => void = () => {};
 
   constructor(container: HTMLElement) {
     this.element = this.createMenu();
@@ -1509,7 +1509,7 @@ export class MainMenuScene {
             : 'rgba(255, 255, 255, 0.1)';
         });
         tile.addEventListener('click', (e) => {
-          if ((e.target as HTMLElement).closest('.delete-custom-btn')) return;
+          if ((e.target as HTMLElement).closest('.custom-action-btn')) return;
           audioManager.playClick();
           if (level) {
             this.closeSystemsPanel();
@@ -1625,27 +1625,38 @@ export class MainMenuScene {
       }
 
       if (level && level.isCustom) {
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-custom-btn';
-        deleteBtn.textContent = '🗑️';
-        deleteBtn.title = 'Delete Custom Level';
-        deleteBtn.style.cssText = `
+        const controls = document.createElement('div');
+        controls.style.cssText = `
           position: absolute;
           top: 8px;
           right: 8px;
-          background: rgba(255, 50, 50, 0.2);
-          border: 1px solid rgba(255, 50, 50, 0.4);
-          border-radius: 4px;
-          color: white;
-          cursor: pointer;
-          font-size: 12px;
-          padding: 4px 6px;
-          transition: background 0.2s;
-          pointer-events: auto;
+          display: flex;
+          gap: 4px;
         `;
-        deleteBtn.addEventListener('mouseenter', () => { deleteBtn.style.background = 'rgba(255, 50, 50, 0.6)'; });
-        deleteBtn.addEventListener('mouseleave', () => { deleteBtn.style.background = 'rgba(255, 50, 50, 0.2)'; });
-        deleteBtn.addEventListener('click', (e) => {
+
+        const createBtn = (icon: string, title: string, color: string, onClick: (e: MouseEvent) => void) => {
+          const btn = document.createElement('button');
+          btn.className = 'custom-action-btn';
+          btn.textContent = icon;
+          btn.title = title;
+          btn.style.cssText = `
+            background: rgba(${color}, 0.2);
+            border: 1px solid rgba(${color}, 0.4);
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 4px 6px;
+            transition: background 0.2s;
+            pointer-events: auto;
+          `;
+          btn.addEventListener('mouseenter', () => { btn.style.background = `rgba(${color}, 0.6)`; });
+          btn.addEventListener('mouseleave', () => { btn.style.background = `rgba(${color}, 0.2)`; });
+          btn.addEventListener('click', onClick);
+          return btn;
+        };
+
+        const deleteBtn = createBtn('🗑️', 'Delete Custom Level', '255, 50, 50', (e) => {
           e.stopPropagation();
           audioManager.playClick();
           if (confirm(`Delete custom level "${level.name}"?`)) {
@@ -1655,7 +1666,40 @@ export class MainMenuScene {
             if (idx >= 0) galaxy.levels.splice(idx, 1);
           }
         });
-        tile.appendChild(deleteBtn);
+
+        const editBtn = createBtn('✏️', 'Open in Editor', '255, 215, 0', (e) => {
+          e.stopPropagation();
+          audioManager.playClick();
+          this.onOpenEditor(level);
+        });
+
+        const saveBtn = createBtn('💾', 'Save to Source Code', '34, 197, 94', (e) => {
+          e.stopPropagation();
+          audioManager.playClick();
+          const originalText = saveBtn.textContent;
+          saveBtn.textContent = '...';
+          fetch('/api/save-level', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(level)
+          }).then(res => res.json()).then(res => {
+            if (res.success) {
+              alert('Level successfully saved to src/levels/' + res.file + '!');
+              saveBtn.textContent = originalText;
+            } else {
+              alert('Error saving to source: ' + res.error);
+              saveBtn.textContent = originalText;
+            }
+          }).catch(err => {
+            alert('Network error: ' + err);
+            saveBtn.textContent = originalText;
+          });
+        });
+
+        controls.appendChild(saveBtn);
+        controls.appendChild(editBtn);
+        controls.appendChild(deleteBtn);
+        tile.appendChild(controls);
       }
 
       grid.appendChild(tile);

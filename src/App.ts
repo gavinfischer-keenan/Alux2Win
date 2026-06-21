@@ -70,8 +70,8 @@ export class App {
     this.menuScene.onPlay = (levelData: LevelData, isTutorial = false, tutorialId = 'basics') => {
       this.startGame(levelData, isTutorial, tutorialId);
     };
-    this.menuScene.onOpenEditor = () => {
-      this.openEditor();
+    this.menuScene.onOpenEditor = (level?: LevelData) => {
+      this.openEditor(level);
     };
 
     this.menuScene.show();
