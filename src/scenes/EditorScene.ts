@@ -1429,13 +1429,14 @@ export class EditorScene {
     cancelBtn.onclick = () => overlay.remove();
 
     const exportBtn = document.createElement('button');
-    exportBtn.textContent = 'Export to JSON';
+    exportBtn.textContent = 'Save to Local (Browser + JSON)';
     exportBtn.style.cssText = 'padding: 8px 16px; background: rgba(79, 195, 247, 0.3); border: 1px solid #4fc3f7; color: #4fc3f7; border-radius: 4px; cursor: pointer;';
     exportBtn.onclick = () => {
       this.editState.levelName = nameField.input.value;
       this.editState.category = catSelect.value || 'Custom';
       const ld = this.buildLevelData();
       ld.category = this.editState.category;
+      LevelStore.saveLevel(ld);
       this.exportLevel(ld);
       if ((this.sidebar as any).setLevelName) {
         (this.sidebar as any).setLevelName(this.editState.levelName);
@@ -1444,18 +1445,39 @@ export class EditorScene {
     };
 
     const saveBtn = document.createElement('button');
-    saveBtn.textContent = 'Save to Local Storage';
+    saveBtn.textContent = 'Save to Source Code';
     saveBtn.style.cssText = 'padding: 8px 16px; background: rgba(34, 197, 94, 0.3); border: 1px solid #22c55e; color: #22c55e; border-radius: 4px; cursor: pointer;';
     saveBtn.onclick = () => {
       this.editState.levelName = nameField.input.value;
       this.editState.category = catSelect.value || 'Custom';
       const ld = this.buildLevelData();
       ld.category = this.editState.category;
-      LevelStore.saveLevel(ld);
-      if ((this.sidebar as any).setLevelName) {
-        (this.sidebar as any).setLevelName(this.editState.levelName);
-      }
-      overlay.remove();
+      
+      const originalText = saveBtn.textContent;
+      saveBtn.textContent = 'Saving...';
+      
+      fetch('/api/save-level', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ld)
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          if ((this.sidebar as any).setLevelName) {
+            (this.sidebar as any).setLevelName(this.editState.levelName);
+          }
+          overlay.remove();
+          alert('Level successfully saved to src/levels/' + res.file + '!');
+        } else {
+          alert('Error saving to source: ' + res.error);
+          saveBtn.textContent = originalText;
+        }
+      })
+      .catch(err => {
+        alert('Network error saving to source: ' + err);
+        saveBtn.textContent = originalText;
+      });
     };
 
     btnContainer.appendChild(cancelBtn);

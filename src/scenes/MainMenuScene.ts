@@ -14,6 +14,8 @@ import tutorialPortalsData     from '../levels/tutorial_portals.json';
 import tutorialBlackholesData  from '../levels/tutorial_blackholes.json';
 import tutorialWhiteholesData  from '../levels/tutorial_whiteholes.json';
 import simpleGridData from '../levels/simple_grid.json';
+import fortressData from '../levels/fortress.json';
+import xMarksTheSpotData from '../levels/x_marks_the_spot.json';
 import asteroids1Data from '../levels/asteroids_1.json';
 import portals1Data from '../levels/portals_1.json';
 import aLineData from '../levels/a_line.json';
@@ -270,7 +272,7 @@ export class MainMenuScene {
           tutorialWhiteholesData as LevelData,
           tutorialMovementData as LevelData,
         ], isTutorial: true },
-      { name: 'Intro Missions', desc: 'Balanced systems with no extreme anomalies. A true test of strategic fundamentals...but beware black holes.', image: '/assets/galaxies/normal.png',    locked: false, tutorialId: '',     levels: [simpleGridData as LevelData, ...(customGroups['Intro Missions'] || [])], isTutorial: false },
+      { name: 'Intro Missions', desc: 'Balanced systems with no extreme anomalies. A true test of strategic fundamentals...but beware black holes.', image: '/assets/galaxies/normal.png',    locked: false, tutorialId: '',     levels: [simpleGridData as LevelData, fortressData as unknown as LevelData, xMarksTheSpotData as unknown as LevelData, ...(customGroups['Intro Missions'] || [])], isTutorial: false },
       { name: 'Single Hazard Universes', desc: 'Galaxies featuring exactly one extreme cosmic anomaly to master.', image: '/assets/galaxies/nebula.png', locked: false, tutorialId: '', levels: [], isTutorial: false, subcategories: singleHazards },
       { name: 'Dual Hazard Universes', desc: 'Combine two distinct anomalies for complex strategic challenges.', image: '/assets/galaxies/plasma.png', locked: false, tutorialId: '', levels: [takeYourSidesData as unknown as LevelData, ...(customGroups['Dual Hazard Universes'] || [])], isTutorial: false },
       { name: 'Triple Hazard Universes', desc: 'Survive in the most hostile environments the cosmos has to offer.', image: '/assets/galaxies/void.png', locked: false, tutorialId: '', levels: [], isTutorial: false, isPlaceholder: true },

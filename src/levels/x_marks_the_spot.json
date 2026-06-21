@@ -1,0 +1,242 @@
+{
+  "version": 1,
+  "name": "X marks the spot",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "planets": [
+    {
+      "id": "ep1",
+      "x": 86,
+      "y": 57,
+      "faction": "player",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep2",
+      "x": 183,
+      "y": 156,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep3",
+      "x": 294,
+      "y": 293,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep4",
+      "x": 407,
+      "y": 435,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep5",
+      "x": 533,
+      "y": 579,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep6",
+      "x": 674,
+      "y": 718,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep7",
+      "x": 854,
+      "y": 886,
+      "faction": "neutral",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep8",
+      "x": 1069,
+      "y": 1098,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep9",
+      "x": 1260,
+      "y": 1290,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep10",
+      "x": 1411,
+      "y": 1469,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep11",
+      "x": 1624,
+      "y": 1677,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep12",
+      "x": 1900,
+      "y": 1930,
+      "faction": "enemy_c",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep13",
+      "x": 1952,
+      "y": 76,
+      "faction": "enemy_a",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep14",
+      "x": 1818,
+      "y": 175,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep15",
+      "x": 1690,
+      "y": 293,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep16",
+      "x": 1473,
+      "y": 449,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep17",
+      "x": 1213,
+      "y": 657,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep18",
+      "x": 759,
+      "y": 1049,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep19",
+      "x": 608,
+      "y": 1302,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep20",
+      "x": 315,
+      "y": 1616,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep21",
+      "x": 70,
+      "y": 1954,
+      "faction": "enemy_b",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    }
+  ],
+  "blackHoles": [],
+  "whiteHoles": [
+    {
+      "id": "wh1",
+      "x": 48,
+      "y": 966
+    },
+    {
+      "id": "wh2",
+      "x": 878,
+      "y": 35
+    },
+    {
+      "id": "wh3",
+      "x": 1978,
+      "y": 914
+    },
+    {
+      "id": "wh4",
+      "x": 899,
+      "y": 1991
+    }
+  ],
+  "category": "Portals"
+}
