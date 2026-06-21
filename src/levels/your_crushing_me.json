@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "name": "Your Crushing Me",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "planets": [
+    {
+      "id": "ep1",
+      "x": 181,
+      "y": 151,
+      "faction": "enemy_c",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep2",
+      "x": 131,
+      "y": 1909,
+      "faction": "player",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep3",
+      "x": 1896,
+      "y": 1954,
+      "faction": "enemy_b",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep4",
+      "x": 1905,
+      "y": 210,
+      "faction": "enemy_a",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep5",
+      "x": 679,
+      "y": 735,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep6",
+      "x": 674,
+      "y": 940,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep7",
+      "x": 674,
+      "y": 1165,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep8",
+      "x": 915,
+      "y": 1177,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep9",
+      "x": 1185,
+      "y": 1176,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep10",
+      "x": 1184,
+      "y": 954,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep11",
+      "x": 1176,
+      "y": 737,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep12",
+      "x": 910,
+      "y": 737,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep13",
+      "x": 911,
+      "y": 950,
+      "faction": "neutral",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": true
+    }
+  ],
+  "blackHoles": [
+    {
+      "id": "bh1",
+      "x": 906,
+      "y": 475,
+      "radius": 30,
+      "pullStrength": 1
+    },
+    {
+      "id": "bh2",
+      "x": 443,
+      "y": 954,
+      "radius": 30,
+      "pullStrength": 1
+    },
+    {
+      "id": "bh3",
+      "x": 896,
+      "y": 1427,
+      "radius": 30,
+      "pullStrength": 1
+    },
+    {
+      "id": "bh4",
+      "x": 1421,
+      "y": 883,
+      "radius": 30,
+      "pullStrength": 1
+    }
+  ],
+  "category": "Black Holes",
+  "id": "custom_1782016573450_886",
+  "isCustom": true
+}

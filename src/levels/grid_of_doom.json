@@ -1,0 +1,215 @@
+{
+  "version": 1,
+  "name": "Grid of DOOM",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "fogOfWarConfig": {
+    "enabled": true
+  },
+  "planets": [
+    {
+      "id": "ep1",
+      "x": 183,
+      "y": 146,
+      "faction": "enemy_a",
+      "upgradeLevel": 2,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep2",
+      "x": 736,
+      "y": 146,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep3",
+      "x": 1357,
+      "y": 128,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep4",
+      "x": 1863,
+      "y": 135,
+      "faction": "enemy_c",
+      "upgradeLevel": 2,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep5",
+      "x": 1860,
+      "y": 619,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep6",
+      "x": 1359,
+      "y": 581,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep7",
+      "x": 698,
+      "y": 546,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep8",
+      "x": 188,
+      "y": 555,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep9",
+      "x": 193,
+      "y": 985,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep10",
+      "x": 719,
+      "y": 992,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep11",
+      "x": 1312,
+      "y": 1002,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep12",
+      "x": 1839,
+      "y": 1016,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep13",
+      "x": 1844,
+      "y": 1434,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep14",
+      "x": 1312,
+      "y": 1427,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep15",
+      "x": 719,
+      "y": 1420,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep16",
+      "x": 193,
+      "y": 1441,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep17",
+      "x": 214,
+      "y": 1864,
+      "faction": "player",
+      "upgradeLevel": 2,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep18",
+      "x": 750,
+      "y": 1859,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep19",
+      "x": 1300,
+      "y": 1842,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep20",
+      "x": 1867,
+      "y": 1842,
+      "faction": "enemy_b",
+      "upgradeLevel": 2,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    }
+  ],
+  "blackHoles": [],
+  "category": "Fog of War",
+  "id": "custom_1782013344167_9",
+  "isCustom": true
+}

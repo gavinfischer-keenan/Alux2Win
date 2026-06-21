@@ -1,0 +1,142 @@
+{
+  "version": 1,
+  "name": "Simple Spiral",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "planets": [
+    {
+      "id": "ep1",
+      "x": 119,
+      "y": 106,
+      "faction": "enemy_a",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep2",
+      "x": 426,
+      "y": 246,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep3",
+      "x": 741,
+      "y": 503,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep4",
+      "x": 941,
+      "y": 843,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep5",
+      "x": 1133,
+      "y": 1273,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep6",
+      "x": 1473,
+      "y": 1616,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep7",
+      "x": 1893,
+      "y": 1956,
+      "faction": "enemy_b",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep8",
+      "x": 1175,
+      "y": 772,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep9",
+      "x": 1548,
+      "y": 569,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep10",
+      "x": 1756,
+      "y": 172,
+      "faction": "enemy_c",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep11",
+      "x": 681,
+      "y": 971,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep12",
+      "x": 422,
+      "y": 1313,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep13",
+      "x": 294,
+      "y": 1788,
+      "faction": "player",
+      "upgradeLevel": 3,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    }
+  ],
+  "blackHoles": [],
+  "category": "Intro Missions",
+  "id": "custom_1782014455717_486",
+  "isCustom": true
+}

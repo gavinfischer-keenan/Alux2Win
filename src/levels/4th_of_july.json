@@ -1,0 +1,239 @@
+{
+  "version": 1,
+  "name": "4th of July",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "planets": [
+    {
+      "id": "ep1",
+      "x": 214,
+      "y": 224,
+      "faction": "player",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep2",
+      "x": 963,
+      "y": 213,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep3",
+      "x": 1808,
+      "y": 215,
+      "faction": "enemy_a",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep4",
+      "x": 1704,
+      "y": 730,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep5",
+      "x": 946,
+      "y": 796,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep6",
+      "x": 231,
+      "y": 678,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep7",
+      "x": 138,
+      "y": 1022,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep8",
+      "x": 946,
+      "y": 999,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep9",
+      "x": 1879,
+      "y": 1015,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep10",
+      "x": 1669,
+      "y": 1247,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep11",
+      "x": 951,
+      "y": 1391,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep12",
+      "x": 946,
+      "y": 1174,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep13",
+      "x": 252,
+      "y": 1547,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep14",
+      "x": 126,
+      "y": 1916,
+      "faction": "enemy_c",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep15",
+      "x": 1917,
+      "y": 2001,
+      "faction": "enemy_b",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep16",
+      "x": 327,
+      "y": 1228,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep17",
+      "x": 1796,
+      "y": 1552,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    }
+  ],
+  "blackHoles": [],
+  "whiteHoles": [
+    {
+      "id": "wh1",
+      "x": 544,
+      "y": 465
+    },
+    {
+      "id": "wh2",
+      "x": 485,
+      "y": 1703
+    },
+    {
+      "id": "wh3",
+      "x": 1385,
+      "y": 1753
+    },
+    {
+      "id": "wh4",
+      "x": 1388,
+      "y": 515
+    },
+    {
+      "id": "wh5",
+      "x": 464,
+      "y": 1084
+    },
+    {
+      "id": "wh6",
+      "x": 844,
+      "y": 1103
+    },
+    {
+      "id": "wh7",
+      "x": 1168,
+      "y": 1101
+    },
+    {
+      "id": "wh8",
+      "x": 1544,
+      "y": 1117
+    },
+    {
+      "id": "wh9",
+      "x": 951,
+      "y": 626
+    },
+    {
+      "id": "wh10",
+      "x": 951,
+      "y": 1618
+    },
+    {
+      "id": "wh11",
+      "x": 1237,
+      "y": 1342
+    }
+  ],
+  "category": "White Holes",
+  "id": "custom_1782017001521_81",
+  "isCustom": true
+}
