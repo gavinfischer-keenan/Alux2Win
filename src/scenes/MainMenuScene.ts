@@ -14,7 +14,6 @@ import tutorialPortalsData     from '../levels/tutorial_portals.json';
 import tutorialBlackholesData  from '../levels/tutorial_blackholes.json';
 import tutorialWhiteholesData  from '../levels/tutorial_whiteholes.json';
 import simpleGridData from '../levels/simple_grid.json';
-import fortressData from '../levels/fortress.json';
 import xMarksTheSpotData from '../levels/x_marks_the_spot.json';
 import asteroids1Data from '../levels/asteroids_1.json';
 import portals1Data from '../levels/portals_1.json';
@@ -254,7 +253,7 @@ export class MainMenuScene {
       { name: 'Speed Traps',   desc: 'Vast zones of accelerated space. Use them to launch surprise attacks across the map.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: 'speedTraps', levels: [tutorialSpeedData as unknown as LevelData, ...(customGroups['Speed Traps'] || [])], isTutorial: false },
       { name: 'Portals',       desc: 'Instantaneous travel across the system. Send units into one portal to emerge at the exit.', image: '/assets/galaxies/lava.png',      locked: false, tutorialId: 'portals',    levels: [tutorialPortalsData as LevelData, portals1Data as LevelData, ...(customGroups['Portals'] || [])], isTutorial: false },
       { name: 'Black Holes',   desc: 'Relentless gravity wells. They consume all particles that wander too close.', image: '/assets/galaxies/void.png',      locked: false, tutorialId: 'blackholes', levels: [tutorialBlackholesData as LevelData, ...(customGroups['Black Holes'] || [])], isTutorial: false },
-      { name: 'White Holes',   desc: 'Sending units into the white hole rewards you with a valuable resource bounty.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: 'whiteholes', levels: [tutorialWhiteholesData as LevelData, aLineData as LevelData, ...(customGroups['White Holes'] || [])], isTutorial: false },
+      { name: 'White Holes',   desc: 'Sending units into the white hole rewards you with a valuable resource bounty.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: 'whiteholes', levels: [tutorialWhiteholesData as LevelData, aLineData as LevelData, xMarksTheSpotData as unknown as LevelData, ...(customGroups['White Holes'] || [])], isTutorial: false },
       { name: 'Shielded Planets', desc: 'Master the art of defense. Shielded planets slowly generate a protective energy barrier over time that absorbs incoming attacks.', image: '/assets/galaxies/normal.png', locked: false, tutorialId: 'shield', levels: [shielded1Data as LevelData, shielded2Data as LevelData, ...(customGroups['Shielded Planets'] || [])], isTutorial: false },
       { name: 'Fog of War',    desc: 'The galaxy is shrouded in darkness. Upgrading your planets expands your limited vision.', image: '/assets/galaxies/nebula.png', locked: false, tutorialId: 'fogofwar', levels: [tutorialFogOfWarData as LevelData, ...(customGroups['Fog of War'] || [])], isTutorial: false },
     ];
@@ -272,7 +271,7 @@ export class MainMenuScene {
           tutorialWhiteholesData as LevelData,
           tutorialMovementData as LevelData,
         ], isTutorial: true },
-      { name: 'Intro Missions', desc: 'Balanced systems with no extreme anomalies. A true test of strategic fundamentals...but beware black holes.', image: '/assets/galaxies/normal.png',    locked: false, tutorialId: '',     levels: [simpleGridData as LevelData, fortressData as unknown as LevelData, xMarksTheSpotData as unknown as LevelData, ...(customGroups['Intro Missions'] || [])], isTutorial: false },
+      { name: 'Intro Missions', desc: 'Balanced systems with no extreme anomalies. A true test of strategic fundamentals...but beware black holes.', image: '/assets/galaxies/normal.png',    locked: false, tutorialId: '',     levels: [simpleGridData as LevelData, ...(customGroups['Intro Missions'] || [])], isTutorial: false },
       { name: 'Single Hazard Universes', desc: 'Galaxies featuring exactly one extreme cosmic anomaly to master.', image: '/assets/galaxies/nebula.png', locked: false, tutorialId: '', levels: [], isTutorial: false, subcategories: singleHazards },
       { name: 'Dual Hazard Universes', desc: 'Combine two distinct anomalies for complex strategic challenges.', image: '/assets/galaxies/plasma.png', locked: false, tutorialId: '', levels: [takeYourSidesData as unknown as LevelData, ...(customGroups['Dual Hazard Universes'] || [])], isTutorial: false },
       { name: 'Triple Hazard Universes', desc: 'Survive in the most hostile environments the cosmos has to offer.', image: '/assets/galaxies/void.png', locked: false, tutorialId: '', levels: [], isTutorial: false, isPlaceholder: true },
