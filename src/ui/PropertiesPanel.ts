@@ -230,6 +230,31 @@ export class PropertiesPanel {
     this.element.appendChild(this.buildDeleteBtn(() => this.currentBhId));
   }
 
+  showSpeedZonePlacingUI(onCloseLoop: () => void): void {
+    this.clearCurrentIds();
+    this.element.innerHTML = '';
+    this.element.style.display = 'flex';
+
+    this.element.appendChild(this.buildHeader('💨 Placing Speed Zone', 'New'));
+
+    const info = document.createElement('div');
+    info.style.cssText = 'color:#a1a1aa; font-size:12px; margin-bottom:12px; line-height:1.4;';
+    info.textContent = 'Click on the map to add points to your speed zone polygon. Zones must not intersect themselves.';
+    this.element.appendChild(info);
+
+    const btn = document.createElement('button');
+    btn.textContent = 'Close the Loop';
+    btn.style.cssText = `
+      background: #3b82f6; color: white; border: none; border-radius: 4px;
+      padding: 10px 16px; font-weight: bold; cursor: pointer; text-transform: uppercase;
+      transition: background 0.2s; margin-top: 8px;
+    `;
+    btn.onmouseenter = () => btn.style.background = '#2563eb';
+    btn.onmouseleave = () => btn.style.background = '#3b82f6';
+    btn.onclick = () => onCloseLoop();
+    this.element.appendChild(btn);
+  }
+
   showSpeedZone(sz: SpeedZoneData): void {
     this.clearCurrentIds();
     this.currentSpeedZoneId = sz.id;
@@ -664,10 +689,10 @@ export class PropertiesPanel {
     onChange: (f: Faction) => void
   ): HTMLElement {
     const factions: Array<{ value: Faction; label: string }> = [
-      { value: 'player',  label: 'Player'   },
-      { value: 'enemy_a', label: 'AI Red'   },
-      { value: 'enemy_b', label: 'AI Green' },
-      { value: 'enemy_c', label: 'AI Purple'},
+      { value: 'player',  label: 'Player 1 (Blue)'   },
+      { value: 'enemy_a', label: 'Player 2 (Red)'    },
+      { value: 'enemy_b', label: 'Player 3 (Green)'  },
+      { value: 'enemy_c', label: 'Player 4 (Purple)' },
       { value: 'neutral', label: 'Neutral'  },
     ];
 

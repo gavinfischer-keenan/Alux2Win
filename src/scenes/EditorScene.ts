@@ -31,6 +31,7 @@ import { EventBus }        from '../engine/EventBus';
 import { EditorSidebar, EditorTool } from '../ui/EditorSidebar';
 import { PropertiesPanel } from '../ui/PropertiesPanel';
 import { LevelStore }      from '../core/LevelStore';
+import { lineSegmentsIntersect } from '../utils/MathUtils';
 
 // ── Helper to build a default new planet ─────────────────────
 function defaultPlanet(id: string, x: number, y: number): PlanetData {
@@ -178,7 +179,15 @@ export class EditorScene {
 
     // Sidebar
     this.sidebar = new EditorSidebar(container);
-    this.sidebar.onToolChange = (tool) => { this.editState.tool = tool; this.updateCursor(); };
+    this.sidebar.onToolChange = (tool) => { 
+      this.editState.tool = tool; 
+      this.updateCursor(); 
+      if (tool === 'place_speedzone') {
+        this.propertiesPanel.showSpeedZonePlacingUI(() => this.finishPlacingPolygon());
+      } else if (this.editState.selectedEntityId === null) {
+        this.propertiesPanel.hide();
+      }
+    };
     this.sidebar.onBack       = () => this.onBack();
     this.sidebar.onSaveLevel  = () => this.showSaveOverlay();
     this.sidebar.onLoadLevel  = () => this.showLoadOverlay();
@@ -832,12 +841,54 @@ export class EditorScene {
 
   private finishPlacingPolygon(): void {
     if (this.placingSpeedZonePoints.length >= 3) {
+      const pts = this.placingSpeedZonePoints;
+      const first = pts[0];
+      const last = pts[pts.length - 1];
+
+      // Validate closing segment
+      let intersects = false;
+      for (let i = 0; i < pts.length - 2; i++) {
+        // Skip checking intersection with the first segment (since it connects to it)
+        // Wait, the segment connects `last` to `first`. It shouldn't cross ANY other segment
+        // except the very first point (which is shared) and the very last point.
+        if (i > 0 && i < pts.length - 2 && lineSegmentsIntersect(last, first, pts[i], pts[i+1])) {
+          intersects = true;
+          break;
+        }
+      }
+
+      if (intersects) {
+        this.showErrorToast("Attempt to create impossible shape (lines intersect)");
+        return; // Don't clear points, let them try again
+      }
+
       const id = `sz${this.editState.nextSpeedZoneId++}`;
       const sz = defaultSpeedZone(id, [...this.placingSpeedZonePoints]);
       this.editState.speedZones.set(id, sz);
       this.selectEntity(id);
+      
+      // Update the properties panel to the finished speed zone
+      this.propertiesPanel.showSpeedZone(sz);
+      // Reset tool to select
+      this.sidebar.setActiveTool('select');
+    } else if (this.placingSpeedZonePoints.length > 0) {
+      this.showErrorToast("Speed zone needs at least 3 points");
+      return;
     }
     this.placingSpeedZonePoints = [];
+  }
+
+  private showErrorToast(msg: string) {
+    const div = document.createElement('div');
+    div.textContent = msg;
+    div.style.cssText = `
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(239, 68, 68, 0.9); color: white; padding: 12px 24px; border-radius: 8px;
+      font-family: sans-serif; font-weight: bold; font-size: 18px; pointer-events: none; z-index: 9999;
+      transition: opacity 0.5s; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    `;
+    document.body.appendChild(div);
+    setTimeout(() => { div.style.opacity = '0'; setTimeout(() => div.remove(), 500); }, 2000);
   }
 
   /** Get x position of any entity by id */
@@ -906,7 +957,25 @@ export class EditorScene {
   }
 
   private placeSpeedZone(wx: number, wy: number): void {
-    this.placingSpeedZonePoints.push({ x: Math.round(wx), y: Math.round(wy) });
+    const newPt = { x: Math.round(wx), y: Math.round(wy) };
+    const pts = this.placingSpeedZonePoints;
+    
+    if (pts.length > 0) {
+      const last = pts[pts.length - 1];
+      let intersects = false;
+      for (let i = 0; i < pts.length - 2; i++) {
+        if (lineSegmentsIntersect(last, newPt, pts[i], pts[i+1])) {
+          intersects = true;
+          break;
+        }
+      }
+      if (intersects) {
+        this.showErrorToast("Attempt to create impossible shape (lines intersect)");
+        return;
+      }
+    }
+    
+    pts.push(newPt);
   }
 
   private placePortal(wx: number, wy: number): void {
@@ -1072,7 +1141,12 @@ export class EditorScene {
         if (planet.orbitCenterX === undefined) planet.orbitCenterX = planet.x;
         if (planet.orbitRadius === undefined) planet.orbitRadius = 120;
         if (planet.orbitRadiusY === undefined) planet.orbitRadiusY = 120;
-        if (planet.orbitSpeed === undefined) planet.orbitSpeed = 0.3;
+        if (planet.orbitSpeed === undefined) {
+          const rx = planet.orbitRadius ?? 120;
+          const ry = planet.orbitShape === 'ellipse' ? (planet.orbitRadiusY ?? rx) : rx;
+          const effR = Math.max(rx, ry);
+          planet.orbitSpeed = 55 / effR;
+        }
         if (planet.orbitAngle === undefined) planet.orbitAngle = Math.PI / 2;
         if (planet.orbitCenterY === undefined) planet.orbitCenterY = planet.y - (planet.orbitRadiusY ?? planet.orbitRadius ?? 120);
       }

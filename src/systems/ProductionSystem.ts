@@ -140,7 +140,7 @@ export class ProductionSystem {
           recycled.orbitAngle = avgAngle;
           recycled.orbitRadius = orbitRadius;
           recycled.alive = true;
-          recycled.stormTimer = 0;          recycled.speedMod = 1.0;
+          recycled.speedMod = 1.0;
           recycled.portalCooldown = 0;
           recycled.trappedByBH = null;
           recycled.deployTimer = 0;
@@ -215,7 +215,7 @@ export class ProductionSystem {
     p.orbitAngle = orbitAngle;
     p.orbitRadius = orbitRadius;
     p.alive = true;
-    p.stormTimer = 0;    p.speedMod = 1.0;
+    p.speedMod = 1.0;
     p.portalCooldown = 0;
     p.trappedByBH = null;
     p.deployTimer = 0;

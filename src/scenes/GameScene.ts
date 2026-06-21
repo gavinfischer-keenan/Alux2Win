@@ -407,6 +407,26 @@ export class GameScene {
     const planets   = new Map<string, PlanetData>();
     const blackHoles = new Map<string, BlackHoleData>();
 
+    // Randomize starting locations by mapping original factions to shuffled factions
+    const activeFactions = new Set<Faction>();
+    levelData.planets.forEach((def: PlanetDef) => {
+      if (def.faction !== 'neutral') {
+        activeFactions.add(def.faction);
+      }
+    });
+
+    const activeFactionsArr = Array.from(activeFactions);
+    const shuffledFactions = [...activeFactionsArr];
+    for (let i = shuffledFactions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledFactions[i], shuffledFactions[j]] = [shuffledFactions[j], shuffledFactions[i]];
+    }
+
+    const factionMap = new Map<Faction, Faction>();
+    for (let i = 0; i < activeFactionsArr.length; i++) {
+      factionMap.set(activeFactionsArr[i], shuffledFactions[i]);
+    }
+
     levelData.planets.forEach((def: PlanetDef) => {
       const lvl = def.upgradeLevel as UpgradeLevel;
       const maxHealth = PLANET_MAX_HEALTH[lvl];
@@ -417,11 +437,13 @@ export class GameScene {
         ? (def.startingParticles !== undefined && def.startingParticles > 0 ? def.startingParticles : 10)
         : maxHealth;
 
+      const mappedFaction = factionMap.get(def.faction) ?? def.faction;
+
       const data: PlanetData = {
         id: def.id,
         x: def.x,
         y: def.y,
-        faction: def.faction,
+        faction: mappedFaction,
         upgradeLevel: lvl,
         health: initialHealth,
         maxHealth,
@@ -1072,8 +1094,8 @@ export class GameScene {
         const spawnX = src.x + Math.cos(angle) * r;
         const spawnY = src.y + Math.sin(angle) * r;
 
-        const destX = targetPlanet ? targetPlanet.x : (targetX ?? src.x);
-        const destY = targetPlanet ? targetPlanet.y : (targetY ?? src.y);
+        const destX = waypointX ?? (targetPlanet ? targetPlanet.x : (targetX ?? src.x));
+        const destY = waypointY ?? (targetPlanet ? targetPlanet.y : (targetY ?? src.y));
         const dx    = destX - spawnX;
         const dy    = destY - spawnY;
         const len   = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -1094,6 +1116,8 @@ export class GameScene {
           targetPlanetId: targetPlanetId,
           targetX:        targetX,
           targetY:        targetY,
+          waypointX:      waypointX,
+          waypointY:      waypointY,
           alive:          true,
           speedMod:       1.0,
           portalCooldown: 0,

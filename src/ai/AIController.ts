@@ -1796,39 +1796,42 @@ export class AIController {
   ): void {
     if (sources.length === 0 && (!stationedParticleIds || stationedParticleIds.length === 0)) return;
 
-    let waypointX: number | undefined;
-    let waypointY: number | undefined;
+    if (state && isGammaDangerous(state, target.x, target.y)) return;
 
     if (state && sources.length > 0) {
       const faction = sources[0].faction;
       const strategy = this.strategies.get(faction)!;
-      const src = sources[0];
 
-      // Gamma ray temporal suppression
-      if (isGammaDangerous(state, target.x, target.y)) return;
+      for (const src of sources) {
+        let waypointX: number | undefined;
+        let waypointY: number | undefined;
 
-      const routeScore = scoreRoute(state, src.x, src.y, target.x, target.y);
-      if (routeScore < strategy.hazardToleranceThreshold) {
-        if (strategy.usesWaypoints) {
-          const wp = computeWaypoint(
-            src.x, src.y, target.x, target.y,
-            state, state.worldWidth, state.worldHeight, 50
-          );
-          if (wp) { 
-            waypointX = wp.wpx; 
-            waypointY = wp.wpy; 
+        const routeScore = scoreRoute(state, src.x, src.y, target.x, target.y);
+        if (routeScore < strategy.hazardToleranceThreshold) {
+          if (strategy.usesWaypoints) {
+            const wp = computeWaypoint(
+              src.x, src.y, target.x, target.y,
+              state, state.worldWidth, state.worldHeight, 50
+            );
+            if (wp) { 
+              waypointX = wp.wpx; 
+              waypointY = wp.wpy; 
+            } else if (routeScore <= -900) {
+              // Lethal hazard with no viable waypoint! Abort attack for this source.
+              continue;
+            }
           } else if (routeScore <= -900) {
-            // Lethal hazard with no viable waypoint! Abort attack.
-            return;
+            // Lethal hazard, and role doesn't use waypoints! Abort attack for this source.
+            continue;
           }
-        } else if (routeScore <= -900) {
-          // Lethal hazard, and role doesn't use waypoints! Abort attack.
-          return;
         }
+        deployCallback([src.id], target.id, undefined, waypointX, waypointY);
       }
     }
 
-    deployCallback(sources.map((p) => p.id), target.id, stationedParticleIds, waypointX, waypointY);
+    if (stationedParticleIds && stationedParticleIds.length > 0) {
+      deployCallback([], target.id, stationedParticleIds, undefined, undefined);
+    }
   }
 
   // -------------------------------------------------------------------------

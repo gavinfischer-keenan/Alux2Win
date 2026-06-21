@@ -22,6 +22,7 @@ import tutorialFogOfWarData from '../levels/tutorial_fogofwar.json';
 import fourthOfJulyData from '../levels/4th_of_july.json';
 import dmzData from '../levels/dmz.json';
 import orbitsHurtData from '../levels/orbits_hurt.json';
+import orbitsData from '../levels/orbits.json';
 import gridOfDoomData from '../levels/grid_of_doom.json';
 import notALotToSeeHereData from '../levels/not_a_lot_to_see_here.json';
 import simpleSpiralData from '../levels/simple_spiral.json';
@@ -275,7 +276,7 @@ export class MainMenuScene {
           tutorialWhiteholesData as LevelData,
           tutorialMovementData as LevelData,
         ], isTutorial: true },
-      { name: 'Intro Missions', desc: 'Balanced systems with no extreme anomalies. A true test of strategic fundamentals...but beware black holes.', image: '/assets/galaxies/normal.png',    locked: false, tutorialId: '',     levels: [simpleGridData as LevelData, simpleSpiralData as LevelData, takingSidesInTheMatterData as LevelData, ...(customGroups['Intro Missions'] || [])], isTutorial: false },
+      { name: 'Intro Missions', desc: 'Balanced systems with no extreme anomalies. A true test of strategic fundamentals...but beware black holes.', image: '/assets/galaxies/normal.png',    locked: false, tutorialId: '',     levels: [simpleGridData as LevelData, simpleSpiralData as LevelData, takingSidesInTheMatterData as LevelData, orbitsData as LevelData, ...(customGroups['Intro Missions'] || [])], isTutorial: false },
       { name: 'Single Hazard Universes', desc: 'Galaxies featuring exactly one extreme cosmic anomaly to master.', image: '/assets/galaxies/nebula.png', locked: false, tutorialId: '', levels: [], isTutorial: false, subcategories: singleHazards },
       { name: 'Dual Hazard Universes', desc: 'Combine two distinct anomalies for complex strategic challenges.', image: '/assets/galaxies/plasma.png', locked: false, tutorialId: '', levels: [...(customGroups['Dual Hazard Universes'] || [])], isTutorial: false },
       { name: 'Triple Hazard Universes', desc: 'Survive in the most hostile environments the cosmos has to offer.', image: '/assets/galaxies/void.png', locked: false, tutorialId: '', levels: [], isTutorial: false, isPlaceholder: true },

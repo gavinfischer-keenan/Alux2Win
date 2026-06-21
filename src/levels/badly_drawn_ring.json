@@ -1,0 +1,200 @@
+{
+  "version": 1,
+  "name": "Badly Drawn Ring",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "planets": [
+    {
+      "id": "ep1",
+      "x": 977,
+      "y": 116,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep2",
+      "x": 1312,
+      "y": 229,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep3",
+      "x": 1669,
+      "y": 449,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep4",
+      "x": 1936,
+      "y": 737,
+      "faction": "enemy_a",
+      "upgradeLevel": 2,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep5",
+      "x": 1936,
+      "y": 987,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep6",
+      "x": 1905,
+      "y": 1465,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep7",
+      "x": 1853,
+      "y": 1765,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep8",
+      "x": 1539,
+      "y": 1958,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep9",
+      "x": 1140,
+      "y": 1982,
+      "faction": "enemy_b",
+      "upgradeLevel": 2,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep10",
+      "x": 667,
+      "y": 1972,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep11",
+      "x": 237,
+      "y": 1916,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep12",
+      "x": 107,
+      "y": 1566,
+      "faction": "enemy_c",
+      "upgradeLevel": 2,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep13",
+      "x": 98,
+      "y": 1058,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep14",
+      "x": 112,
+      "y": 775,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep15",
+      "x": 117,
+      "y": 664,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep16",
+      "x": 124,
+      "y": 543,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep17",
+      "x": 230,
+      "y": 265,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep18",
+      "x": 585,
+      "y": 66,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep19",
+      "x": 835,
+      "y": 73,
+      "faction": "player",
+      "upgradeLevel": 2,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    }
+  ],
+  "blackHoles": [],
+  "category": "Intro Missions"
+}

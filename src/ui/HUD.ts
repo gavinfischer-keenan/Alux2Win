@@ -51,10 +51,10 @@ export class HUD {
     this.hintEl           = this.element.querySelector<HTMLElement>('#hud-hint')!;
 
     const factionDefs: Array<{ faction: Faction; label: string }> = [
-      { faction: 'player' as Faction,  label: 'You'   },
-      { faction: 'enemy_a' as Faction, label: 'Red'   },
-      { faction: 'enemy_b' as Faction, label: 'Green' },
-      { faction: 'enemy_c' as Faction, label: 'Purple' },
+      { faction: 'player' as Faction,  label: 'Player 1' },
+      { faction: 'enemy_a' as Faction, label: 'Player 2' },
+      { faction: 'enemy_b' as Faction, label: 'Player 3' },
+      { faction: 'enemy_c' as Faction, label: 'Player 4' },
     ].filter(f => activeFactions.includes(f.faction));
 
     this.factionDisplays = factionDefs.map(({ faction, label }) => ({
@@ -284,10 +284,10 @@ export class HUD {
     `;
 
     const factionDefs: Array<{ faction: Faction; label: string }> = [
-      { faction: 'player' as Faction,  label: 'You'   },
-      { faction: 'enemy_a' as Faction, label: 'Red'   },
-      { faction: 'enemy_b' as Faction, label: 'Green' },
-      { faction: 'enemy_c' as Faction, label: 'Purple' },
+      { faction: 'player' as Faction,  label: 'Player 1' },
+      { faction: 'enemy_a' as Faction, label: 'Player 2' },
+      { faction: 'enemy_b' as Faction, label: 'Player 3' },
+      { faction: 'enemy_c' as Faction, label: 'Player 4' },
     ].filter(f => activeFactions.includes(f.faction));
 
     factionDefs.forEach(({ faction, label }) => {

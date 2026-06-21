@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "name": "Orbits",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "planets": [
+    {
+      "id": "ep1",
+      "x": 247.533578981588,
+      "y": 550.6620793244928,
+      "faction": "player",
+      "upgradeLevel": 2,
+      "startingParticles": 40,
+      "isOrbiting": true,
+      "orbitCenterX": 972,
+      "orbitCenterY": 837,
+      "orbitRadius": 779,
+      "orbitSpeed": 0.06084724005134788,
+      "orbitStartAngle": 22.367544556797302,
+      "isShielded": false
+    },
+    {
+      "id": "ep2",
+      "x": 1542.4032744494825,
+      "y": 387.604049221163,
+      "faction": "enemy_a",
+      "upgradeLevel": 2,
+      "startingParticles": 40,
+      "isOrbiting": true,
+      "orbitCenterX": 998.0184606758601,
+      "orbitCenterY": 818.047047227471,
+      "orbitRadius": 694,
+      "orbitSpeed": 0.06657060518731989,
+      "orbitStartAngle": 18.1805138368796,
+      "isShielded": false
+    },
+    {
+      "id": "ep3",
+      "x": 658.1889402257023,
+      "y": 1119.218188251427,
+      "faction": "enemy_b",
+      "upgradeLevel": 2,
+      "startingParticles": 40,
+      "isOrbiting": true,
+      "orbitCenterX": 1093,
+      "orbitCenterY": 825,
+      "orbitRadius": 525,
+      "orbitSpeed": 0.09333333333333332,
+      "orbitStartAngle": 21.39626106012812,
+      "isShielded": false
+    },
+    {
+      "id": "ep5",
+      "x": 979,
+      "y": 929,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep7",
+      "x": 1188,
+      "y": 902,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep8",
+      "x": 1924,
+      "y": 125,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep9",
+      "x": 74,
+      "y": 92,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep10",
+      "x": 155,
+      "y": 1824,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep11",
+      "x": 1825,
+      "y": 1935,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep12",
+      "x": 1090,
+      "y": 716,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep13",
+      "x": 1267.0193617862772,
+      "y": 1039.7434291566294,
+      "faction": "enemy_c",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": true,
+      "orbitCenterX": 1069,
+      "orbitCenterY": 832,
+      "orbitRadius": 287,
+      "orbitSpeed": 0.3,
+      "orbitStartAngle": 38.50847032679922,
+      "isShielded": false
+    }
+  ],
+  "blackHoles": [],
+  "category": "Intro Missions",
+  "id": "intro_orbits"
+}

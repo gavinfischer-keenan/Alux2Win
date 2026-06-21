@@ -96,3 +96,11 @@ export function dot(a: Vec2, b: Vec2): number {
 export function lerpScalar(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
+
+/** Check if two line segments (p1-p2 and p3-p4) intersect. */
+export function lineSegmentsIntersect(p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2): boolean {
+  const ccw = (A: Vec2, B: Vec2, C: Vec2) => {
+    return (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x);
+  };
+  return (ccw(p1, p3, p4) !== ccw(p2, p3, p4)) && (ccw(p1, p2, p3) !== ccw(p1, p2, p4));
+}
