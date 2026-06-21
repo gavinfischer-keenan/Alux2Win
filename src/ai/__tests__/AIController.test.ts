@@ -33,13 +33,13 @@ describe('AIController', () => {
     const planetAI: PlanetData = {
       id: 'p1', x: 0, y: 0, faction: 'enemy_a', upgradeLevel: 1,
       health: 60, maxHealth: 60, productionRate: 10, absorbedCount: 0,
-      isOrbiting: false, inStorm: false, wasInStorm: false
+      isOrbiting: false,
     };
 
     const planetNeutral: PlanetData = {
       id: 'p2', x: 100, y: 100, faction: 'neutral', upgradeLevel: 1,
       health: 10, maxHealth: 60, productionRate: 10, absorbedCount: 0,
-      isOrbiting: false, inStorm: false, wasInStorm: false
+      isOrbiting: false,
     };
 
     const state: GameState = {
@@ -78,13 +78,13 @@ describe('AIController', () => {
     const planetAI: PlanetData = {
       id: 'p1', x: 0, y: 0, faction: 'enemy_a', upgradeLevel: 3,
       health: 60, maxHealth: 60, productionRate: 10, absorbedCount: 0,
-      isOrbiting: false, inStorm: false, wasInStorm: false
+      isOrbiting: false,
     };
 
     const planetPlayer: PlanetData = {
       id: 'p2', x: 100, y: 100, faction: 'player', upgradeLevel: 1,
       health: 10, maxHealth: 60, productionRate: 10, absorbedCount: 0,
-      isOrbiting: false, inStorm: false, wasInStorm: false
+      isOrbiting: false,
     };
 
     const state: GameState = {

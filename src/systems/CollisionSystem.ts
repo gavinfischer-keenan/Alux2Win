@@ -48,8 +48,6 @@ export class CollisionSystem {
         if (other === p)                 continue;
         if (!other.alive)                continue;
         if (other.faction === p.faction) continue; // same faction
-        if (p.inStorm || other.inStorm)  continue; // storm-protected
-
         // Deduplicate pair
         const lo = p.id < other.id ? p.id : other.id;
         const hi = p.id < other.id ? other.id : p.id;
@@ -109,8 +107,6 @@ export class CollisionSystem {
             targetY:       p.targetY,
             orbitAngle:    p.orbitAngle,
             alive:         true,
-            stormTimer:    0,
-            inStorm:       false,
             speedMod:      1.0,
             portalCooldown: 0,
             trappedByBH:   null,

@@ -45,7 +45,7 @@ import { GravitySystem }             from '../systems/GravitySystem';
 import { CollisionSystem }           from '../systems/CollisionSystem';
 import { CombatSystem }              from '../systems/CombatSystem';
 import { UpgradeSystem }             from '../systems/UpgradeSystem';
-import { PlasmaStormSystem }         from '../systems/PlasmaStormSystem';
+
 import { AsteroidSystem }            from '../systems/AsteroidSystem';
 import { GammaRaySystem }            from '../systems/GammaRaySystem';
 import { SpeedZoneSystem }           from '../systems/SpeedZoneSystem';
@@ -63,7 +63,7 @@ import { TutorialController } from '../tutorial/TutorialController';
 import { Planet }                       from '../entities/Planet';
 import { ParticleRenderer }             from '../entities/ParticleRenderer';
 import { BlackHoleEntity }              from '../entities/BlackHoleEntity';
-import { PlasmaStormRenderer }          from '../entities/PlasmaStormRenderer';
+
 import { AsteroidRenderer }             from '../entities/AsteroidEntity';
 import { GammaRayRenderer }             from '../entities/GammaRayRenderer';
 import { SpeedZoneRenderer }            from '../entities/SpeedZoneRenderer';
@@ -93,7 +93,6 @@ export class GameScene {
     collision:          new CollisionSystem(),
     combat:             new CombatSystem(),
     upgrade:            new UpgradeSystem(),
-    plasmaStorm:        new PlasmaStormSystem(),
     asteroid:           new AsteroidSystem(),
     gammaRay:           new GammaRaySystem(),
     speedZone:          new SpeedZoneSystem(),
@@ -106,7 +105,6 @@ export class GameScene {
     planets:             Map<string, Planet>;
     particles:           ParticleRenderer;
     blackHoles:          Map<string, BlackHoleEntity>;
-    plasmaStorms:        PlasmaStormRenderer;
     asteroids:           AsteroidRenderer;
     gammaRay:            GammaRayRenderer;
     speedZones:          SpeedZoneRenderer;
@@ -118,7 +116,6 @@ export class GameScene {
     planets:             new Map(),
     particles:           null as unknown as ParticleRenderer,
     blackHoles:          new Map(),
-    plasmaStorms:        null as unknown as PlasmaStormRenderer,
     asteroids:           null as unknown as AsteroidRenderer,
     gammaRay:            null as unknown as GammaRayRenderer,
     speedZones:          null as unknown as SpeedZoneRenderer,
@@ -218,7 +215,6 @@ export class GameScene {
     // Particle renderer (batched)
     this.entities.particles    = new ParticleRenderer(this.renderer.layers.particles);
     // Hazard renderers
-    this.entities.plasmaStorms = new PlasmaStormRenderer(this.renderer.layers.plasmaStorms);
     this.entities.asteroids    = new AsteroidRenderer(this.renderer.layers.asteroids);
     this.entities.gammaRay     = new GammaRayRenderer(this.renderer.layers.gammaRay);
     // New hazard renderers
@@ -380,7 +376,6 @@ export class GameScene {
     this.entities.blackHoles.forEach(bh => bh.destroy());
     this.entities.blackHoles.clear();
     this.entities.particles?.destroy();
-    this.entities.plasmaStorms?.destroy();
     this.entities.asteroids?.destroy();
     this.entities.gammaRay?.destroy();
     this.entities.speedZones?.destroy();
@@ -438,8 +433,6 @@ export class GameScene {
         orbitRadius: def.orbitRadius,
         orbitSpeed: def.orbitSpeed,
         orbitAngle: def.orbitStartAngle ?? 0,
-        inStorm: false,
-        wasInStorm: false,
         isShielded: def.isShielded ?? false,
         shieldPoints: 0,
         shieldTimer: 0,
@@ -471,10 +464,6 @@ export class GameScene {
       winner:              null,
       worldWidth:          levelData.worldWidth,
       worldHeight:         levelData.worldHeight,
-      plasmaStorms: (levelData.plasmaStorms ?? []).map(def => ({
-        ...def,
-        angle: 0,
-      })),
       asteroids:            [],
       // Give players 30 seconds to establish themselves before the first asteroid.
       asteroidRespawnTimer: (levelData.asteroidConfig?.enabled) ? 30 : 9999,
@@ -529,8 +518,6 @@ export class GameScene {
             orbitRadius:    orbitRadius,
             deployTimer:    0,
             alive:          true,
-            stormTimer:     0,
-            inStorm:        false,
             speedMod:       1.0,
             portalCooldown: 0,
             trappedByBH:    null,
@@ -625,7 +612,6 @@ export class GameScene {
     this.systems.upgrade.update(this.state);
 
     // Hazard systems (only active if level enables them)
-    this.systems.plasmaStorm.update(dt, this.state);
     if (this.state.asteroids.length > 0 || this.state.asteroidRespawnTimer < 9999)
       this.systems.asteroid.update(dt, this.state);
     if (this.state.gammaRay.enabled)
@@ -695,7 +681,6 @@ export class GameScene {
     });
     this.entities.particles.render(this.state.particles);
     // Hazard renderers
-    this.entities.plasmaStorms.render(this.state.plasmaStorms);
     this.entities.asteroids.render(this.state.asteroids);
     this.entities.gammaRay.render(this.state.gammaRay);
     // New hazard renderers
@@ -1108,8 +1093,6 @@ export class GameScene {
           targetX:        targetX,
           targetY:        targetY,
           alive:          true,
-          stormTimer:     0,
-          inStorm:        false,
           speedMod:       1.0,
           portalCooldown: 0,
           trappedByBH:    null,
@@ -1290,7 +1273,7 @@ export class GameScene {
     badge.id = 'selection-badge';
     badge.style.cssText = `
       position: absolute;
-      top: 12px;
+      top: 72px;
       left: 12px;
       display: none;
       pointer-events: none;

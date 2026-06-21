@@ -17,8 +17,6 @@ describe('SpatialHash', () => {
       damage: 0,
       homePlanetId: '',
       alive: true,
-      stormTimer: 0,
-      inStorm: false,
       speedMod: 1.0,
       portalCooldown: 0,
       trappedByBH: null,

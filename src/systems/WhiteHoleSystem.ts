@@ -104,8 +104,6 @@ export class WhiteHoleSystem {
         damage:        0,
         homePlanetId:  'whiteholes_explosion',
         alive:         true,
-        stormTimer:    0,
-        inStorm:       false,
         speedMod:      1.0,
         portalCooldown: 0,
         trappedByBH:   null,

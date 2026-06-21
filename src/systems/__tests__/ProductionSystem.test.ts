@@ -8,7 +8,7 @@ describe('ProductionSystem', () => {
     const planet: PlanetData = {
       id: 'p1', x: 0, y: 0, faction: 'player', upgradeLevel: 1,
       health: 10, maxHealth: 50, productionRate: 10, absorbedCount: 0,
-      isOrbiting: false, inStorm: false, wasInStorm: false
+      isOrbiting: false,
     };
 
     const state: GameState = {
@@ -40,7 +40,7 @@ describe('ProductionSystem', () => {
     const planet: PlanetData = {
       id: 'p1', x: 0, y: 0, faction: 'player', upgradeLevel: 3,
       health: 150, maxHealth: 150, productionRate: 10, absorbedCount: 0,
-      isOrbiting: false, inStorm: false, wasInStorm: false
+      isOrbiting: false,
     };
 
     const state: GameState = {

@@ -29,13 +29,21 @@ export class SpeedZoneSystem {
       if (!p.alive) continue;
 
       for (const zone of speedZones) {
-        const dx = Math.abs(p.x - zone.x);
-        const dy = Math.abs(p.y - zone.y);
+        // Ray-casting point-in-polygon algorithm
+        let inside = false;
+        const pts = zone.points;
+        const n = pts.length;
+        if (n >= 3) {
+          for (let i = 0, j = n - 1; i < n; j = i++) {
+            const xi = pts[i].x, yi = pts[i].y;
+            const xj = pts[j].x, yj = pts[j].y;
+            const intersect = ((yi > p.y) !== (yj > p.y)) &&
+                              (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi);
+            if (intersect) inside = !inside;
+          }
+        }
 
-        // Treat zone.radius or width/height as half-width and half-height for the box
-        const hw = zone.width ?? zone.radius;
-        const hh = zone.height ?? zone.radius;
-        if (dx <= hw && dy <= hh) {
+        if (inside) {
           if (zone.type === 'speedup') {
             p.speedMod = 4.0; // 2x what it was previously (2.0)
             if (p.faction === 'player') {

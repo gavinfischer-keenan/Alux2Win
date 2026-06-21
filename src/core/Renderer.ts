@@ -10,7 +10,6 @@ import { randomRange } from '../utils/MathUtils';
 export interface RenderLayers {
   background:          Container;  // screen-space, full viewport
   speedZones:          Container;  // world-space (hazard, behind everything)
-  plasmaStorms:        Container;  // world-space (hazard, behind planets)
   blackHoles:          Container;  // world-space
   trappingBlackHoles:  Container;  // world-space (new trapping variant)
   whiteHoles:          Container;  // world-space (behind planets)
@@ -86,7 +85,6 @@ export class Renderer {
 
     // World-space layers (children of worldContainer, in draw order)
     const speedZones         = new Container();
-    const plasmaStorms       = new Container();
     const blackHoles         = new Container();
     const trappingBlackHoles = new Container();
     const whiteHoles         = new Container();
@@ -97,7 +95,6 @@ export class Renderer {
     const asteroids          = new Container();
     const gammaRay           = new Container();
     this._worldContainer.addChild(speedZones);
-    this._worldContainer.addChild(plasmaStorms);
     this._worldContainer.addChild(blackHoles);
     this._worldContainer.addChild(trappingBlackHoles);
     this._worldContainer.addChild(whiteHoles);
@@ -117,7 +114,6 @@ export class Renderer {
     this.layers = {
       background,
       speedZones,
-      plasmaStorms,
       blackHoles,
       trappingBlackHoles,
       whiteHoles,

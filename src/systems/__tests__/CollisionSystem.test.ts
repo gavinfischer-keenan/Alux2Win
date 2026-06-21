@@ -37,7 +37,7 @@ describe('CollisionSystem', () => {
     };
   });
 
-  function createParticle(id: number, x: number, y: number, faction: any, strength: any = 1, inStorm: boolean = false): ParticleData {
+  function createParticle(id: number, x: number, y: number, faction: any, strength: any = 1): ParticleData {
     return {
       id,
       x,
@@ -50,10 +50,7 @@ describe('CollisionSystem', () => {
       orbitTimer: 0,
       damage: 0,
       homePlanetId: 'p1',
-      alive: true,
-      stormTimer: 0,
-      inStorm,
-      speedMod: 1.0,
+      alive: true,      speedMod: 1.0,
       portalCooldown: 0,
       trappedByBH: null,
     };
@@ -148,7 +145,7 @@ describe('CollisionSystem', () => {
   });
 
   it('should ignore collision if either particle is in a storm', () => {
-    const p1 = createParticle(1, 100, 100, 'player', 1, true); // inStorm
+    const p1 = createParticle(1, 100, 100, 'player', 1);
     const p2 = createParticle(2, 100, 100, 'enemy_a', 1, false);
     state.particles.push(p1, p2);
 

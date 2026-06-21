@@ -275,37 +275,8 @@ export class PropertiesPanel {
     typeRow.appendChild(makeTypeBtn('🐌 Slow Down', 'slowdown', '#ef4444'));
     this.element.appendChild(typeRow);
 
-    // Width slider
-    const hw = sz.width ?? sz.radius;
-    this.element.appendChild(this.buildLabel('Width (Radius X)'));
-    const widthWrapper = document.createElement('div');
-    widthWrapper.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
-    const widthVal = document.createElement('span');
-    widthVal.style.cssText = 'font-size:11px; color: rgba(255,255,255,0.5); text-align:right;';
-    widthVal.textContent = String(hw);
-    const widthSlider = this.buildSlider(hw, 20, 800, (v) => {
-      widthVal.textContent = String(v);
-      if (this.currentSpeedZoneId) this.onSpeedZoneChange(this.currentSpeedZoneId, { width: v });
-    });
-    widthWrapper.appendChild(widthSlider);
-    widthWrapper.appendChild(widthVal);
-    this.element.appendChild(widthWrapper);
-
-    // Height slider
-    const hh = sz.height ?? sz.radius;
-    this.element.appendChild(this.buildLabel('Height (Radius Y)'));
-    const heightWrapper = document.createElement('div');
-    heightWrapper.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
-    const heightVal = document.createElement('span');
-    heightVal.style.cssText = 'font-size:11px; color: rgba(255,255,255,0.5); text-align:right;';
-    heightVal.textContent = String(hh);
-    const heightSlider = this.buildSlider(hh, 20, 800, (v) => {
-      heightVal.textContent = String(v);
-      if (this.currentSpeedZoneId) this.onSpeedZoneChange(this.currentSpeedZoneId, { height: v });
-    });
-    heightWrapper.appendChild(heightSlider);
-    heightWrapper.appendChild(heightVal);
-    this.element.appendChild(heightWrapper);
+    // Info text
+    this.element.appendChild(this.buildInfoText('Custom shape. Draw points to set bounds.'));
 
     // Spacer
     const spacer = document.createElement('div');
@@ -453,7 +424,7 @@ export class PropertiesPanel {
     this.element.appendChild(this.buildHeader('⭐ White Hole', wh.id));
 
     // Info texts
-    this.element.appendChild(this.buildInfoText('20 particles → 100 particle explosion'));
+    this.element.appendChild(this.buildInfoText('80 particles → 300 particle explosion'));
     this.element.appendChild(this.buildInfoText('Contested by multiple factions → resets'));
 
     // Spacer

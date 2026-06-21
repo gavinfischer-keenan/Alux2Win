@@ -34,7 +34,6 @@ export class ProductionSystem {
       }
 
       if (planet.faction === 'neutral') continue;
-      if (planet.inStorm) continue; // no production while in plasma storm
 
       let rate = planet.productionRate;
       if (planet.faction !== 'player') {
@@ -141,9 +140,7 @@ export class ProductionSystem {
           recycled.orbitAngle = avgAngle;
           recycled.orbitRadius = orbitRadius;
           recycled.alive = true;
-          recycled.stormTimer = 0;
-          recycled.inStorm = false;
-          recycled.speedMod = 1.0;
+          recycled.stormTimer = 0;          recycled.speedMod = 1.0;
           recycled.portalCooldown = 0;
           recycled.trappedByBH = null;
           recycled.deployTimer = 0;
@@ -163,8 +160,6 @@ export class ProductionSystem {
             orbitAngle:    avgAngle,
             orbitRadius,
             alive:         true,
-            stormTimer:    0,
-            inStorm:       false,
             speedMod:      1.0,
             portalCooldown: 0,
             trappedByBH:   null,
@@ -220,9 +215,7 @@ export class ProductionSystem {
     p.orbitAngle = orbitAngle;
     p.orbitRadius = orbitRadius;
     p.alive = true;
-    p.stormTimer = 0;
-    p.inStorm = false;
-    p.speedMod = 1.0;
+    p.stormTimer = 0;    p.speedMod = 1.0;
     p.portalCooldown = 0;
     p.trappedByBH = null;
     p.deployTimer = 0;

@@ -40,9 +40,7 @@ export interface PlanetData {
   orbitRadiusY?: number;  // Height/Y radius for ellipse
   orbitSpeed?: number;
   orbitAngle?: number;
-  // hazard state
-  inStorm: boolean;
-  wasInStorm: boolean;
+  // hazard state  wasInStorm: boolean;
   // shield feature
   isShielded?: boolean;
   shieldPoints?: number;
@@ -79,8 +77,6 @@ export interface ParticleData {
   deployTimer?: number;
   alive: boolean;
   // hazard state
-  stormTimer: number;      // seconds spent inside storm (not protected)
-  inStorm: boolean;        // currently inside a plasma storm
   speedMod: number;        // speed multiplier from SpeedZone (1.0 = normal)
   portalCooldown: number;  // seconds remaining before particle can re-enter a portal
   trappedByBH: string | null; // id of TrappingBlackHole currently holding this particle
@@ -94,28 +90,6 @@ export interface BlackHoleData {
   radius: number;
   pullRadius: number;
   pullStrength: number;
-}
-
-// ---- Plasma Storm ----
-export interface PlasmaStormDef {
-  id: string;
-  x: number;
-  y: number;
-  radiusX: number;
-  radiusY: number;
-  vx: number;
-  vy: number;
-}
-
-export interface PlasmaStormData {
-  id: string;
-  x: number;
-  y: number;
-  radiusX: number;
-  radiusY: number;
-  vx: number;
-  vy: number;
-  angle: number;     // slow rotation for visual
 }
 
 // ---- Asteroid ----
@@ -157,12 +131,8 @@ export type SpeedZoneType = 'speedup' | 'slowdown';
 
 export interface SpeedZoneDef {
   id: string;
-  x: number;
-  y: number;
-  radius: number;
-  width?: number;  // Half-width (defaults to radius)
-  height?: number; // Half-height (defaults to radius)
   type: SpeedZoneType;
+  points: {x: number, y: number}[];
 }
 
 export interface SpeedZoneData extends SpeedZoneDef {
@@ -221,7 +191,6 @@ export interface LevelData {
   worldHeight: number;
   planets: PlanetDef[];
   blackHoles: BlackHoleDef[];
-  plasmaStorms?:       PlasmaStormDef[];
   asteroidConfig?:     { enabled: boolean; damageLevel?: 1 | 2 | 3 };
   gammaRayConfig?:     { 
     enabled: boolean; 
@@ -290,7 +259,6 @@ export interface GameState {
   worldWidth: number;
   worldHeight: number;
   // hazard systems (populated from level data; empty arrays/defaults if not present)
-  plasmaStorms: PlasmaStormData[];
   asteroids: AsteroidData[];
   asteroidRespawnTimer: number;
   asteroidConfig?: { enabled: boolean; damageLevel?: 1 | 2 | 3 };

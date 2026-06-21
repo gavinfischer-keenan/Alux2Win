@@ -45,8 +45,6 @@ function defaultPlanet(id: string, x: number, y: number): PlanetData {
     productionRate: PLANET_PRODUCTION[1],
     absorbedCount: 0,
     isOrbiting: false,
-    inStorm: false,
-    wasInStorm: false,
     isShielded: false,
     shieldPoints: 0,
     shieldTimer: 0,
@@ -57,8 +55,8 @@ function defaultBlackHole(id: string, x: number, y: number): BlackHoleData {
   return { id, x, y, radius: 30, pullRadius: 140, pullStrength: 1.0 };
 }
 
-function defaultSpeedZone(id: string, x: number, y: number): SpeedZoneData {
-  return { id, x, y, radius: 150, type: 'speedup', pulseAngle: 0 };
+function defaultSpeedZone(id: string, points: {x: number, y: number}[]): SpeedZoneData {
+  return { id, type: 'speedup', points, pulseAngle: 0 };
 }
 
 function defaultPortal(id: string, x: number, y: number, pairId: string, color: number): PortalData {
@@ -148,6 +146,9 @@ export class EditorScene {
   private _onMouseMove!: (e: MouseEvent) => void;
   private _onMouseUp!:   (e: MouseEvent) => void;
   private _onContextMenu!: (e: MouseEvent) => void;
+  private _onKeyDown!: (e: KeyboardEvent) => void;
+  private _lastClickTime: number = 0;
+  private placingSpeedZonePoints: {x: number, y: number}[] = [];
   private _onRaf!: number;
 
   onBack: () => void = () => {};
@@ -319,6 +320,19 @@ export class EditorScene {
     // ── Gamma Ray ─────────────────────────────────────────
     this.drawGammaRay(gfx);
 
+    // ── Placing Speed Zone Poly ───────────────────────────
+    if (this.editState.tool === 'place_speedzone' && this.placingSpeedZonePoints.length > 0) {
+      const pts = this.placingSpeedZonePoints;
+      gfx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) {
+        gfx.lineTo(pts[i].x, pts[i].y);
+      }
+      gfx.stroke({ color: 0x22c55e, alpha: 0.8, width: 2 });
+      for (const p of pts) {
+        gfx.circle(p.x, p.y, 4).fill({ color: 0xffffff });
+      }
+    }
+
     // ── Labels ────────────────────────────────────────────
     this.updateLabels();
   }
@@ -386,6 +400,18 @@ export class EditorScene {
     gfx.circle(planet.x, planet.y, r + 4);
     gfx.stroke({ color, alpha: 0.3, width: 2 });
 
+    // Fog of War Vision Rings
+    if (this.editState.fogOfWarConfig?.enabled) {
+      // Player vision radii for level 1, 2, and 3
+      const radii = [250, 425, 650];
+      radii.forEach((visionRadius, index) => {
+        gfx.circle(planet.x, planet.y, visionRadius);
+        // Dimmer for larger radii, using dashed-like or faint solid
+        const alpha = 0.4 - (index * 0.1);
+        gfx.stroke({ color: 0xffffff, alpha, width: 2 });
+      });
+    }
+
     // Selection ring
     if (isSelected) {
       gfx.circle(planet.x, planet.y, r + 10);
@@ -436,24 +462,31 @@ export class EditorScene {
     const isSelected = sz.id === this.editState.selectedEntityId;
     const color = sz.type === 'speedup' ? 0x22c55e : 0xef4444;
 
-    const hw = sz.width ?? sz.radius;
-    const hh = sz.height ?? sz.radius;
+    if (sz.points && sz.points.length >= 3) {
+      gfx.poly(sz.points);
+      gfx.fill({ color, alpha: 0.06 });
+      gfx.poly(sz.points);
+      gfx.stroke({ color, alpha: 0.5, width: isSelected ? 2.5 : 1.5 });
+      
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const p of sz.points) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+      }
+      const hw = (maxX - minX) / 2;
+      const hh = (maxY - minY) / 2;
+      const cx = minX + hw;
+      const cy = minY + hh;
 
-    // Zone rectangular fill
-    gfx.rect(sz.x - hw, sz.y - hh, hw * 2, hh * 2);
-    gfx.fill({ color, alpha: 0.06 });
-    // Zone rectangular stroke
-    gfx.rect(sz.x - hw, sz.y - hh, hw * 2, hh * 2);
-    gfx.stroke({ color, alpha: 0.5, width: isSelected ? 2.5 : 1.5 });
+      gfx.circle(cx, cy, 8);
+      gfx.fill({ color, alpha: 0.7 });
 
-    // Center marker
-    gfx.circle(sz.x, sz.y, 8);
-    gfx.fill({ color, alpha: 0.7 });
-
-    // Selection box
-    if (isSelected) {
-      gfx.rect(sz.x - hw - 8, sz.y - hh - 8, hw * 2 + 16, hh * 2 + 16);
-      gfx.stroke({ color: 0xffee00, alpha: 0.9, width: 2 });
+      if (isSelected) {
+        gfx.rect(minX - 8, minY - 8, maxX - minX + 16, maxY - minY + 16);
+        gfx.stroke({ color: 0xffee00, alpha: 0.9, width: 2 });
+      }
     }
   }
 
@@ -576,8 +609,17 @@ export class EditorScene {
         },
       });
       label.anchor.set(0.5, 0.5);
-      label.x = sz.x;
-      label.y = sz.y;
+      if (sz.points && sz.points.length > 0) {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const p of sz.points) {
+          if (p.x < minX) minX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y > maxY) maxY = p.y;
+        }
+        label.x = minX + (maxX - minX) / 2;
+        label.y = minY + (maxY - minY) / 2;
+      }
       this.labelContainer.addChild(label);
     });
 
@@ -641,8 +683,16 @@ export class EditorScene {
 
     this._onMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
+      const now = performance.now();
+      const isDouble = (now - this._lastClickTime) < 300;
+      this._lastClickTime = now;
+
       const { x, y } = this.canvasToWorld(e);
-      this.handleCanvasClick(x, y, e.shiftKey);
+      if (isDouble && this.editState.tool === 'place_speedzone') {
+        this.finishPlacingPolygon();
+      } else {
+        this.handleCanvasClick(x, y, e.shiftKey);
+      }
     };
 
     this._onMouseMove = (e: MouseEvent) => {
@@ -666,10 +716,19 @@ export class EditorScene {
       this.handleCanvasRightClick(x, y);
     };
 
+    this._onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        if (this.editState.tool === 'place_speedzone') {
+          this.finishPlacingPolygon();
+        }
+      }
+    };
+
     target.addEventListener('mousedown',   this._onMouseDown);
     target.addEventListener('mousemove',   this._onMouseMove);
     target.addEventListener('mouseup',     this._onMouseUp);
     target.addEventListener('contextmenu', this._onContextMenu);
+    window.addEventListener('keydown',     this._onKeyDown);
   }
 
   private unbindCanvasEvents(): void {
@@ -678,6 +737,7 @@ export class EditorScene {
     target.removeEventListener('mousemove',   this._onMouseMove);
     target.removeEventListener('mouseup',     this._onMouseUp);
     target.removeEventListener('contextmenu', this._onContextMenu);
+    window.removeEventListener('keydown',     this._onKeyDown);
   }
 
   private canvasToWorld(e: MouseEvent): { x: number; y: number } {
@@ -738,10 +798,24 @@ export class EditorScene {
   }
 
   private handleCanvasRightClick(wx: number, wy: number): void {
+    if (this.editState.tool === 'place_speedzone') {
+      this.finishPlacingPolygon();
+      return;
+    }
     const hit = this.hitTestEntity(wx, wy);
     if (hit) {
       this.deleteEntity(hit);
     }
+  }
+
+  private finishPlacingPolygon(): void {
+    if (this.placingSpeedZonePoints.length >= 3) {
+      const id = `sz${this.editState.nextSpeedZoneId++}`;
+      const sz = defaultSpeedZone(id, [...this.placingSpeedZonePoints]);
+      this.editState.speedZones.set(id, sz);
+      this.selectEntity(id);
+    }
+    this.placingSpeedZonePoints = [];
   }
 
   /** Get x position of any entity by id */
@@ -751,7 +825,7 @@ export class EditorScene {
 
     return this.editState.planets.get(id)?.x
       ?? this.editState.blackHoles.get(id)?.x
-      ?? this.editState.speedZones.get(id)?.x
+      ?? this.editState.speedZones.get(id)?.points?.[0]?.x
       ?? this.editState.portals.get(id)?.x
       ?? this.editState.trappingBlackHoles.get(id)?.x
       ?? this.editState.whiteHoles.get(id)?.x
@@ -765,7 +839,7 @@ export class EditorScene {
 
     return this.editState.planets.get(id)?.y
       ?? this.editState.blackHoles.get(id)?.y
-      ?? this.editState.speedZones.get(id)?.y
+      ?? this.editState.speedZones.get(id)?.points?.[0]?.y
       ?? this.editState.portals.get(id)?.y
       ?? this.editState.trappingBlackHoles.get(id)?.y
       ?? this.editState.whiteHoles.get(id)?.y
@@ -806,10 +880,7 @@ export class EditorScene {
   }
 
   private placeSpeedZone(wx: number, wy: number): void {
-    const id = `sz${this.editState.nextSpeedZoneId++}`;
-    const sz = defaultSpeedZone(id, Math.round(wx), Math.round(wy));
-    this.editState.speedZones.set(id, sz);
-    this.selectEntity(id);
+    this.placingSpeedZonePoints.push({ x: Math.round(wx), y: Math.round(wy) });
   }
 
   private placePortal(wx: number, wy: number): void {
@@ -909,9 +980,13 @@ export class EditorScene {
       return;
     }
     const sz = this.editState.speedZones.get(id);
-    if (sz) {
-      sz.x = Math.round(nx);
-      sz.y = Math.round(ny);
+    if (sz && sz.points && sz.points.length > 0) {
+      const dx = Math.round(nx) - sz.points[0].x;
+      const dy = Math.round(ny) - sz.points[0].y;
+      for (const p of sz.points) {
+        p.x += dx;
+        p.y += dy;
+      }
       if (this.editState.selectedEntityId === id) {
         this.propertiesPanel.showSpeedZone({ ...sz });
       }
@@ -1003,9 +1078,6 @@ export class EditorScene {
   private updateSpeedZoneProperty(id: string, changes: Partial<SpeedZoneDef>): void {
     const sz = this.editState.speedZones.get(id);
     if (!sz) return;
-    if (changes.radius !== undefined) sz.radius = changes.radius;
-    if (changes.width  !== undefined) sz.width  = changes.width;
-    if (changes.height !== undefined) sz.height = changes.height;
     if (changes.type   !== undefined) sz.type   = changes.type as SpeedZoneType;
   }
 
@@ -1057,13 +1129,21 @@ export class EditorScene {
 
     // Test speed zones — click within rectangular bounds
     this.editState.speedZones.forEach((sz, id) => {
-      const hw = sz.width ?? sz.radius;
-      const hh = sz.height ?? sz.radius;
-      const dx = Math.abs(wx - sz.x);
-      const dy = Math.abs(wy - sz.y);
-      if (dx <= hw && dy <= hh) {
-        const d = Math.sqrt(dx * dx + dy * dy);
-        if (d < bestDist) { bestDist = d; best = id; }
+      let inside = false;
+      const pts = sz.points || [];
+      const n = pts.length;
+      if (n >= 3) {
+        for (let i = 0, j = n - 1; i < n; j = i++) {
+          const xi = pts[i].x, yi = pts[i].y;
+          const xj = pts[j].x, yj = pts[j].y;
+          const intersect = ((yi > wy) !== (yj > wy)) &&
+                            (wx < (xj - xi) * (wy - yi) / (yj - yi) + xi);
+          if (intersect) inside = !inside;
+        }
+      }
+      if (inside) {
+        bestDist = 0; // It's inside the polygon, so distance is essentially 0
+        best = id;
       }
     });
 
@@ -1150,11 +1230,7 @@ export class EditorScene {
     this.editState.speedZones.forEach(sz => {
       speedZones.push({
         id: sz.id,
-        x: sz.x,
-        y: sz.y,
-        radius: sz.radius,
-        width: sz.width,
-        height: sz.height,
+        points: sz.points,
         type: sz.type,
       });
     });
@@ -1312,7 +1388,7 @@ export class EditorScene {
     
     const groups = [
       { label: 'Core', options: ['Intro Missions'] },
-      { label: 'Single Hazard Universes', options: ['Plasma Storms', 'Asteroids', 'Gamma Rays', 'Speed Traps', 'Portals', 'Black Holes', 'White Holes', 'Shielded Planets', 'Fog of War'] },
+      { label: 'Single Hazard Universes', options: ['Asteroids', 'Gamma Rays', 'Speed Traps', 'Portals', 'Black Holes', 'White Holes', 'Shielded Planets', 'Fog of War'] },
       { label: 'Multi Hazard Universes', options: ['Dual Hazard Universes', 'Triple Hazard Universes'] },
       { label: 'Other', options: ['Custom'] }
     ];
@@ -1559,10 +1635,7 @@ export class EditorScene {
     if (ld.speedZones) {
       ld.speedZones.forEach(sz => {
         this.editState.speedZones.set(sz.id, {
-          ...defaultSpeedZone(sz.id, sz.x, sz.y),
-          radius: sz.radius,
-          width: sz.width,
-          height: sz.height,
+          ...defaultSpeedZone(sz.id, sz.points),
           type: sz.type,
         });
         const num = parseInt(sz.id.replace(/\\D/g, ''), 10);

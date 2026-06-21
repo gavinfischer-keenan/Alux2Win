@@ -359,55 +359,7 @@ const TUTORIAL_SCRIPTS: Record<string, TutorialStep[]> = {
   ],
 
   // ── PLASMA STORMS ────────────────────────────────────────────
-  plasma: [
-    {
-      id: 'intro',
-      icon: '🌀',
-      heading: 'Plasma Storms!',
-      body: 'Those swirling blue-purple clouds are Plasma Storms. Any planet inside a storm is IMMUNE to attack — particles can\'t enter or exit while the storm is active.',
-      pointAtPlanet: 'p_shield',
-      autoDismiss: false,
-      isDone: (_s, elapsed) => elapsed > 10,
-    },
-    {
-      id: 'capture_storm',
-      icon: '🎯',
-      heading: 'Capture The Storm Planet',
-      body: 'Capture the grey planet sitting inside the storm. Notice how your particles approach but wait at the edge until the storm\'s next opening!',
-      pointAtPlanet: 'p_shield',
-      autoDismiss: true,
-      isDone: (state) => state.planets.get('p_shield')?.faction === 'player',
-    },
-    {
-      id: 'shield_demo',
-      icon: '🛡️',
-      heading: 'Storms as Shields',
-      body: 'Your planet inside the storm is now shielded! Enemy particles cannot attack it while the storm sits over it. Use this tactically — defend weak planets by letting storms pass over them.',
-      pointAtPlanet: 'p_shield',
-      autoDismiss: false,
-      isDone: (_s, elapsed) => elapsed > 12,
-    },
-    {
-      id: 'push',
-      icon: '⚔️',
-      heading: 'Push the Enemy',
-      body: 'Now that you understand storms, take the fight to the enemy. Capture the far neutral then assault the enemy base!',
-      pointAtPlanet: 'p_enemy',
-      autoDismiss: true,
-      isDone: (state) => {
-        const enemyPlanets = [...state.planets.values()].filter(p => p.faction === 'enemy_a');
-        return enemyPlanets.length === 0;
-      },
-    },
-    {
-      id: 'complete',
-      icon: '🏆',
-      heading: 'Storm Rider!',
-      body: 'You\'ve learned to use Plasma Storms as both obstacles and shields. Exploit them in real matches to protect your most vulnerable planets!',
-      autoDismiss: false,
-      isDone: () => false,
-    },
-  ],
+  
 
   // ── ASTEROIDS ───────────────────────────────────────────────
   asteroids: [
@@ -753,11 +705,7 @@ function makeEnemyScript(tutorialId: string): EnemyAction[] {
       { triggerTime: 40, from: ['p_enemy'], to: 'p_mid',     done: false },
       { triggerTime: 60, from: ['p_enemy'], to: 'p_home',    done: false },
     ],
-    plasma: [
-      { triggerTime: 35, from: ['p_enemy'], to: 'p_far',     done: false },
-      { triggerTime: 55, from: ['p_enemy'], to: 'p_shield',  done: false },
-      { triggerTime: 75, from: ['p_enemy'], to: 'p_home',    done: false },
-    ],
+
     asteroids: [
       { triggerTime: 20, from: ['p_enemy'], to: 'p_mid',     done: false },
       { triggerTime: 45, from: ['p_enemy'], to: 'p_home',    done: false },
@@ -794,7 +742,6 @@ const COMPLETION_BLURBS: Record<string, string> = {
   commander:  'Select, capture, upgrade, attack, repair. You know it all now, Commander.',
   basics:     'You\'ve mastered the fundamentals of galactic warfare.',
   normal:     'Pure strategy — no excuses, just skill. You\'ve got it.',
-  plasma:     'Storms are now your allies, not just obstacles.',
   asteroids:  'Upgrade fast, survive longer. You know the rule.',
   gamma:      'Let the beam work for you, not against you.',
   speed:      'Speed zones amplify every attack you make.',

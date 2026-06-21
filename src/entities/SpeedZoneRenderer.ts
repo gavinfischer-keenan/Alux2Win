@@ -49,17 +49,26 @@ export class SpeedZoneRenderer {
     g.clear();
 
     for (const zone of zones) {
-      const { x, y, radius, type, pulseAngle, width, height } = zone;
-      const hw = width ?? radius;
-      const hh = height ?? radius;
+      // Calculate bounding box
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const p of zone.points) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+      }
+      const hw = (maxX - minX) / 2;
+      const hh = (maxY - minY) / 2;
+      const x = minX + hw;
+      const y = minY + hh;
 
       // Choose colour palette based on zone type.
-      const isSpeedup = type === 'speedup';
+      const isSpeedup = zone.type === 'speedup';
       const cOuter = isSpeedup ? SPEEDUP_OUTER : SLOWDOWN_OUTER;
       const cCore  = isSpeedup ? SPEEDUP_CORE  : SLOWDOWN_CORE;
 
-      // -- Box Background -----------------------------------------------
-      g.rect(x - hw, y - hh, hw * 2, hh * 2)
+      // -- Polygon Background -----------------------------------------------
+      g.poly(zone.points)
         .fill({ color: cOuter, alpha: 0.15 })
         .stroke({ color: cCore, width: 2, alpha: 0.6 });
 
@@ -69,9 +78,8 @@ export class SpeedZoneRenderer {
       const amplitude = hh * 0.08;
       const frequency = 0.05;
       
-      // Speed up zones flow faster and rightwards, slow down flow slower and leftwards
       const flowSpeed = isSpeedup ? 8.0 : -2.0; 
-      const phaseOffset = pulseAngle * flowSpeed;
+      const phaseOffset = zone.pulseAngle * flowSpeed;
 
       for (let i = 0; i < numLines; i++) {
         const lineY = (y - hh) + spacing * (i + 0.5);

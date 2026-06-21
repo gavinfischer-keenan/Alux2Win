@@ -10,7 +10,7 @@ describe('CombatSystem', () => {
     const planet: PlanetData = {
       id: 'p1', x: 100, y: 100, faction: 'player', upgradeLevel: 1,
       health: 10, maxHealth: 50, productionRate: 1, absorbedCount: 0,
-      isOrbiting: false, inStorm: false, wasInStorm: false
+      isOrbiting: false,
     };
     const particle: ParticleData = {
       id: 'part1', x: 100, y: 100, vx: 0, vy: 0,
@@ -45,7 +45,7 @@ describe('CombatSystem', () => {
     const planet: PlanetData = {
       id: 'p1', x: 100, y: 100, faction: 'player', upgradeLevel: 1,
       health: 10, maxHealth: 50, productionRate: 1, absorbedCount: 0,
-      isOrbiting: false, inStorm: false, wasInStorm: false
+      isOrbiting: false,
     };
     const particle: ParticleData = {
       id: 'part1', x: 100, y: 100, vx: 0, vy: 0,
@@ -82,7 +82,7 @@ describe('CombatSystem', () => {
     const planet: PlanetData = {
       id: 'p1', x: 100, y: 100, faction: 'player', upgradeLevel: 2,
       health: 2, maxHealth: 50, productionRate: 1, absorbedCount: 10,
-      isOrbiting: false, inStorm: false, wasInStorm: false
+      isOrbiting: false,
     };
     const particle: ParticleData = {
       id: 'part1', x: 100, y: 100, vx: 0, vy: 0,
@@ -122,7 +122,7 @@ describe('CombatSystem', () => {
     const planet: PlanetData = {
       id: 'p1', x: 100, y: 100, faction: 'player', upgradeLevel: 1,
       health: 10, maxHealth: 50, productionRate: 1, absorbedCount: 0,
-      isOrbiting: false, inStorm: false, wasInStorm: false,
+      isOrbiting: false,
       isShielded: true, shieldPoints: 100
     };
     const particle: ParticleData = {

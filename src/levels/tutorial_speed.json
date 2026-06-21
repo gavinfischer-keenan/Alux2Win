@@ -12,7 +12,7 @@
   ],
   "blackHoles": [],
   "speedZones": [
-    { "id": "fast_lane", "x": 1024, "y": 1024, "radius": 250, "type": "speedup" },
-    { "id": "slow_trap", "x": 600,  "y": 1400, "radius": 180, "type": "slowdown" }
+    { "id": "fast_lane", "type": "speedup", "points": [ {"x": 774, "y": 774}, {"x": 1274, "y": 774}, {"x": 1274, "y": 1274}, {"x": 774, "y": 1274} ] },
+    { "id": "slow_trap", "type": "slowdown", "points": [ {"x": 420, "y": 1220}, {"x": 780, "y": 1220}, {"x": 780, "y": 1580}, {"x": 420, "y": 1580} ] }
   ]
 }

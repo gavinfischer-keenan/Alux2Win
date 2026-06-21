@@ -27,8 +27,8 @@ describe('Performance Stress Test', () => {
     };
 
     // Add 2 planets
-    state.planets.set('p1', { id: 'p1', x: 500, y: 1000, faction: 'player', upgradeLevel: 3, health: 60, maxHealth: 60, productionRate: 10, absorbedCount: 0, isOrbiting: false, inStorm: false, wasInStorm: false });
-    state.planets.set('p2', { id: 'p2', x: 1500, y: 1000, faction: 'enemy_a', upgradeLevel: 3, health: 60, maxHealth: 60, productionRate: 10, absorbedCount: 0, isOrbiting: false, inStorm: false, wasInStorm: false });
+    state.planets.set('p1', { id: 'p1', x: 500, y: 1000, faction: 'player', upgradeLevel: 3, health: 60, maxHealth: 60, productionRate: 10, absorbedCount: 0, isOrbiting: false, });
+    state.planets.set('p2', { id: 'p2', x: 1500, y: 1000, faction: 'enemy_a', upgradeLevel: 3, health: 60, maxHealth: 60, productionRate: 10, absorbedCount: 0, isOrbiting: false, });
 
     // Spawn 2500 particles per faction traveling towards each other
     for (let i = 0; i < 2500; i++) {
@@ -47,8 +47,6 @@ describe('Performance Stress Test', () => {
         orbitAngle: 0,
         orbitRadius: 0,
         alive: true,
-        stormTimer: 0,
-        inStorm: false,
         speedMod: 1.0,
         portalCooldown: 0,
         trappedByBH: null
@@ -69,8 +67,6 @@ describe('Performance Stress Test', () => {
         orbitAngle: 0,
         orbitRadius: 0,
         alive: true,
-        stormTimer: 0,
-        inStorm: false,
         speedMod: 1.0,
         portalCooldown: 0,
         trappedByBH: null

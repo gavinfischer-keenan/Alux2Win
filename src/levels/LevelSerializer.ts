@@ -169,8 +169,6 @@ export class LevelSerializer {
         productionRate: PLANET_PRODUCTION[def.upgradeLevel],
         absorbedCount: 0,
         isOrbiting: def.isOrbiting,
-        inStorm: false,
-        wasInStorm: false,
         isShielded: def.isShielded ?? false,
         shieldPoints: 0,
         shieldTimer: 0,

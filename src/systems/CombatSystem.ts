@@ -29,10 +29,6 @@ export class CombatSystem {
         // The interaction distance is increased by 40 (the aggro radius)
         const interactionDist = planetRadius + 40;
         if (distSq > interactionDist * interactionDist) continue;
-
-        // Plasma storm protection: skip all combat if particle is in storm
-        if (particle.inStorm) continue;
-
         // Determine if this planet is a valid target for this particle:
         // 1. Particle is explicitly targeting this planet, OR
         // 2. Particle has a location target (move-to-point) and is within
@@ -52,18 +48,7 @@ export class CombatSystem {
         }
 
         // If planet is in storm and enemy particle: convert to orbiting instead of attacking
-        if (planet.inStorm && particle.faction !== planet.faction) {
-          // Enemy arrives at storm-protected planet: join orbit peacefully, fight deferred
-          particle.mode = 'orbiting';
-          particle.targetPlanetId = undefined;
-          particle.targetX = undefined;
-          particle.targetY = undefined;
-          particle.orbitAngle = Math.atan2(particle.y - planet.y, particle.x - planet.x);
-          particle.orbitRadius = PLANET_RADIUS[planet.upgradeLevel] * 1.8;
-          particle.homePlanetId = planet.id;
-          break;
-        }
-
+        
         if (particle.faction === planet.faction) {
           // Require particle to actually reach the planet surface for friendly interaction
           const friendlyDist = planetRadius + 5;

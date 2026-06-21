@@ -46,7 +46,7 @@ describe('AsteroidSystem', () => {
     const planet: PlanetData = {
       id: 'p1', x: 500, y: 500, faction: 'player', upgradeLevel: 1,
       health: 60, maxHealth: 60, productionRate: 10, absorbedCount: 0,
-      isOrbiting: false, inStorm: false, wasInStorm: false
+      isOrbiting: false,
     };
 
     const asteroid: AsteroidData = {

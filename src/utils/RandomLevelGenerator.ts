@@ -6,9 +6,7 @@ import {
   PortalDef,
   TrappingBlackHoleDef,
   WhiteHoleDef,
-  BlackHoleDef,
-  PlasmaStormDef
-} from '../types';
+  BlackHoleDef,} from '../types';
 
 /**
  * Generates a random level ensuring playability.
@@ -110,7 +108,7 @@ export function generateRandomLevel(): LevelData {
 
   // 3. Hazards
   const hazardTypes = [
-    'SpeedZones', 'BlackHoles', 'PlasmaStorms', 'Asteroids', 
+    'SpeedZones', 'BlackHoles', 'Asteroids', 
     'GammaRay', 'Portals', 'TrappingBlackHoles', 'WhiteHoles', 'ShieldedPlanets'
   ];
   
@@ -125,9 +123,7 @@ export function generateRandomLevel(): LevelData {
   }
 
   const speedZones: SpeedZoneDef[] = [];
-  const blackHoles: BlackHoleDef[] = [];
-  const plasmaStorms: PlasmaStormDef[] = [];
-  const portals: PortalDef[] = [];
+  const blackHoles: BlackHoleDef[] = [];  const portals: PortalDef[] = [];
   const trappingBlackHoles: TrappingBlackHoleDef[] = [];
   const whiteHoles: WhiteHoleDef[] = [];
   const asteroidConfig = { enabled: false };
@@ -165,12 +161,16 @@ export function generateRandomLevel(): LevelData {
       if (!pos) continue;
 
       if (type === 'SpeedZones') {
+        const r = 100 + Math.random() * 100;
         speedZones.push({
-          id: Math.random().toString(36).substring(2, 9),
-          x: pos.x,
-          y: pos.y,
-          radius: 150 + Math.random() * 100,
-          type: Math.random() > 0.5 ? 'speedup' : 'slowdown'
+          id: `sz${i}`,
+          type: Math.random() < 0.5 ? 'speedup' : 'slowdown',
+          points: [
+            { x: pos.x - r, y: pos.y - r },
+            { x: pos.x + r, y: pos.y - r },
+            { x: pos.x + r, y: pos.y + r },
+            { x: pos.x - r, y: pos.y + r }
+          ]
         });
         existingPoints.push(pos);
       } else if (type === 'BlackHoles') {
@@ -181,29 +181,7 @@ export function generateRandomLevel(): LevelData {
           radius: 30 + Math.random() * 20,
           pullStrength: 50 + Math.random() * 50
         });
-        existingPoints.push(pos);
-      } else if (type === 'PlasmaStorms') {
-        plasmaStorms.push({
-          id: Math.random().toString(36).substring(2, 9),
-          x: pos.x,
-          y: pos.y,
-          radiusX: 200 + Math.random() * 100,
-          radiusY: 100 + Math.random() * 100,
-          vx: (Math.random() - 0.5) * 20,
-          vy: (Math.random() - 0.5) * 20
-        });
-        existingPoints.push(pos);
-      } else if (type === 'Portals') {
-        const pos2 = getValidPos(300, existingPoints);
-        if (pos2) {
-          const id1 = Math.random().toString(36).substring(2, 9);
-          const id2 = Math.random().toString(36).substring(2, 9);
-          const color = Math.floor(Math.random() * 0xffffff);
-          portals.push({ id: id1, x: pos.x, y: pos.y, pairId: id2, color });
-          portals.push({ id: id2, x: pos2.x, y: pos2.y, pairId: id1, color });
-          existingPoints.push(pos, pos2);
-        }
-      } else if (type === 'TrappingBlackHoles') {
+        existingPoints.push(pos);      } else if (type === 'TrappingBlackHoles') {
         trappingBlackHoles.push({
           id: Math.random().toString(36).substring(2, 9),
           x: pos.x,
@@ -230,9 +208,7 @@ export function generateRandomLevel(): LevelData {
     worldWidth,
     worldHeight,
     planets,
-    blackHoles,
-    plasmaStorms,
-    asteroidConfig,
+    blackHoles,    asteroidConfig,
     gammaRayConfig,
     speedZones,
     portals,

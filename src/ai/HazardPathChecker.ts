@@ -108,24 +108,9 @@ export function scoreRoute(
     }
   }
 
-  // ── Plasma Storms (lethal-slow) ───────────────────────────────────────────
-  for (const storm of state.plasmaStorms) {
-    if (segmentNearEllipse(sx, sy, tx, ty, storm.x, storm.y, storm.radiusX, storm.radiusY)) {
-      score -= 500;
-    }
-  }
 
   // ── Speed Zones ───────────────────────────────────────────────────────────
-  for (const zone of state.speedZones) {
-    const dist = segmentToPointMinDist(sx, sy, tx, ty, zone.x, zone.y);
-    if (dist < zone.radius) {
-      if (zone.type === 'speedup') {
-        score += 60;   // beneficial
-      } else {
-        score -= 80;   // slowdown — minor penalty
-      }
-    }
-  }
+  for (const zone of state.speedZones) { if (!zone.points || zone.points.length < 3) continue; let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity; for (const p of zone.points) { if (p.x < minX) minX = p.x; if (p.y < minY) minY = p.y; if (p.x > maxX) maxX = p.x; if (p.y > maxY) maxY = p.y; } const cx = (minX + maxX) / 2; const cy = (minY + maxY) / 2; const r = Math.max(maxX - minX, maxY - minY) / 2; const dist = segmentToPointMinDist(sx, sy, tx, ty, cx, cy); if (dist < r) { if (zone.type === 'speedup') { score += 60; } else { score -= 80; } } }
 
   // ── Gamma Ray (temporal — active beam is dangerous) ───────────────────────
   if (state.gammaRay.firing && state.gammaRay.path) {
@@ -192,14 +177,6 @@ export function computeWaypoint(
     const dist = segmentToPointMinDist(ax, ay, bx, by, tbh.x, tbh.y);
     if (dist < tbh.pullRadius * 1.1) {
       blocking.push({ cx: tbh.x, cy: tbh.y, r: tbh.pullRadius * 1.1 });
-    }
-  }
-  for (const storm of state.plasmaStorms) {
-    // Use the larger axis as an approximation for the blocking radius
-    const approxR = Math.max(storm.radiusX, storm.radiusY);
-    const dist = segmentToPointMinDist(ax, ay, bx, by, storm.x, storm.y);
-    if (dist < approxR) {
-      blocking.push({ cx: storm.x, cy: storm.y, r: approxR });
     }
   }
 
