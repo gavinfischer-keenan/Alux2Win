@@ -21,6 +21,7 @@ import shielded2Data from '../levels/shielded/level_02.json';
 import tutorialFogOfWarData from '../levels/tutorial_fogofwar.json';
 import fourthOfJulyData from '../levels/4th_of_july.json';
 import dmzData from '../levels/dmz.json';
+import orbitsHurtData from '../levels/orbits_hurt.json';
 import gridOfDoomData from '../levels/grid_of_doom.json';
 import notALotToSeeHereData from '../levels/not_a_lot_to_see_here.json';
 import simpleSpiralData from '../levels/simple_spiral.json';
@@ -252,7 +253,7 @@ export class MainMenuScene {
 
     const singleHazards = [
       { name: 'Asteroids',     desc: 'Asteroids fly through space killing all they touch except the most developed planets. Big Rock Bad', image: '/assets/galaxies/asteroid.png',  locked: false, tutorialId: 'asteroids',  levels: [tutorialAsteroidsData as LevelData, ...(customGroups['Asteroids'] || [])], isTutorial: false },
-      { name: 'Gamma Rays',    desc: 'Intense bursts of radiation that frequently sweep the system, destroying caught units and planets.', image: '/assets/galaxies/nebula.png',    locked: false, tutorialId: 'gamma',      levels: [tutorialGammaData as LevelData, dmzData as LevelData, ...(customGroups['Gamma Rays'] || [])], isTutorial: false },
+      { name: 'Gamma Rays',    desc: 'Intense bursts of radiation that frequently sweep the system, destroying caught units and planets.', image: '/assets/galaxies/nebula.png',    locked: false, tutorialId: 'gamma',      levels: [tutorialGammaData as LevelData, dmzData as LevelData, orbitsHurtData as LevelData, ...(customGroups['Gamma Rays'] || [])], isTutorial: false },
       { name: 'Speed Traps',   desc: 'Vast zones of accelerated space. Use them to launch surprise attacks across the map.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: 'speedTraps', levels: [tutorialSpeedData as unknown as LevelData, ...(customGroups['Speed Traps'] || [])], isTutorial: false },
       { name: 'Portals',       desc: 'Instantaneous travel across the system. Send units into one portal to emerge at the exit.', image: '/assets/galaxies/lava.png',      locked: false, tutorialId: 'portals',    levels: [tutorialPortalsData as LevelData, ...(customGroups['Portals'] || [])], isTutorial: false },
       { name: 'Black Holes',   desc: 'Relentless gravity wells. They consume all particles that wander too close.', image: '/assets/galaxies/void.png',      locked: false, tutorialId: 'blackholes', levels: [tutorialBlackholesData as LevelData, yourCrushingMeData as LevelData, ...(customGroups['Black Holes'] || [])], isTutorial: false },
@@ -1849,6 +1850,23 @@ export class MainMenuScene {
         ctx.fillStyle = '#ff9800'; // orange
         ctx.fill();
       });
+    }
+
+    if (level.gammaRayConfig && level.gammaRayConfig.enabled && level.gammaRayConfig.targetMode === 'locked') {
+      const drawRay = (p: any, color: string) => {
+        if (!p) return;
+        ctx.beginPath();
+        ctx.moveTo(mapX(p.x1), mapY(p.y1));
+        ctx.lineTo(mapX(p.x2), mapY(p.y2));
+        ctx.strokeStyle = color;
+        ctx.lineWidth = Math.max(1, (p.width || 320) * scale * 0.4);
+        ctx.stroke();
+      };
+      
+      drawRay(level.gammaRayConfig.lockedPath, 'rgba(255, 0, 0, 0.4)');
+      if (level.gammaRayConfig.hasSecondRay) {
+        drawRay(level.gammaRayConfig.lockedPath2, 'rgba(255, 136, 68, 0.4)');
+      }
     }
   }
 

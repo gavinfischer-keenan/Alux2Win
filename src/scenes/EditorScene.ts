@@ -98,6 +98,9 @@ interface EditState {
     intervalSeconds?: number; 
     targetMode?: 'random' | 'locked'; 
     lockedPath?: GammaRayPath; 
+    hasSecondRay?: boolean;
+    intervalSeconds2?: number;
+    lockedPath2?: GammaRayPath;
   };
   asteroidConfig?:     { enabled: boolean; damageLevel?: 1 | 2 | 3 };
 }
@@ -361,6 +364,25 @@ export class EditorScene {
 
     gfx.circle(x1, y1, 16).fill({ color: 0xff4444, alpha: handleAlpha }).stroke({ color: 0xffffff, alpha: handleAlpha, width: 2 });
     gfx.circle(x2, y2, 16).fill({ color: 0xff4444, alpha: handleAlpha }).stroke({ color: 0xffffff, alpha: handleAlpha, width: 2 });
+
+    if (config.hasSecondRay) {
+      if (!config.lockedPath2) {
+        config.lockedPath2 = { x1: 200, y1: this.editState.worldHeight / 3, x2: this.editState.worldWidth - 200, y2: this.editState.worldHeight / 3, width: 320, targetedPlanetIds: [] };
+      }
+      const p2 = config.lockedPath2;
+      gfx.moveTo(p2.x1, p2.y1);
+      gfx.lineTo(p2.x2, p2.y2);
+      gfx.stroke({ color: 0xff0000, alpha: 0.15, width: p2.width || 320 });
+      gfx.moveTo(p2.x1, p2.y1);
+      gfx.lineTo(p2.x2, p2.y2);
+      gfx.stroke({ color: 0xff0000, alpha: 0.6, width: 4 });
+
+      const isSelected2 = this.editState.selectedEntityId === 'gammaRayHandle3' || this.editState.selectedEntityId === 'gammaRayHandle4';
+      const handleAlpha2 = isSelected2 ? 1.0 : 0.6;
+
+      gfx.circle(p2.x1, p2.y1, 16).fill({ color: 0xff8844, alpha: handleAlpha2 }).stroke({ color: 0xffffff, alpha: handleAlpha2, width: 2 });
+      gfx.circle(p2.x2, p2.y2, 16).fill({ color: 0xff8844, alpha: handleAlpha2 }).stroke({ color: 0xffffff, alpha: handleAlpha2, width: 2 });
+    }
   }
 
   private drawGrid(gfx: Graphics): void {
@@ -822,6 +844,8 @@ export class EditorScene {
   private getEntityX(id: string): number {
     if (id === 'gammaRayHandle1') return this.editState.gammaRayConfig?.lockedPath?.x1 ?? 0;
     if (id === 'gammaRayHandle2') return this.editState.gammaRayConfig?.lockedPath?.x2 ?? 0;
+    if (id === 'gammaRayHandle3') return this.editState.gammaRayConfig?.lockedPath2?.x1 ?? 0;
+    if (id === 'gammaRayHandle4') return this.editState.gammaRayConfig?.lockedPath2?.x2 ?? 0;
 
     return this.editState.planets.get(id)?.x
       ?? this.editState.blackHoles.get(id)?.x
@@ -836,6 +860,8 @@ export class EditorScene {
   private getEntityY(id: string): number {
     if (id === 'gammaRayHandle1') return this.editState.gammaRayConfig?.lockedPath?.y1 ?? 0;
     if (id === 'gammaRayHandle2') return this.editState.gammaRayConfig?.lockedPath?.y2 ?? 0;
+    if (id === 'gammaRayHandle3') return this.editState.gammaRayConfig?.lockedPath2?.y1 ?? 0;
+    if (id === 'gammaRayHandle4') return this.editState.gammaRayConfig?.lockedPath2?.y2 ?? 0;
 
     return this.editState.planets.get(id)?.y
       ?? this.editState.blackHoles.get(id)?.y
@@ -946,11 +972,19 @@ export class EditorScene {
   }
 
   private moveEntity(id: string, nx: number, ny: number): void {
-    if (id === 'gammaRayHandle1' || id === 'gammaRayHandle2') {
-      const p = this.editState.gammaRayConfig?.lockedPath;
-      if (p) {
-        if (id === 'gammaRayHandle1') { p.x1 = Math.round(nx); p.y1 = Math.round(ny); }
-        if (id === 'gammaRayHandle2') { p.x2 = Math.round(nx); p.y2 = Math.round(ny); }
+    if (id.startsWith('gammaRayHandle')) {
+      if (id === 'gammaRayHandle1' || id === 'gammaRayHandle2') {
+        const p = this.editState.gammaRayConfig?.lockedPath;
+        if (p) {
+          if (id === 'gammaRayHandle1') { p.x1 = Math.round(nx); p.y1 = Math.round(ny); }
+          if (id === 'gammaRayHandle2') { p.x2 = Math.round(nx); p.y2 = Math.round(ny); }
+        }
+      } else {
+        const p2 = this.editState.gammaRayConfig?.lockedPath2;
+        if (p2) {
+          if (id === 'gammaRayHandle3') { p2.x1 = Math.round(nx); p2.y1 = Math.round(ny); }
+          if (id === 'gammaRayHandle4') { p2.x2 = Math.round(nx); p2.y2 = Math.round(ny); }
+        }
       }
       return;
     }
@@ -1101,12 +1135,21 @@ export class EditorScene {
     let bestDist = Infinity;
 
     // Test Gamma Ray handles
-    if (this.editState.gammaRayConfig?.enabled && this.editState.gammaRayConfig?.targetMode === 'locked' && this.editState.gammaRayConfig?.lockedPath) {
-      const p = this.editState.gammaRayConfig.lockedPath;
-      const d1 = Math.sqrt((p.x1 - wx) ** 2 + (p.y1 - wy) ** 2);
-      if (d1 <= 20 && d1 < bestDist) { bestDist = d1; best = 'gammaRayHandle1'; }
-      const d2 = Math.sqrt((p.x2 - wx) ** 2 + (p.y2 - wy) ** 2);
-      if (d2 <= 20 && d2 < bestDist) { bestDist = d2; best = 'gammaRayHandle2'; }
+    if (this.editState.gammaRayConfig?.enabled && this.editState.gammaRayConfig?.targetMode === 'locked') {
+      if (this.editState.gammaRayConfig?.lockedPath) {
+        const p = this.editState.gammaRayConfig.lockedPath;
+        const d1 = Math.sqrt((p.x1 - wx) ** 2 + (p.y1 - wy) ** 2);
+        if (d1 <= 20 && d1 < bestDist) { bestDist = d1; best = 'gammaRayHandle1'; }
+        const d2 = Math.sqrt((p.x2 - wx) ** 2 + (p.y2 - wy) ** 2);
+        if (d2 <= 20 && d2 < bestDist) { bestDist = d2; best = 'gammaRayHandle2'; }
+      }
+      if (this.editState.gammaRayConfig?.hasSecondRay && this.editState.gammaRayConfig?.lockedPath2) {
+        const p2 = this.editState.gammaRayConfig.lockedPath2;
+        const d3 = Math.sqrt((p2.x1 - wx) ** 2 + (p2.y1 - wy) ** 2);
+        if (d3 <= 20 && d3 < bestDist) { bestDist = d3; best = 'gammaRayHandle3'; }
+        const d4 = Math.sqrt((p2.x2 - wx) ** 2 + (p2.y2 - wy) ** 2);
+        if (d4 <= 20 && d4 < bestDist) { bestDist = d4; best = 'gammaRayHandle4'; }
+      }
     }
 
     // Test planets

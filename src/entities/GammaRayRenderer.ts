@@ -21,17 +21,18 @@ export class GammaRayRenderer {
 
   // ── Public API ─────────────────────────────────────────────
 
-  render(gammaRay: GammaRayState): void {
+  render(gammaRays: GammaRayState[]): void {
     const g = this.graphics;
     g.clear();
 
-    // Nothing to draw if the system is off or no path has been chosen yet.
-    if (!gammaRay.enabled || gammaRay.path === null) return;
+    for (const gammaRay of gammaRays) {
+      if (!gammaRay.enabled || gammaRay.path === null) continue;
 
-    if (gammaRay.firing) {
-      this._drawFiringBeam(g, gammaRay);
-    } else {
-      this._drawWarningTrail(g, gammaRay);
+      if (gammaRay.firing) {
+        this._drawFiringBeam(g, gammaRay);
+      } else {
+        this._drawWarningTrail(g, gammaRay);
+      }
     }
   }
 

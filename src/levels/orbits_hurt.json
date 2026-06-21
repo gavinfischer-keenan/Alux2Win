@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "name": "Orbits Hurt",
+  "worldWidth": 2048,
+  "worldHeight": 2048,
+  "gammaRayConfig": {
+    "enabled": true,
+    "intervalSeconds": 60,
+    "targetMode": "locked",
+    "lockedPath": {
+      "x1": -20,
+      "y1": 1449,
+      "x2": 2127,
+      "y2": 526,
+      "width": 320,
+      "targetedPlanetIds": []
+    }
+  },
+  "planets": [
+    {
+      "id": "ep1",
+      "x": 410.66632114735376,
+      "y": 749.5474037352483,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": true,
+      "orbitCenterX": 1052,
+      "orbitCenterY": 867,
+      "orbitRadius": 652,
+      "orbitSpeed": 0.05,
+      "orbitStartAngle": 41.02183532679799,
+      "isShielded": false
+    },
+    {
+      "id": "ep2",
+      "x": 553.6677165214084,
+      "y": 699.8033437293218,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": true,
+      "orbitCenterX": 1052,
+      "orbitCenterY": 865,
+      "orbitRadius": 525,
+      "orbitSpeed": 0.05,
+      "orbitStartAngle": 22.311247326791726,
+      "isShielded": false
+    },
+    {
+      "id": "ep3",
+      "x": 1074.860105766225,
+      "y": 1762.9438138732498,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": true,
+      "orbitCenterX": 1085,
+      "orbitCenterY": 848,
+      "orbitRadius": 915,
+      "orbitSpeed": 0.05,
+      "orbitStartAngle": 20.4314343267901,
+      "isShielded": false
+    },
+    {
+      "id": "ep4",
+      "x": 1434.3878577168225,
+      "y": 635.1729773245941,
+      "faction": "neutral",
+      "upgradeLevel": 1,
+      "startingParticles": 40,
+      "isOrbiting": true,
+      "orbitCenterX": 1095,
+      "orbitCenterY": 858,
+      "orbitRadius": 406,
+      "orbitSpeed": 0.05,
+      "orbitStartAngle": 5.702215326794852,
+      "isShielded": false
+    },
+    {
+      "id": "ep5",
+      "x": 98,
+      "y": 102,
+      "faction": "enemy_c",
+      "upgradeLevel": 2,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep6",
+      "x": 67,
+      "y": 1994,
+      "faction": "enemy_b",
+      "upgradeLevel": 2,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep7",
+      "x": 1952,
+      "y": 1989,
+      "faction": "player",
+      "upgradeLevel": 2,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    },
+    {
+      "id": "ep8",
+      "x": 1983,
+      "y": 78,
+      "faction": "enemy_a",
+      "upgradeLevel": 2,
+      "startingParticles": 40,
+      "isOrbiting": false,
+      "isShielded": false
+    }
+  ],
+  "blackHoles": [],
+  "category": "Gamma Rays"
+}

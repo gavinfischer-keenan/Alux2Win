@@ -38,17 +38,22 @@ export class GammaRaySystem {
   private _firstShotDone = false;
 
   update(dt: number, state: GameState): void {
-    if (!state.gammaRay.enabled) return;
+    if (state.gammaRay.enabled) {
+      this._updateRay(dt, state, state.gammaRay, false);
+    }
+    if (state.gammaRay2 && state.gammaRay2.enabled) {
+      this._updateRay(dt, state, state.gammaRay2, true);
+    }
+  }
 
-    const gr = state.gammaRay;
-
+  private _updateRay(dt: number, state: GameState, gr: import('../types').GammaRayState, isSecondary: boolean): void {
     // ── Firing phase ──────────────────────────────────────────
     if (gr.firing) {
       gr.fireProgress += dt / FIRE_DURATION_SECS;
 
       if (gr.fireProgress >= 1.0) {
         // Beam has swept all the way across — apply damage.
-        this._fire(state);
+        this._fire(state, gr);
 
         // Reset for next cycle.
         gr.timer        = gr.intervalSeconds;
@@ -65,8 +70,8 @@ export class GammaRaySystem {
 
     // Generate the warning path once we enter the warning window.
     if (gr.timer <= WARNING_SECS && gr.path === null) {
-      if (state.gammaRay?.targetMode === 'locked' && state.gammaRay?.lockedPath) {
-        gr.path = this._getLockedPath(state);
+      if (gr.targetMode === 'locked' && gr.lockedPath) {
+        gr.path = this._getLockedPath(state, gr);
       } else {
         gr.path = this._firstShotDone
           ? this._generatePathWithRetry(state)   // subsequent: plain random
@@ -79,8 +84,8 @@ export class GammaRaySystem {
       // If somehow we still have no path (e.g. zero planets), generate one
       // last time — even an empty-target path is fine to fire.
       if (gr.path === null) {
-        if (state.gammaRay?.targetMode === 'locked' && state.gammaRay?.lockedPath) {
-          gr.path = this._getLockedPath(state);
+        if (gr.targetMode === 'locked' && gr.lockedPath) {
+          gr.path = this._getLockedPath(state, gr);
         } else {
           gr.path = this._firstShotDone
             ? this._generatePathWithRetry(state)
@@ -98,8 +103,8 @@ export class GammaRaySystem {
   /**
    * Generates the path for 'locked' targeting mode, calculating targeted planets.
    */
-  private _getLockedPath(state: GameState): GammaRayPath {
-    const configPath = state.gammaRay?.lockedPath;
+  private _getLockedPath(state: GameState, gr: import('../types').GammaRayState): GammaRayPath {
+    const configPath = gr.lockedPath;
     if (!configPath) throw new Error("Missing lockedPath");
 
     const targetedPlanetIds: string[] = [];
@@ -268,8 +273,8 @@ export class GammaRaySystem {
    * Apply the gamma-ray strike: reset all targeted planets to their
    * neutral, level-1 state and kill their orbiting particles.
    */
-  private _fire(state: GameState): void {
-    const path = state.gammaRay.path;
+  private _fire(state: GameState, gr: import('../types').GammaRayState): void {
+    const path = gr.path;
     if (!path) return;
 
     this._firstShotDone = true;
@@ -300,10 +305,27 @@ export class GammaRaySystem {
       planet.maxHealth     = 40;
       planet.absorbedCount = 0;
       planet.upgradeLevel  = 1;
+    }
 
-      // Kill orbiting particles — add sparkle for each
-      for (const p of state.particles) {
-        if (p.alive && p.homePlanetId === planetId) {
+    // Helper to check if a point is within the beam
+    const checkPathHitsPoint = (x: number, y: number, radius: number): boolean => {
+      const dx = path.x2 - path.x1;
+      const dy = path.y2 - path.y1;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len === 0) return false;
+      const nx = -dy / len;
+      const ny = dx / len;
+      const dist = Math.abs((x - path.x1) * nx + (y - path.y1) * ny);
+      return dist < path.width / 2 + radius;
+    };
+
+    // Kill orbiting particles of targeted planets, AND any particles caught in the beam
+    for (const p of state.particles) {
+      if (p.alive) {
+        const homePlanetTargeted = path.targetedPlanetIds.includes(p.homePlanetId);
+        const inPath = checkPathHitsPoint(p.x, p.y, 3); // Approx particle radius
+
+        if (homePlanetTargeted || inPath) {
           // Sparkle effect
           state.hazardEffects.push({
             id:       ++state.hazardEffectIdCounter,

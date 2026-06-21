@@ -518,6 +518,41 @@ export class PropertiesPanel {
         this.showLevelSettings({ ...state, gammaRayConfig: { ...state.gammaRayConfig, targetMode: modeSelect.value } });
       });
       this.element.appendChild(modeSelect);
+
+      if ((state.gammaRayConfig?.targetMode || 'random') === 'locked') {
+        const gamma2Label = document.createElement('label');
+        gamma2Label.style.cssText = fogLabel.style.cssText;
+        const gamma2Checkbox = document.createElement('input');
+        gamma2Checkbox.type = 'checkbox';
+        gamma2Checkbox.style.cssText = fogCheckbox.style.cssText;
+        const gamma2Enabled = state.gammaRayConfig?.hasSecondRay || false;
+        gamma2Checkbox.checked = gamma2Enabled;
+        gamma2Checkbox.addEventListener('change', () => {
+          const newConfig = { ...(state.gammaRayConfig || {}), hasSecondRay: gamma2Checkbox.checked };
+          if (newConfig.hasSecondRay && !newConfig.intervalSeconds2) newConfig.intervalSeconds2 = 60;
+          this.onLevelSettingsChange({ gammaRayConfig: newConfig });
+          this.showLevelSettings({ ...state, gammaRayConfig: newConfig });
+        });
+        gamma2Label.appendChild(gamma2Checkbox);
+        gamma2Label.appendChild(document.createTextNode('Enable 2nd Ray'));
+        this.element.appendChild(gamma2Label);
+
+        if (gamma2Enabled) {
+          this.element.appendChild(this.buildLabel('2nd Ray Frequency (s)'));
+          const freq2Wrapper = document.createElement('div');
+          freq2Wrapper.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 6px;';
+          const freq2Value = document.createElement('span');
+          freq2Value.style.cssText = 'font-size: 11px; color: #fff; min-width: 24px; text-align: right;';
+          freq2Value.textContent = `${state.gammaRayConfig?.intervalSeconds2 || 60}s`;
+          const freq2Slider = this.buildSlider(state.gammaRayConfig?.intervalSeconds2 || 60, 15, 180, (val) => {
+            freq2Value.textContent = `${val}s`;
+            this.onLevelSettingsChange({ gammaRayConfig: { ...state.gammaRayConfig, intervalSeconds2: val } });
+          });
+          freq2Wrapper.appendChild(freq2Slider);
+          freq2Wrapper.appendChild(freq2Value);
+          this.element.appendChild(freq2Wrapper);
+        }
+      }
     }
 
     // Asteroids
@@ -839,11 +874,24 @@ export class PropertiesPanel {
     speedWrapper.style.cssText = 'display: flex; flex-direction: column; gap: 4px;';
     const speedVal = document.createElement('span');
     speedVal.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.5); text-align: right;';
-    speedVal.textContent = (planet.orbitSpeed ?? 0.3).toFixed(2);
-    const speedSlider = this.buildSlider((planet.orbitSpeed ?? 0.3) * 100, 5, 200, (v) => {
-      const s = v / 100;
-      speedVal.textContent = s.toFixed(2);
-      onChange({ orbitSpeed: s });
+    const maxLinearSpeed = 75;
+    const minLinearSpeed = 35;
+    const rx = planet.orbitRadius ?? 120;
+    const ry = planet.orbitShape === 'ellipse' ? (planet.orbitRadiusY ?? rx) : rx;
+    const effectiveRadius = Math.max(rx, ry);
+
+    const maxAngular = maxLinearSpeed / effectiveRadius;
+    const minAngular = minLinearSpeed / effectiveRadius;
+    const currentSpeed = planet.orbitSpeed ?? 0.3;
+
+    // Convert current angular speed to a 0-100 slider value
+    const sliderPercent = Math.max(0, Math.min(100, ((currentSpeed - minAngular) / (maxAngular - minAngular)) * 100));
+
+    speedVal.textContent = currentSpeed.toFixed(3) + ' rad/s';
+    const speedSlider = this.buildSlider(sliderPercent, 0, 100, (v) => {
+      const newSpeed = minAngular + (v / 100) * (maxAngular - minAngular);
+      speedVal.textContent = newSpeed.toFixed(3) + ' rad/s';
+      onChange({ orbitSpeed: newSpeed });
     });
     speedWrapper.appendChild(speedSlider);
     speedWrapper.appendChild(speedVal);

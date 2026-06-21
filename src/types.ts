@@ -197,6 +197,11 @@ export interface LevelData {
     intervalSeconds?: number; 
     targetMode?: 'random' | 'locked'; 
     lockedPath?: GammaRayPath; 
+    
+    // Optional second ray (only valid if targetMode is 'locked')
+    hasSecondRay?: boolean;
+    intervalSeconds2?: number;
+    lockedPath2?: GammaRayPath;
   };
   speedZones?:         SpeedZoneDef[];
   portals?:            PortalDef[];
@@ -263,6 +268,7 @@ export interface GameState {
   asteroidRespawnTimer: number;
   asteroidConfig?: { enabled: boolean; damageLevel?: 1 | 2 | 3 };
   gammaRay: GammaRayState;
+  gammaRay2?: GammaRayState;
   // new hazard systems
   speedZones:          SpeedZoneData[];
   portals:             PortalData[];

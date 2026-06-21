@@ -682,7 +682,9 @@ export class GameScene {
     this.entities.particles.render(this.state.particles);
     // Hazard renderers
     this.entities.asteroids.render(this.state.asteroids);
-    this.entities.gammaRay.render(this.state.gammaRay);
+    const activeRays = [this.state.gammaRay];
+    if (this.state.gammaRay2) activeRays.push(this.state.gammaRay2);
+    this.entities.gammaRay.render(activeRays);
     // New hazard renderers
     if (this.state.speedZones.length > 0)
       this.entities.speedZones.render(this.state.speedZones);
