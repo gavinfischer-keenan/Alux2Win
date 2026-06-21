@@ -2,33 +2,18 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { MovementSystem } from '../MovementSystem';
 import type { GameState, ParticleData, PlanetData } from '../../types';
 import { PARTICLE_SPEED, PLANET_RADIUS } from '../../types';
+import { createMockGameState } from '../../utils/__tests__/TestFactory';
 
 describe('MovementSystem', () => {
   let system: MovementSystem;
   let mockSpatialHash: any;
 
   const createGameState = (planets: Partial<PlanetData>[] = [], particles: Partial<ParticleData>[] = []): GameState => {
-    return {
+    return createMockGameState({
       planets: new Map(planets.map(p => [p.id, p as PlanetData])),
       particles: particles as ParticleData[],
       particleIdCounter: particles.length,
-      blackHoles: new Map(),
-      selectedPlanetIds: new Set(),
-      selectedParticleIds: new Set(),
-      tick: 0,
-      running: true,
-      winner: null,
-      worldWidth: 2000,
-      worldHeight: 2000,
-      plasmaStorms: [],
-      asteroids: [],
-      asteroidRespawnTimer: 0,
-      gammaRay: { enabled: false, timer: 0, intervalSeconds: 0, path: null, firing: false, fireProgress: 0 },
-      speedZones: [],
-      portals: [],
-      trappingBlackHoles: [],
-      whiteHoles: []
-    } as unknown as GameState;
+    });
   };
 
   beforeEach(() => {

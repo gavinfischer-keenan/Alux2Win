@@ -1,34 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import { GravitySystem } from '../GravitySystem';
 import type { GameState, ParticleData, BlackHoleData } from '../../types';
+import { createMockGameState } from '../../utils/__tests__/TestFactory';
 
 describe('GravitySystem', () => {
   const createGameState = (
     particles: Partial<ParticleData>[] = [],
     blackHoles: Partial<BlackHoleData>[] = []
   ): GameState => {
-    const state = {
-      planets: new Map(),
+    return createMockGameState({
       particles: particles as ParticleData[],
       blackHoles: new Map(blackHoles.map((bh, i) => [`bh${i}`, bh as BlackHoleData])),
-      selectedPlanetIds: new Set(),
-      selectedParticleIds: new Set(),
       particleIdCounter: particles.length,
-      tick: 0,
-      running: true,
-      winner: null,
-      worldWidth: 2000,
-      worldHeight: 2000,
-      plasmaStorms: [],
-      asteroids: [],
-      asteroidRespawnTimer: 0,
-      gammaRay: { enabled: false, timer: 0, intervalSeconds: 0, path: null, firing: false, fireProgress: 0 },
-      speedZones: [],
-      portals: [],
-      trappingBlackHoles: [],
-      whiteHoles: []
-    } as unknown as GameState;
-    return state;
+    });
   };
 
   it('does nothing if there are no black holes', () => {

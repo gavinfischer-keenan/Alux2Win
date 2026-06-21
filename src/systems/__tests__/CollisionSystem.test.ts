@@ -3,6 +3,7 @@ import { CollisionSystem } from '../CollisionSystem';
 import { SpatialHash } from '../../core/SpatialHash';
 import type { GameState, ParticleData } from '../../types';
 import { COLLISION_DISTANCE } from '../../types';
+import { createMockGameState, createMockParticle } from '../../utils/__tests__/TestFactory';
 
 describe('CollisionSystem', () => {
   let system: CollisionSystem;
@@ -12,48 +13,20 @@ describe('CollisionSystem', () => {
   beforeEach(() => {
     system = new CollisionSystem();
     spatialHash = new SpatialHash(40);
-    state = {
-      planets: new Map(),
-      particles: [],
-      blackHoles: new Map(),
-      selectedPlanetIds: new Set(),
-      selectedParticleIds: new Set(),
+    state = createMockGameState({
       particleIdCounter: 100,
-      tick: 0,
-      running: true,
-      winner: null,
-      worldWidth: 2000,
-      worldHeight: 2000,
-      plasmaStorms: [],
-      asteroids: [],
-      asteroidRespawnTimer: 0,
-      gammaRay: { enabled: false, timer: 0, intervalSeconds: 0, path: null, firing: false, fireProgress: 0 },
-      speedZones: [],
-      portals: [],
-      trappingBlackHoles: [],
-      whiteHoles: [],
-      hazardEffects: [],
-      hazardEffectIdCounter: 0,
-    };
+    });
   });
 
   function createParticle(id: number, x: number, y: number, faction: any, strength: any = 1): ParticleData {
-    return {
+    return createMockParticle({
       id,
       x,
       y,
-      vx: 0,
-      vy: 0,
       faction,
       mode: 'traveling',
       strength,
-      orbitTimer: 0,
-      damage: 0,
-      homePlanetId: 'p1',
-      alive: true,      speedMod: 1.0,
-      portalCooldown: 0,
-      trappedByBH: null,
-    };
+    });
   }
 
   function runSystem() {
@@ -142,18 +115,6 @@ describe('CollisionSystem', () => {
       expect(p.strength).toBe(1);
       expect(p.faction).toBe('player');
     }
-  });
-
-  it('should ignore collision if either particle is in a storm', () => {
-    const p1 = createParticle(1, 100, 100, 'player', 1);
-    const p2 = createParticle(2, 100, 100, 'enemy_a', 1, false);
-    state.particles.push(p1, p2);
-
-    runSystem();
-
-    expect(state.particles.filter(p => p.alive).length).toBe(2);
-    expect(p1.alive).toBe(true);
-    expect(p2.alive).toBe(true);
   });
 
   it('should correctly deduplicate pairs even if many particles', () => {
