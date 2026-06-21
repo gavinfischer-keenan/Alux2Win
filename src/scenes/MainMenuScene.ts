@@ -15,13 +15,11 @@ import tutorialBlackholesData  from '../levels/tutorial_blackholes.json';
 import tutorialWhiteholesData  from '../levels/tutorial_whiteholes.json';
 import simpleGridData from '../levels/simple_grid.json';
 import asteroids1Data from '../levels/asteroids_1.json';
-import gammaRays1Data from '../levels/gamma_rays_1.json';
 import portals1Data from '../levels/portals_1.json';
 import aLineData from '../levels/a_line.json';
 import shielded1Data from '../levels/shielded/level_01.json';
 import shielded2Data from '../levels/shielded/level_02.json';
 import asteroids2Data from '../levels/asteroids_2.json';
-import gammaRays2Data from '../levels/gamma_rays_2.json';
 import takeYourSidesData from '../levels/take_your_sides.json';
 import tutorialFogOfWarData from '../levels/tutorial_fogofwar.json';
 
@@ -250,7 +248,7 @@ export class MainMenuScene {
 
     const singleHazards = [
       { name: 'Asteroids',     desc: 'Asteroids fly through space killing all they touch except the most developed planets. Big Rock Bad', image: '/assets/galaxies/asteroid.png',  locked: false, tutorialId: 'asteroids',  levels: [tutorialAsteroidsData as LevelData, asteroids1Data as LevelData, asteroids2Data as LevelData, ...(customGroups['Asteroids'] || [])], isTutorial: false },
-      { name: 'Gamma Rays',    desc: 'Intense bursts of radiation that frequently sweep the system, destroying caught units and planets.', image: '/assets/galaxies/nebula.png',    locked: false, tutorialId: 'gamma',      levels: [tutorialGammaData as LevelData, gammaRays1Data as LevelData, gammaRays2Data as LevelData, ...(customGroups['Gamma Rays'] || [])], isTutorial: false },
+      { name: 'Gamma Rays',    desc: 'Intense bursts of radiation that frequently sweep the system, destroying caught units and planets.', image: '/assets/galaxies/nebula.png',    locked: false, tutorialId: 'gamma',      levels: [tutorialGammaData as LevelData, ...(customGroups['Gamma Rays'] || [])], isTutorial: false },
       { name: 'Speed Traps',   desc: 'Vast zones of accelerated space. Use them to launch surprise attacks across the map.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: 'speedTraps', levels: [tutorialSpeedData as unknown as LevelData, ...(customGroups['Speed Traps'] || [])], isTutorial: false },
       { name: 'Portals',       desc: 'Instantaneous travel across the system. Send units into one portal to emerge at the exit.', image: '/assets/galaxies/lava.png',      locked: false, tutorialId: 'portals',    levels: [tutorialPortalsData as LevelData, portals1Data as LevelData, ...(customGroups['Portals'] || [])], isTutorial: false },
       { name: 'Black Holes',   desc: 'Relentless gravity wells. They consume all particles that wander too close.', image: '/assets/galaxies/void.png',      locked: false, tutorialId: 'blackholes', levels: [tutorialBlackholesData as LevelData, ...(customGroups['Black Holes'] || [])], isTutorial: false },
