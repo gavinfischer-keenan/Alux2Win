@@ -43,8 +43,8 @@ export class InputManager {
     this.el = element;
 
     this.el.addEventListener('mousedown',    this._onMouseDown);
-    this.el.addEventListener('mouseup',      this._onMouseUp);
-    this.el.addEventListener('mousemove',    this._onMouseMove);
+    window.addEventListener('mouseup',       this._onMouseUp);
+    window.addEventListener('mousemove',     this._onMouseMove);
     this.el.addEventListener('contextmenu',  this._onContextMenu);
     // Prevent text selection while drag-selecting.
     this.el.addEventListener('selectstart',  this._onSelectStart);
@@ -53,8 +53,8 @@ export class InputManager {
   /** Remove all event listeners. Call when cleaning up. */
   destroy(): void {
     this.el.removeEventListener('mousedown',   this._onMouseDown);
-    this.el.removeEventListener('mouseup',     this._onMouseUp);
-    this.el.removeEventListener('mousemove',   this._onMouseMove);
+    window.removeEventListener('mouseup',      this._onMouseUp);
+    window.removeEventListener('mousemove',    this._onMouseMove);
     this.el.removeEventListener('contextmenu', this._onContextMenu);
     this.el.removeEventListener('selectstart', this._onSelectStart);
   }
@@ -98,10 +98,11 @@ export class InputManager {
 
   private _onMouseUp = (e: MouseEvent): void => {
     if (e.button !== 0) return;
+    if (!this.dragStart) return; // Ignore if the mousedown didn't start on our element
 
     const pos = this._getRelativePos(e);
 
-    if (this.isDragging && this.dragStart) {
+    if (this.isDragging) {
       // Fire both the spec callback (bounding box) and GameScene callback (end point).
       const x1 = Math.min(this.dragStart.x, pos.x);
       const y1 = Math.min(this.dragStart.y, pos.y);
@@ -125,10 +126,6 @@ export class InputManager {
     e.preventDefault();
     const pos = this._getRelativePos(e);
     this.onRightClick?.(pos);
-    // GameScene binds onRightClick as (x, y) => ... via assignment.
-    // Cast is safe because both call-sites use pos.x/pos.y destructuring.
-    // The 'onRightClick' stored by GameScene is (x,y) typed but we pass pos;
-    // JavaScript doesn't care — the extra property is just ignored.
   };
 
   private _onSelectStart = (e: Event): void => {
