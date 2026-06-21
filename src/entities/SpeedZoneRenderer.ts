@@ -28,8 +28,12 @@ const SLOWDOWN_CORE  = 0xffb300;
 // -- Renderer -----------------------------------------------------------------
 
 export class SpeedZoneRenderer {
-  /** Single re-used Graphics object; cleared and redrawn every frame. */
+  /** Re-used Graphics object for the backgrounds. */
   private readonly graphics: Graphics;
+  /** Re-used Graphics object for the wavy lines. */
+  private readonly wavesGraphics: Graphics;
+  /** Dedicated Graphics object to act as the mask. */
+  private readonly maskGraphics: Graphics;
 
   /**
    * @param layer  The world-space Container to add the Graphics object to.
@@ -37,7 +41,15 @@ export class SpeedZoneRenderer {
    */
   constructor(layer: Container) {
     this.graphics = new Graphics();
+    this.wavesGraphics = new Graphics();
+    this.maskGraphics = new Graphics();
+    
     layer.addChild(this.graphics);
+    layer.addChild(this.wavesGraphics);
+    layer.addChild(this.maskGraphics); // Add to layer so it gets transform updates
+    
+    // Mask the waves so they stay strictly within the polygon boundaries.
+    this.wavesGraphics.mask = this.maskGraphics;
   }
 
   /**
@@ -46,7 +58,12 @@ export class SpeedZoneRenderer {
    */
   render(zones: SpeedZoneData[]): void {
     const g = this.graphics;
+    const wg = this.wavesGraphics;
+    const mg = this.maskGraphics;
+    
     g.clear();
+    wg.clear();
+    mg.clear();
 
     for (const zone of zones) {
       // Calculate bounding box
@@ -71,6 +88,9 @@ export class SpeedZoneRenderer {
       g.poly(zone.points)
         .fill({ color: cOuter, alpha: 0.15 })
         .stroke({ color: cCore, width: 2, alpha: 0.6 });
+        
+      // -- Mask -------------------------------------------------------------
+      mg.poly(zone.points).fill({ color: 0xffffff });
 
       // -- Wavy Lines (flowing horizontal) -----------------------------
       const numLines = 6;
@@ -85,7 +105,7 @@ export class SpeedZoneRenderer {
         const lineY = (y - hh) + spacing * (i + 0.5);
         const startX = x - hw;
         
-        g.moveTo(startX, lineY + Math.sin(phaseOffset + startX * frequency) * amplitude);
+        wg.moveTo(startX, lineY + Math.sin(phaseOffset + startX * frequency) * amplitude);
         
         // draw smooth wave across the box
         const segments = 15;
@@ -93,9 +113,9 @@ export class SpeedZoneRenderer {
         for (let j = 1; j <= segments; j++) {
           const px = startX + j * segmentWidth;
           const py = lineY + Math.sin(phaseOffset + px * frequency) * amplitude;
-          g.lineTo(px, py);
+          wg.lineTo(px, py);
         }
-        g.stroke({ color: cCore, width: 2.5, alpha: 0.4 });
+        wg.stroke({ color: cCore, width: 2.5, alpha: 0.4 });
       }
     }
   }
@@ -106,5 +126,7 @@ export class SpeedZoneRenderer {
    */
   destroy(): void {
     this.graphics.destroy();
+    this.wavesGraphics.destroy();
+    this.maskGraphics.destroy();
   }
 }
