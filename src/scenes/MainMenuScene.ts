@@ -3,7 +3,7 @@
 // Renders on top of the live PixiJS star-background canvas.
 // ============================================================
 
-import type { LevelData } from '../types';
+import { type LevelData, FACTION_COLORS_HEX } from '../types';
 import tutorialMovementData    from '../levels/tutorial_movement.json';
 import tutorialCommanderData   from '../levels/tutorial_commander.json';
 import tutorialNormalData      from '../levels/tutorial_normal.json';
@@ -1528,7 +1528,7 @@ export class MainMenuScene {
             if (isTutorialTile) {
               setTimeout(() => this.onPlay(level, true, galaxy.tutorialId), 320);
             } else {
-              setTimeout(() => this.onPlay(level, false), 320);
+              setTimeout(() => this.createLevelSetupDialog(level), 320);
             }
           }
         });
@@ -1768,11 +1768,7 @@ export class MainMenuScene {
         const radius = Math.max(1, (p.upgradeLevel || 1) * 1.5);
         ctx.arc(mapX(p.x), mapY(p.y), radius, 0, Math.PI * 2);
         
-        let color = '#9e9e9e'; // neutral
-        if (p.faction === 'player') color = '#4fc3f7';
-        else if (p.faction?.startsWith('enemy')) color = '#f44336';
-        
-        ctx.fillStyle = color;
+        ctx.fillStyle = FACTION_COLORS_HEX[p.faction as keyof typeof FACTION_COLORS_HEX] || '#9e9e9e';
         ctx.fill();
         
         if (p.isShielded) {
@@ -1819,5 +1815,260 @@ export class MainMenuScene {
         ctx.fill();
       });
     }
+  }
+
+  // ── Level Setup Dialog ────────────────────────────────────────
+
+  private createLevelSetupDialog(level: LevelData): void {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    `;
+
+    const dialog = document.createElement('div');
+    dialog.style.cssText = `
+      background: rgba(10, 15, 30, 0.95);
+      border: 1px solid rgba(79, 195, 247, 0.4);
+      border-radius: 16px;
+      padding: 32px;
+      width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.8), 0 0 24px rgba(79, 195, 247, 0.1);
+      transform: translateY(20px);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    `;
+
+    // Title
+    const title = document.createElement('div');
+    title.textContent = 'SYSTEM DEPLOYMENT';
+    title.style.cssText = `
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #4fc3f7;
+      text-align: center;
+      letter-spacing: 0.1em;
+    `;
+    dialog.appendChild(title);
+
+    // Difficulty Section
+    const diffSection = document.createElement('div');
+    diffSection.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+    const diffLabel = document.createElement('label');
+    diffLabel.textContent = 'DIFFICULTY';
+    diffLabel.style.cssText = `
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.6);
+      letter-spacing: 0.1em;
+    `;
+    diffSection.appendChild(diffLabel);
+
+    const diffRow = document.createElement('div');
+    diffRow.style.cssText = 'display: flex; gap: 8px;';
+    const diffOptions = ['easy', 'normal', 'hard'];
+    let selectedDiff = SettingsStore.get().difficulty;
+
+    const diffBtns: HTMLElement[] = [];
+    diffOptions.forEach(d => {
+      const btn = document.createElement('button');
+      btn.textContent = d.toUpperCase();
+      btn.style.cssText = `
+        flex: 1;
+        background: ${selectedDiff === d ? 'rgba(79, 195, 247, 0.2)' : 'transparent'};
+        border: 1px solid ${selectedDiff === d ? '#4fc3f7' : 'rgba(255,255,255,0.2)'};
+        color: ${selectedDiff === d ? '#ffffff' : 'rgba(255,255,255,0.6)'};
+        padding: 10px;
+        border-radius: 6px;
+        font-family: 'Orbitron', sans-serif;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      `;
+      btn.onclick = () => {
+        selectedDiff = d as any;
+        diffBtns.forEach(b => {
+          b.style.background = 'transparent';
+          b.style.borderColor = 'rgba(255,255,255,0.2)';
+          b.style.color = 'rgba(255,255,255,0.6)';
+        });
+        btn.style.background = 'rgba(79, 195, 247, 0.2)';
+        btn.style.borderColor = '#4fc3f7';
+        btn.style.color = '#ffffff';
+        audioManager.playClick();
+      };
+      diffBtns.push(btn);
+      diffRow.appendChild(btn);
+    });
+    diffSection.appendChild(diffRow);
+    dialog.appendChild(diffSection);
+
+    // Enemy Count Section
+    const enemyFactions = new Set<string>();
+    level.planets.forEach(p => {
+      if (p.faction.startsWith('enemy')) enemyFactions.add(p.faction);
+    });
+    const maxEnemies = enemyFactions.size;
+    let selectedEnemies = maxEnemies;
+
+    const enemiesSection = document.createElement('div');
+    enemiesSection.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+    const enemiesLabel = document.createElement('label');
+    enemiesLabel.textContent = 'NUMBER OF ENEMIES';
+    enemiesLabel.style.cssText = `
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.6);
+      letter-spacing: 0.1em;
+    `;
+    enemiesSection.appendChild(enemiesLabel);
+
+    if (maxEnemies === 0) {
+      const naText = document.createElement('div');
+      naText.textContent = 'N/A';
+      naText.style.cssText = "font-family: 'Orbitron'; color: rgba(255,255,255,0.4); font-size: 0.9rem;";
+      enemiesSection.appendChild(naText);
+    } else {
+      const enRow = document.createElement('div');
+      enRow.style.cssText = 'display: flex; gap: 8px;';
+      const enBtns: HTMLElement[] = [];
+      for (let i = 1; i <= maxEnemies; i++) {
+        const btn = document.createElement('button');
+        btn.textContent = i.toString();
+        const isSelected = selectedEnemies === i;
+        btn.style.cssText = `
+          flex: 1;
+          background: ${isSelected ? 'rgba(255, 82, 82, 0.2)' : 'transparent'};
+          border: 1px solid ${isSelected ? '#ff5252' : 'rgba(255,255,255,0.2)'};
+          color: ${isSelected ? '#ffffff' : 'rgba(255,255,255,0.6)'};
+          padding: 10px;
+          border-radius: 6px;
+          font-family: 'Orbitron', sans-serif;
+          font-size: 0.9rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        `;
+        btn.onclick = () => {
+          selectedEnemies = i;
+          enBtns.forEach((b, idx) => {
+            const isSelf = idx + 1 === i;
+            b.style.background = isSelf ? 'rgba(255, 82, 82, 0.2)' : 'transparent';
+            b.style.borderColor = isSelf ? '#ff5252' : 'rgba(255,255,255,0.2)';
+            b.style.color = isSelf ? '#ffffff' : 'rgba(255,255,255,0.6)';
+          });
+          audioManager.playClick();
+        };
+        enBtns.push(btn);
+        enRow.appendChild(btn);
+      }
+      enemiesSection.appendChild(enRow);
+    }
+    dialog.appendChild(enemiesSection);
+
+    // Actions
+    const actionRow = document.createElement('div');
+    actionRow.style.cssText = 'display: flex; gap: 12px; margin-top: 12px;';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'CANCEL';
+    cancelBtn.style.cssText = `
+      flex: 1;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      padding: 12px;
+      border-radius: 8px;
+      font-family: 'Orbitron', sans-serif;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+    `;
+    cancelBtn.onclick = () => {
+      audioManager.playClick();
+      overlay.style.opacity = '0';
+      setTimeout(() => overlay.remove(), 300);
+    };
+
+    const startBtn = document.createElement('button');
+    startBtn.textContent = 'LAUNCH';
+    startBtn.style.cssText = `
+      flex: 2;
+      background: rgba(79, 195, 247, 0.2);
+      border: 1px solid #4fc3f7;
+      color: #4fc3f7;
+      padding: 12px;
+      border-radius: 8px;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 1rem;
+      letter-spacing: 0.1em;
+      transition: all 0.2s;
+      box-shadow: 0 0 16px rgba(79, 195, 247, 0.2);
+    `;
+    startBtn.onmouseenter = () => {
+      startBtn.style.background = 'rgba(79, 195, 247, 0.4)';
+      startBtn.style.boxShadow = '0 0 24px rgba(79, 195, 247, 0.4)';
+    };
+    startBtn.onmouseleave = () => {
+      startBtn.style.background = 'rgba(79, 195, 247, 0.2)';
+      startBtn.style.boxShadow = '0 0 16px rgba(79, 195, 247, 0.2)';
+    };
+
+    startBtn.onclick = () => {
+      audioManager.playClick();
+      overlay.style.opacity = '0';
+      
+      // Update Settings
+      SettingsStore.update({ difficulty: selectedDiff });
+      
+      // Prune enemies
+      const clonedLevel = JSON.parse(JSON.stringify(level)) as LevelData;
+      if (maxEnemies > 0 && selectedEnemies < maxEnemies) {
+        const factionsArray = Array.from(enemyFactions);
+        // Shuffle
+        for (let i = factionsArray.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [factionsArray[i], factionsArray[j]] = [factionsArray[j], factionsArray[i]];
+        }
+        const factionsToKeep = new Set(factionsArray.slice(0, selectedEnemies));
+        
+        // Neutralize removed factions
+        clonedLevel.planets.forEach(p => {
+          if (p.faction.startsWith('enemy') && !factionsToKeep.has(p.faction)) {
+            p.faction = 'neutral';
+          }
+        });
+      }
+
+      setTimeout(() => {
+        overlay.remove();
+        this.onPlay(clonedLevel, false);
+      }, 300);
+    };
+
+    actionRow.appendChild(cancelBtn);
+    actionRow.appendChild(startBtn);
+    dialog.appendChild(actionRow);
+
+    overlay.appendChild(dialog);
+    this.element.appendChild(overlay);
+
+    // Animate in
+    requestAnimationFrame(() => {
+      overlay.style.opacity = '1';
+      dialog.style.transform = 'translateY(0)';
+    });
   }
 }
