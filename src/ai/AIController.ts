@@ -214,6 +214,29 @@ interface AIStrategy {
    * our rate is < 70 % of the best enemy's rate.
    */
   productionEmergencyThreshold: number;
+
+  // ── Expansion control — v6 ────────────────────────────────────────────────
+
+  /**
+   * Per-planet orbiter count that triggers a forced deployment, bypassing
+   * all random gates. Prevents armies from accumulating indefinitely.
+   * When any own planet exceeds this count, the excess MUST go somewhere.
+   */
+  overflowThreshold: number;
+
+  /**
+   * Lower minToDeploy threshold used specifically for colonisation moves.
+   * Colonising a neutral costs far fewer units than attacking, so small
+   * planets should still be able to send scouts.
+   */
+  minToDeployNeutral: number;
+
+  /**
+   * Seconds from game-start during which expansion is DETERMINISTIC —
+   * no random roll, expansion always fires first if neutrals exist.
+   * Expander: very long (full early game). Fortress: 0. Others: moderate.
+   */
+  earlyGameExpandForcedSecs: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -323,6 +346,10 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     earlyGameAttackBlockSecs:  0,
     productionEmergencyEnabled:    false,
     productionEmergencyThreshold:  0,
+    // Easy: gentle overflow, moderate thresholds
+    overflowThreshold:         30,
+    minToDeployNeutral:        8,
+    earlyGameExpandForcedSecs: 60,
   },
 
   // ── NORMAL ──────────────────────────────────────────────────────────────────
@@ -366,6 +393,10 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     earlyGameAttackBlockSecs:  180,
     productionEmergencyEnabled:    true,
     productionEmergencyThreshold:  0.70,
+    // Fortress: high overflow (wants big garrisons), doesn't rush colonise
+    overflowThreshold:         25,
+    minToDeployNeutral:        4,
+    earlyGameExpandForcedSecs: 0,   // fortress never skips random gate; uses overflow instead
   },
   balanced: {
     evalInterval:     2.0,
@@ -406,6 +437,10 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     earlyGameAttackBlockSecs:  0,   // balanced can probe from early on
     productionEmergencyEnabled:    true,
     productionEmergencyThreshold:  0.70,
+    // Balanced: moderate overflow, deterministic expansion first 3 min
+    overflowThreshold:         20,
+    minToDeployNeutral:        3,
+    earlyGameExpandForcedSecs: 180,
   },
   opportunist: {
     evalInterval:     1.5,
@@ -484,6 +519,11 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     earlyGameAttackBlockSecs:  120,  // 2 min neutrals-only
     productionEmergencyEnabled:    true,
     productionEmergencyThreshold:  0.60,
+    // Expander: single-minded colonizer — low overflow, very low deploy floor,
+    // deterministic expansion for the ENTIRE early game (6 full minutes)
+    overflowThreshold:         12,
+    minToDeployNeutral:        2,
+    earlyGameExpandForcedSecs: 360,  // 6 min — expander never lets neutrals sit idle
   },
 
   // ── HARD ────────────────────────────────────────────────────────────────────
@@ -527,6 +567,10 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     // Berserker: only panics on production when very far behind
     productionEmergencyEnabled:    true,
     productionEmergencyThreshold:  0.50,
+    // Berserker: very low overflow (wants to attack not stockpile)
+    overflowThreshold:         12,
+    minToDeployNeutral:        2,
+    earlyGameExpandForcedSecs: 0,  // berserker never switches to forced-expand mode
   },
   economic: {
     evalInterval:     1.5,
@@ -567,6 +611,10 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     earlyGameAttackBlockSecs:  120,  // 2 min upgrade-first
     productionEmergencyEnabled:    true,
     productionEmergencyThreshold:  0.80,
+    // Economic: moderate overflow, short deterministic expand window
+    overflowThreshold:         22,
+    minToDeployNeutral:        3,
+    earlyGameExpandForcedSecs: 90,
   },
   blitzkrieg: {
     evalInterval:     1.0,
@@ -607,6 +655,10 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     earlyGameAttackBlockSecs:  60,  // grab neutrals first for 60s
     productionEmergencyEnabled:    true,
     productionEmergencyThreshold:  0.65,
+    // Blitzkrieg: very low overflow (speed is the game plan)
+    overflowThreshold:         14,
+    minToDeployNeutral:        2,
+    earlyGameExpandForcedSecs: 60,
   },
   dominator: {
     evalInterval:     1.2,
@@ -647,6 +699,10 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     earlyGameAttackBlockSecs:  0,  // dominator targets the weakest faction immediately
     productionEmergencyEnabled:    true,
     productionEmergencyThreshold:  0.70,
+    // Dominator: moderate overflow
+    overflowThreshold:         20,
+    minToDeployNeutral:        3,
+    earlyGameExpandForcedSecs: 60,
   },
 };
 
@@ -1050,8 +1106,83 @@ export class AIController {
   }
 
   // -------------------------------------------------------------------------
+  // Overflow pressure valve — v6
+  // -------------------------------------------------------------------------
+
+  /**
+   * Branch -0.5: Force-deploy excess orbiters from any planet that has
+   * accumulated above `overflowThreshold`. Bypasses ALL random gates,
+   * growth pauses, and cooldowns. This prevents the army-hoarding problem
+   * where planets sit at 300+ orbiters while neutrals go unclaimed.
+   *
+   * Priority: nearest reachable neutral first. If none, nearest enemy planet.
+   * Returns true if any deployment was made.
+   */
+  private _checkOverflow(
+    faction: Faction,
+    ownPlanets: PlanetData[],
+    assessment: SituationAssessment,
+    state: GameState,
+    deployCallback: DeployCallback,
+  ): boolean {
+    const strategy = this.strategies.get(faction)!;
+    let acted = false;
+
+    for (const planet of ownPlanets) {
+      const orbiting = this.getOrbitingCount(planet.id, state);
+      if (orbiting <= strategy.overflowThreshold) continue;
+
+      // Find a target: prefer nearest reachable neutral, then nearest enemy
+      let target: PlanetData | null = null;
+
+      // Try reachable neutrals first
+      let bestNeutralDist = Infinity;
+      for (const neutral of assessment.neutralsAvailable) {
+        if (this._isLockoutTarget(neutral, faction)) continue;
+        if (neutral.health >= strategy.neutralAttackCap) continue;
+        if (!this.isPlanetVisible(neutral, faction, state)) continue;
+        const d = this.distSq(planet, neutral);
+        if (d < bestNeutralDist) { bestNeutralDist = d; target = neutral; }
+      }
+
+      // Fallback: nearest enemy if no neutral and not in growth pause
+      if (!target) {
+        const inGrowthPause = this._gameElapsed < (this._growthPauseUntil.get(faction) ?? 0);
+        const earlyBlocked  = this._earlyGameAttackBlocked(faction);
+        if (!inGrowthPause && !earlyBlocked) {
+          let bestEnemyDist = Infinity;
+          for (const p of state.planets.values()) {
+            if (p.faction === faction || p.faction === 'neutral') continue;
+            if (!this.isPlanetVisible(p, faction, state)) continue;
+            const d = this.distSq(planet, p);
+            if (d < bestEnemyDist) { bestEnemyDist = d; target = p; }
+          }
+        }
+      }
+
+      if (!target) continue;
+
+      // Deploy — ignore aggressorCooldown
+      const isNeutral = target.faction === 'neutral';
+      const cooldown  = isNeutral ? 2 : 6;
+
+      if (!isGammaDangerous(state, target.x, target.y)) {
+        this.states.set(faction, isNeutral ? 'conquer_neutral' : 'attack');
+        deployCallback([planet.id], target.id);
+        this.aggressorCooldowns.set(planet.id, cooldown);
+        if (!isNeutral) this._recordAttackWave(faction, target.faction as Faction, assessment);
+        console.log(`[AI] Overflow: ${faction} planet ${planet.id} (${orbiting} orbs > ${strategy.overflowThreshold}) → ${target.id}`);
+        acted = true;
+        break; // one overflow per tick to avoid flooding the callback
+      }
+    }
+    return acted;
+  }
+
+  // -------------------------------------------------------------------------
   // Lockout-aware timed attack — v5
   // -------------------------------------------------------------------------
+
 
   /**
    * Returns true if this neutral planet is locked out AND we are not the
@@ -1100,7 +1231,7 @@ export class AIController {
           if (sources.length > 0) {
             this.states.set(faction, 'conquer_neutral');
             this.deployParticles(sources, target, deployCallback, strategy.neutralFraction, [], state);
-            for (const src of sources) this.aggressorCooldowns.set(src.id, 6);
+            for (const src of sources) this.aggressorCooldowns.set(src.id, 2);  // short colonisation cooldown
             console.log(`[AI] Lockout-timed arrival: ${faction} colonising ${target.id}`);
             return true;
           }
@@ -1347,7 +1478,7 @@ export class AIController {
         if (src) {
           this.states.set(faction, 'conquer_neutral');
           this.deployParticles([src], nearestNeutral, deployCallback, strategy.neutralFraction, [], state);
-          this.aggressorCooldowns.set(src.id, 6);
+          this.aggressorCooldowns.set(src.id, 2);  // short colonisation cooldown
           return true;
         }
       }
@@ -1357,7 +1488,7 @@ export class AIController {
       if (nearestNeutral && richest) {
         this.states.set(faction, 'conquer_neutral');
         this.deployParticles([richest], nearestNeutral, deployCallback, strategy.neutralFraction, [], state);
-        this.aggressorCooldowns.set(richest.id, 4);
+        this.aggressorCooldowns.set(richest.id, 2);  // short colonisation cooldown
 
         // Also queue an upgrade if we have a second planet
         const secondSource = ownPlanets.find(p => p.id !== richest.id);
@@ -1365,7 +1496,7 @@ export class AIController {
           const upgradeTarget = this.findBestPlanetToUpgrade(ownPlanets, strategy.maxUpgrade);
           if (upgradeTarget && upgradeTarget.id !== secondSource.id) {
             this.deployParticles([secondSource], upgradeTarget, deployCallback, strategy.upgradeFraction, [], state);
-            this.aggressorCooldowns.set(secondSource.id, 4);
+            this.aggressorCooldowns.set(secondSource.id, 4); // upgrade cooldown stays at 4
           }
         }
         return true;
@@ -1390,7 +1521,7 @@ export class AIController {
           if (src) {
             this.states.set(faction, 'conquer_neutral');
             this.deployParticles([src], nearestNeutral, deployCallback, strategy.neutralFraction, [], state);
-            this.aggressorCooldowns.set(src.id, 5);
+            this.aggressorCooldowns.set(src.id, 2);  // short colonisation cooldown
             return true;
           }
         }
@@ -1401,7 +1532,7 @@ export class AIController {
           if (src) {
             this.states.set(faction, 'conquer_neutral');
             this.deployParticles([src], nearestNeutral, deployCallback, strategy.neutralFraction, [], state);
-            this.aggressorCooldowns.set(src.id, 5);
+            this.aggressorCooldowns.set(src.id, 2);  // short cooldown for colonisation
             return true;
           }
         }
@@ -1467,6 +1598,23 @@ export class AIController {
       }
     }
 
+    // --- Build source planet lists (two thresholds) ---
+    // neutralSourcePlanets: lower bar — for colonisation where costs are low.
+    // sourcePlanets: standard bar — for attacks and upgrades.
+    const neutralSourcePlanets = ownPlanets.filter(
+      (p) => this.getOrbitingCount(p.id, state) > strategy.minToDeployNeutral,
+      // NOTE: aggressorCooldown intentionally NOT applied here — colonisation
+      // should not be blocked by attack cooldowns on the same planet.
+    );
+
+    // --- Branch -0.5: Overflow pressure valve ---
+    // If any planet has accumulated too many orbiters, force-deploy the excess
+    // to the nearest neutral or best available target. Bypasses all random
+    // gates and growth pauses — hoarding is never allowed.
+    if (this._checkOverflow(faction, ownPlanets, assessment, state, deployCallback)) {
+      return;
+    }
+
     // --- Branch 0.5: Backcap — opportunistically attack a just-vacated planet ---
     if (sourcePlanets.length > 0 || stationedParticleIds.length > 0) {
       const backcapTarget = this._findBackcapTarget(faction, state);
@@ -1485,44 +1633,61 @@ export class AIController {
     }
 
     // --- Branch 0.8: Lockout timing — stage waves to arrive the moment a lock lifts ---
-    if (this._tryLockoutTimedAttack(faction, sourcePlanets, state, deployCallback)) {
+    if (this._tryLockoutTimedAttack(faction, neutralSourcePlanets, state, deployCallback)) {
       return;
     }
 
-    // --- Strategic branching based on situation assessment ---
+    // --- Branch 1: Expand ---
+    // Priority rules, in order:
+    //   a) During earlyGameExpandForcedSecs: ALWAYS expand if neutrals + sources exist (no random).
+    //   b) Fortress saturation: if all fortress planets are at/above garrison cap → force expand.
+    //   c) Production emergency (non-berserker): forced expand bias = 1.0.
+    //   d) Normal case: random gate weighted by expandBias.
+    // Uses neutralSourcePlanets (lower threshold) so even small planets can send scouts.
+
+    const subRole = this.subRoles.get(faction)!;
+    const inProductionEmergency = this._inProductionEmergency(faction, assessment);
+    const isBerserker = subRole === 'berserker';
     const hasProductionDisadvantage = assessment.productionAdvantage < 0.8;
     const hasUnitAdvantage = assessment.unitAdvantage > 1.0;
-    const inProductionEmergency = this._inProductionEmergency(faction, assessment);
-    const isBerserker = this.subRoles.get(faction) === 'berserker';
 
-    // --- Branch 1: Expand ---
-    // Berserker in production emergency: boost bias but don't force it.
-    // Everyone else in emergency: force expand if neutrals exist.
-    // Normal case: use strategy weight, boosted if generally production-disadvantaged.
+    const earlyExpandForced = strategy.earlyGameExpandForcedSecs > 0 &&
+      this._gameElapsed < strategy.earlyGameExpandForcedSecs;
+
+    // Fortress saturation: all planets are at/above garrison cap → needs to expand
+    const fortressSaturated = subRole === 'fortress' && ownPlanets.length > 0 &&
+      ownPlanets.every(p => this.getOrbitingCount(p.id, state) >= 20);
+
     let expandBias: number;
-    if (inProductionEmergency && !isBerserker) {
-      expandBias = 1.0; // growth emergency — always take free land
+    if (earlyExpandForced || fortressSaturated) {
+      expandBias = 1.0; // deterministic — skip random gate
+    } else if (inProductionEmergency && !isBerserker) {
+      expandBias = 1.0;
     } else if (inProductionEmergency && isBerserker) {
-      expandBias = Math.min(1.0, strategy.expandWeight * 1.5); // panic-boosted for berserker
+      expandBias = Math.min(1.0, strategy.expandWeight * 1.5);
     } else if (hasProductionDisadvantage) {
       expandBias = Math.min(1.0, strategy.expandWeight * 1.2);
     } else {
       expandBias = strategy.expandWeight;
     }
+
+    const neutralExpansionSources = neutralSourcePlanets.length > 0 ? neutralSourcePlanets
+      : sourcePlanets; // fallback to standard sources if neutral-floor sources are empty
+
     const wantsExpand = Math.random() < expandBias;
     if (
       wantsExpand &&
       assessment.neutralsAvailable.length > 0 &&
-      (sourcePlanets.length > 0 || stationedParticleIds.length > 0)
+      (neutralExpansionSources.length > 0 || stationedParticleIds.length > 0)
     ) {
-      const bestNeutral = this._findBestNeutral(faction, sourcePlanets, assessment, state);
+      const bestNeutral = this._findBestNeutral(faction, neutralExpansionSources, assessment, state);
       if (bestNeutral !== null && bestNeutral.health < strategy.neutralAttackCap) {
         this.states.set(faction, 'conquer_neutral');
-        // Gather coordinated sources for expansion
-        const sources = this._gatherCoordinatedSources(sourcePlanets, bestNeutral, strategy.maxSources);
+        const sources = this._gatherCoordinatedSources(neutralExpansionSources, bestNeutral, strategy.maxSources);
         if (sources.length > 0) {
           this.deployParticles(sources, bestNeutral, deployCallback, strategy.neutralFraction, stationedParticleIds, state);
-          for (const src of sources) this.aggressorCooldowns.set(src.id, 6);
+          // SHORT cooldown for colonisation — 2s not 6s. Planet refills quickly and we want rapid expansion.
+          for (const src of sources) this.aggressorCooldowns.set(src.id, 2);
         } else if (stationedParticleIds.length > 0) {
           this.deployParticles([], bestNeutral, deployCallback, strategy.neutralFraction, stationedParticleIds, state);
         }
@@ -1613,15 +1778,16 @@ export class AIController {
 
     // --- Branch 4: Defend timeout pressure valve (difficulty-scaled) ---
     const defendTime = this.defendTimers.get(faction) ?? 0;
-    if (defendTime >= strategy.defendTimeout && (sourcePlanets.length > 0 || stationedParticleIds.length > 0)) {
+    if (defendTime >= strategy.defendTimeout && (neutralExpansionSources.length > 0 || sourcePlanets.length > 0 || stationedParticleIds.length > 0)) {
       this.defendTimers.set(faction, 0);
-      // Try neutral first; if none, attack weakest enemy
-      const neutral = this._findBestNeutral(faction, sourcePlanets, assessment, state);
+      // Try neutral first (using lower-threshold sources); if none, attack weakest enemy
+      const neutral = this._findBestNeutral(faction, neutralExpansionSources.length > 0 ? neutralExpansionSources : sourcePlanets, assessment, state);
       if (neutral !== null) {
         this.states.set(faction, 'conquer_neutral');
-        const sources = this._gatherCoordinatedSources(sourcePlanets, neutral, strategy.maxSources);
+        const expandSrc = neutralExpansionSources.length > 0 ? neutralExpansionSources : sourcePlanets;
+        const sources = this._gatherCoordinatedSources(expandSrc, neutral, strategy.maxSources);
         this.deployParticles(sources.length > 0 ? sources : [], neutral, deployCallback, strategy.neutralFraction, stationedParticleIds, state);
-        for (const src of sources) this.aggressorCooldowns.set(src.id, 6);
+        for (const src of sources) this.aggressorCooldowns.set(src.id, 2);  // short colonisation cooldown
       } else {
         const anyEnemy = this._findBestAttackTarget(faction, sourcePlanets, state, assessment);
         if (anyEnemy !== null) {
