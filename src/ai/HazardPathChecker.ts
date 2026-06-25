@@ -136,6 +136,61 @@ export function isGammaDangerous(state: GameState, tx: number, ty: number): bool
   return dist < gr.width * 3;
 }
 
+/**
+ * Returns a gamma-ray risk level for a planet at (tx, ty).
+ *
+ *   0 — safe (not targeted by any gamma ray)
+ *   1 — targeted by a locked future path (timer > 10s away — plenty of time)
+ *   2 — targeted and fires within ~10 seconds (imminent)
+ *   3 — gamma ray is actively firing and beam is on this planet RIGHT NOW
+ *
+ * Checks both gammaRay and gammaRay2 (if present), both the active path
+ * and the pre-announced lockedPath (for 'locked' mode rays).
+ *
+ * Use this for SCORING decisions — e.g. penalise attacking a planet that
+ * is about to be gamma'd (wasted effort) or skip colonising one.
+ */
+export function getGammaRiskForPlanet(
+  state: GameState,
+  planetId: string,
+  tx: number,
+  ty: number,
+): 0 | 1 | 2 | 3 {
+  let maxRisk: 0 | 1 | 2 | 3 = 0;
+
+  const rays = [state.gammaRay, ...(state.gammaRay2 ? [state.gammaRay2] : [])];
+
+  for (const ray of rays) {
+    if (!ray.enabled) continue;
+
+    // ── Level 3: firing right now ────────────────────────────────────────
+    if (ray.firing && ray.path) {
+      // Use planetId fast path first (game already resolves targeted ids)
+      const byId = ray.path.targetedPlanetIds.includes(planetId);
+      const byDist = !byId &&
+        segmentToPointMinDist(ray.path.x1, ray.path.y1, ray.path.x2, ray.path.y2, tx, ty) < ray.path.width * 3;
+      if (byId || byDist) {
+        return 3; // actively being zapped — highest priority
+      }
+    }
+
+    // ── Level 2 / 1: locked future path ─────────────────────────────────
+    if (ray.lockedPath) {
+      const lp = ray.lockedPath;
+      const byId = lp.targetedPlanetIds.includes(planetId);
+      const byDist = !byId &&
+        segmentToPointMinDist(lp.x1, lp.y1, lp.x2, lp.y2, tx, ty) < lp.width * 3;
+
+      if (byId || byDist) {
+        const risk: 0 | 1 | 2 | 3 = ray.timer <= 10 ? 2 : 1;
+        if (risk > maxRisk) maxRisk = risk;
+      }
+    }
+  }
+
+  return maxRisk;
+}
+
 // ---------------------------------------------------------------------------
 // Waypoint computation
 // ---------------------------------------------------------------------------

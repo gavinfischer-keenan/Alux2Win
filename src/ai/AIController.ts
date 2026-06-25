@@ -18,7 +18,7 @@ import {
   PARTICLE_SPEED,
 } from '../types';
 import type { AIDifficulty } from '../core/SettingsStore';
-import { scoreRoute, isGammaDangerous, computeWaypoint } from './HazardPathChecker';
+import { scoreRoute, isGammaDangerous, getGammaRiskForPlanet, computeWaypoint } from './HazardPathChecker';
 import type { EventBus } from '../core/EventBus';
 
 /** The four mutually exclusive high-level intentions the AI can be in. */
@@ -1137,12 +1137,15 @@ export class AIController {
       // Find a target: prefer nearest reachable neutral, then nearest enemy
       let target: PlanetData | null = null;
 
-      // Try reachable neutrals first
+      // Try reachable neutrals first — skip those on an active/imminent gamma path
       let bestNeutralDist = Infinity;
       for (const neutral of assessment.neutralsAvailable) {
         if (this._isLockoutTarget(neutral, faction)) continue;
         if (neutral.health >= strategy.neutralAttackCap) continue;
         if (!this.isPlanetVisible(neutral, faction, state)) continue;
+        // Skip neutrals being fired on now (3) or imminently (2) — sending overflow there is wasteful
+        const gr = getGammaRiskForPlanet(state, neutral.id, neutral.x, neutral.y);
+        if (gr >= 2) continue;
         const d = this.distSq(planet, neutral);
         if (d < bestNeutralDist) { bestNeutralDist = d; target = neutral; }
       }
@@ -1876,6 +1879,17 @@ export class AIController {
       score -= 40; // strongly discourage suicide attacks
     }
 
+    // ── Gamma-ray risk penalty ──────────────────────────────────────────────
+    // Penalise targets that are on a gamma-ray path. Attacking a planet that
+    // is about to be wiped wastes units and cedes any captured territory.
+    //   Risk 3 (firing now)  → -Infinity, never send units into an active beam
+    //   Risk 2 (imminent ≤10s) → -60, strong deterrent
+    //   Risk 1 (locked, >10s)  → -20, mild bias toward safer planets
+    const gammaRisk = getGammaRiskForPlanet(state, target.id, target.x, target.y);
+    if (gammaRisk === 3) return -Infinity; // actively firing — never target this
+    if (gammaRisk === 2) score -= 60;      // will fire imminently
+    if (gammaRisk === 1) score -= 20;      // will fire eventually
+
     // Value bonus (higher upgrade = more valuable to capture)
     score += target.upgradeLevel * 15; // +15 / +30 / +45
 
@@ -2029,6 +2043,14 @@ export class AIController {
           }
         }
       }
+
+      // ── Gamma-ray risk ───────────────────────────────────────────────────
+      // Skip or penalise neutrals in the gamma path — colonising one that will
+      // immediately be wiped resets the planet and wastes the colonists.
+      const neutralGammaRisk = getGammaRiskForPlanet(state, neutral.id, neutral.x, neutral.y);
+      if (neutralGammaRisk === 3) continue;    // actively firing — never target
+      if (neutralGammaRisk === 2) score -= 80; // fires imminently — very strong deterrent
+      if (neutralGammaRisk === 1) score -= 30; // locked future — prefer safer planet
 
       if (score > bestScore) {
         bestScore = score;
