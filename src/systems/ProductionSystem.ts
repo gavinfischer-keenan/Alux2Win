@@ -7,6 +7,7 @@ import {
   PLANET_RADIUS,
   PARTICLE_ORBIT_AUTO_ABSORB_SECS,
   COMBO_ORBIT_THRESHOLD,
+  PLANET_PRODUCTION,
 } from '../types';
 import { randomRange } from '../utils/MathUtils';
 import { SettingsStore } from '../core/SettingsStore';
