@@ -33,10 +33,12 @@ export class ProductionSystem {
         planet.lockoutTimer = Math.max(0, planet.lockoutTimer - dt);
       }
 
-      if (planet.faction === 'neutral') continue;
-
       let rate = planet.productionRate;
-      if (planet.faction !== 'player') {
+
+      if (planet.faction === 'neutral') {
+        // Neutral planets produce at 1/3 the level 1 rate
+        rate = PLANET_PRODUCTION[1] / 3;
+      } else if (planet.faction !== 'player') {
         const difficulty = SettingsStore.get().difficulty;
         if (difficulty === 'normal') rate *= 1.1;
         else if (difficulty === 'hard') rate *= 1.2;
@@ -46,18 +48,43 @@ export class ProductionSystem {
 
       while (acc >= 1.0) {
         acc -= 1.0;
-        const recycled = this._getDeadParticle(state);
-        if (recycled) {
-          this._initOrbiting(recycled, state, planet);
+
+        if (planet.faction === 'neutral') {
+          const cap = planet.originalNeutralHealth ?? planet.maxHealth;
+          if (planet.health < cap) {
+            // Partly conquered -> heal to reverse colonization
+            planet.health += 1;
+            if (planet.health >= cap) {
+              planet.health = cap;
+              planet.colonizer = null;
+            }
+          } else {
+            // Fully healed -> spawn orbiting neutral particle
+            const recycled = this._getDeadParticle(state);
+            if (recycled) {
+              this._initOrbiting(recycled, state, planet);
+              recycled.faction = 'neutral';
+            } else {
+              const p = this._spawnOrbiting(state, planet);
+              p.faction = 'neutral';
+              state.particles.push(p);
+            }
+          }
         } else {
-          state.particles.push(this._spawnOrbiting(state, planet));
+          // Normal faction production
+          const recycled = this._getDeadParticle(state);
+          if (recycled) {
+            this._initOrbiting(recycled, state, planet);
+          } else {
+            state.particles.push(this._spawnOrbiting(state, planet));
+          }
         }
       }
 
       this.accumulators.set(planet.id, acc);
 
       // Shield regeneration
-      if (planet.isShielded) {
+      if (planet.isShielded && planet.faction !== 'neutral') {
         planet.shieldTimer = (planet.shieldTimer ?? 0) + dt;
         if (planet.shieldTimer >= 15.0) {
           planet.shieldTimer -= 15.0;
