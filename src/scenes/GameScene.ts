@@ -458,6 +458,8 @@ export class GameScene {
         isShielded: def.isShielded ?? false,
         shieldPoints: 0,
         shieldTimer: 0,
+        colonizer: null,
+        originalNeutralHealth: mappedFaction === 'neutral' ? initialHealth : undefined,
       };
       planets.set(def.id, data);
     });

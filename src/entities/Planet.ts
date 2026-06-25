@@ -270,10 +270,12 @@ export class Planet {
       const fillEnd = startAngle + SPAN * healthRatio;
       // Teal-white health ring: bright teal at full, dims toward red when critical
       // Keeps it visually separate from the gold upgrade ring
-      const color =
-        healthRatio > 0.5 ? 0x80e8ff :   // healthy — icy teal
-        healthRatio > 0.25 ? 0xff8c42 :  // wounded — amber
-        0xff3333;                          // critical — red
+      let color = 0x80e8ff;
+      if (d.faction === 'neutral' && d.colonizer) {
+        color = FACTION_COLORS[d.colonizer];
+      } else {
+        color = healthRatio > 0.5 ? 0x80e8ff : healthRatio > 0.25 ? 0xff8c42 : 0xff3333;
+      }
 
       this.healthArc
         .moveTo(Math.cos(startAngle) * radius, Math.sin(startAngle) * radius)

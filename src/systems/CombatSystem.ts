@@ -155,20 +155,46 @@ export class CombatSystem {
             }
 
             if (dmg > 0) {
-              planet.health -= dmg;
+              if (planet.faction === 'neutral') {
+                if (planet.colonizer && planet.colonizer !== particle.faction) {
+                  // Attacking the current colonizer's progress!
+                  // Heal the planet back towards originalNeutralHealth
+                  planet.health += dmg;
+                  if (planet.faction === 'player' || particle.faction === 'player' || planet.colonizer === 'player') {
+                     audioManager.playCombatEngage();
+                  }
 
-              if (planet.faction === 'player') {
-                audioManager.playPlanetDamage();
-              }
+                  const cap = planet.originalNeutralHealth ?? planet.maxHealth;
+                  if (planet.health >= cap) {
+                     planet.health = cap;
+                     planet.colonizer = null; // Colonizers wiped out
+                  }
+                } else {
+                  // Normal colonization progress
+                  planet.colonizer = particle.faction;
+                  planet.health -= dmg;
 
-              // Determine capture threshold (retake discount)
-              let captureThreshold = 0;
-              if (planet.faction === 'neutral' && planet.previousOwner === particle.faction && (planet.rebellionBonus || 0) > 0) {
-                captureThreshold = 20;
-              }
+                  // Determine capture threshold (retake discount)
+                  let captureThreshold = 0;
+                  if (planet.previousOwner === particle.faction && (planet.rebellionBonus || 0) > 0) {
+                    captureThreshold = 20;
+                  }
 
-              if (planet.health <= captureThreshold) {
-                this._capturePlanet(planet, particle, state, eventBus);
+                  if (planet.health <= captureThreshold) {
+                    this._capturePlanet(planet, particle, state, eventBus);
+                  }
+                }
+              } else {
+                // Attack against an OWNED planet
+                planet.health -= dmg;
+
+                if (planet.faction === 'player') {
+                  audioManager.playPlanetDamage();
+                }
+
+                if (planet.health <= 0) {
+                  this._capturePlanet(planet, particle, state, eventBus);
+                }
               }
             }
           }
@@ -199,6 +225,9 @@ export class CombatSystem {
     planet.shieldPoints = 0;
     planet.shieldTimer = 0;
 
+    planet.colonizer = null;
+    planet.originalNeutralHealth = undefined;
+
     if (oldFaction === 'neutral') {
       planet.faction = attackParticle.faction;
       planet.maxHealth = PLANET_MAX_HEALTH[1]; // Reset to standard health
@@ -210,6 +239,7 @@ export class CombatSystem {
       planet.rebellionBonus = Math.min((planet.rebellionBonus || 0) + 20, 80);
       planet.maxHealth = PLANET_MAX_HEALTH[1] + planet.rebellionBonus;
       planet.health = planet.maxHealth;
+      planet.originalNeutralHealth = planet.maxHealth;
     }
 
     if (planet.faction === 'player') {

@@ -50,6 +50,10 @@ export interface PlanetData {
   lockoutTimer?: number;
   previousOwner?: Faction;
   rebellionBonus?: number;
+  
+  // colonization feature
+  colonizer?: Faction | null;
+  originalNeutralHealth?: number;
 }
 
 // ---- Particle Data (runtime) ----

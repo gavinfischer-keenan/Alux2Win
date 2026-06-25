@@ -15,6 +15,7 @@ import {
   PlanetData,
   UpgradeLevel,
   PLANET_PRODUCTION,
+  PARTICLE_SPEED,
 } from '../types';
 import type { AIDifficulty } from '../core/SettingsStore';
 import { scoreRoute, isGammaDangerous, computeWaypoint } from './HazardPathChecker';
@@ -199,6 +200,20 @@ interface AIStrategy {
    * enemy attacks (opportunity or global). 0 = no restriction.
    */
   earlyGameAttackBlockSecs: number;
+
+  // ── Production-rate emergency ─────────────────────────────────────────────
+
+  /**
+   * Whether this role will enter growth-emergency mode when its production
+   * rate falls significantly behind the best enemy.
+   */
+  productionEmergencyEnabled: boolean;
+  /**
+   * Fraction of best-enemy production below which this role switches to
+   * growth-only (expand + upgrade, skip attacks). e.g. 0.70 = trigger when
+   * our rate is < 70 % of the best enemy's rate.
+   */
+  productionEmergencyThreshold: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -299,13 +314,15 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     breakthroughSurgeFraction:     0,
     breakthroughConsolidateSecs:   0,
     breakthroughMaxTargets:        0,
-    // Easy: no futility system, no early-game gate
+    // Easy: no futility system, no early-game gate, no production emergency
     futilityEnabled:           false,
     futilityTimeoutSecs:       0,
     futilityMaxWaves:          0,
     futilityProgressThreshold: 1.0,
     futilityGrowthPauseSecs:   0,
     earlyGameAttackBlockSecs:  0,
+    productionEmergencyEnabled:    false,
+    productionEmergencyThreshold:  0,
   },
 
   // ── NORMAL ──────────────────────────────────────────────────────────────────
@@ -347,6 +364,8 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     futilityGrowthPauseSecs:   90,
     // Fortress: no enemy attacks for first 3 minutes
     earlyGameAttackBlockSecs:  180,
+    productionEmergencyEnabled:    true,
+    productionEmergencyThreshold:  0.70,
   },
   balanced: {
     evalInterval:     2.0,
@@ -385,6 +404,8 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     futilityProgressThreshold: 0.90,
     futilityGrowthPauseSecs:   60,
     earlyGameAttackBlockSecs:  0,   // balanced can probe from early on
+    productionEmergencyEnabled:    true,
+    productionEmergencyThreshold:  0.70,
   },
   opportunist: {
     evalInterval:     1.5,
@@ -461,6 +482,8 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     futilityProgressThreshold: 0.90,
     futilityGrowthPauseSecs:   60,
     earlyGameAttackBlockSecs:  120,  // 2 min neutrals-only
+    productionEmergencyEnabled:    true,
+    productionEmergencyThreshold:  0.60,
   },
 
   // ── HARD ────────────────────────────────────────────────────────────────────
@@ -501,6 +524,9 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     futilityProgressThreshold: 1.0,
     futilityGrowthPauseSecs:   0,
     earlyGameAttackBlockSecs:  0,  // attacks from tick 1
+    // Berserker: only panics on production when very far behind
+    productionEmergencyEnabled:    true,
+    productionEmergencyThreshold:  0.50,
   },
   economic: {
     evalInterval:     1.5,
@@ -539,6 +565,8 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     futilityProgressThreshold: 0.90,
     futilityGrowthPauseSecs:   75,
     earlyGameAttackBlockSecs:  120,  // 2 min upgrade-first
+    productionEmergencyEnabled:    true,
+    productionEmergencyThreshold:  0.80,
   },
   blitzkrieg: {
     evalInterval:     1.0,
@@ -577,6 +605,8 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     futilityProgressThreshold: 0.90,
     futilityGrowthPauseSecs:   30,
     earlyGameAttackBlockSecs:  60,  // grab neutrals first for 60s
+    productionEmergencyEnabled:    true,
+    productionEmergencyThreshold:  0.65,
   },
   dominator: {
     evalInterval:     1.2,
@@ -615,6 +645,8 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     futilityProgressThreshold: 0.90,
     futilityGrowthPauseSecs:   55,
     earlyGameAttackBlockSecs:  0,  // dominator targets the weakest faction immediately
+    productionEmergencyEnabled:    true,
+    productionEmergencyThreshold:  0.70,
   },
 };
 
@@ -715,6 +747,14 @@ export class AIController {
   /** Game-seconds timestamp until which each faction is in growth-only mode (no attacks). */
   private _growthPauseUntil: Map<Faction, number> = new Map();
 
+  // ── v5: Lockout timing ────────────────────────────────────────────────
+
+  /**
+   * Planets being pre-targeted for a timed attack (waiting for lockout to lift).
+   * Map: faction → { planetId, deployAt (game-seconds) }
+   */
+  private _lockoutTimingTargets: Map<Faction, { planetId: string; deployAt: number }> = new Map();
+
   constructor(factions: Faction[], difficulty: AIDifficulty = 'normal') {
     this.factions    = factions;
     this._difficulty = difficulty;
@@ -739,6 +779,7 @@ export class AIController {
       this._hasActed.set(faction, false);
       this._adaptiveBoosts.set(faction, 0);
       this._growthPauseUntil.set(faction, 0);
+      // _lockoutTimingTargets initialised lazily (no entry = no pending timed attack)
 
       console.log(`[AI] faction=${faction} difficulty=${difficulty} sub-role=${role}`);
     }
@@ -1009,8 +1050,120 @@ export class AIController {
   }
 
   // -------------------------------------------------------------------------
+  // Lockout-aware timed attack — v5
+  // -------------------------------------------------------------------------
+
+  /**
+   * Returns true if this neutral planet is locked out AND we are not the
+   * previous owner (meaning our particles will die if they arrive now).
+   */
+  private _isLockoutTarget(planet: PlanetData, faction: Faction): boolean {
+    return (
+      planet.faction === 'neutral' &&
+      (planet.lockoutTimer ?? 0) > 0 &&
+      planet.previousOwner !== faction
+    );
+  }
+
+  /**
+   * Branch 0.8 — Lockout timing.
+   *
+   * For each neutral planet that is locked out (and would interest this faction),
+   * compute the travel time from our nearest source. If the lockout will expire
+   * within one eval interval PLUS travel time, deploy now so units arrive the
+   * instant the lock lifts. Also fires if we already queued a timed attack and
+   * the deploy window has arrived.
+   *
+   * Returns true if an action was taken (prevents further evaluate branches).
+   */
+  private _tryLockoutTimedAttack(
+    faction: Faction,
+    sourcePlanets: PlanetData[],
+    state: GameState,
+    deployCallback: DeployCallback,
+  ): boolean {
+    if (sourcePlanets.length === 0) return false;
+    if (this._difficulty === 'easy') return false;
+
+    const strategy = this.strategies.get(faction)!;
+
+    // ── Check if a previously queued timed attack is ready to fire ─────────
+    const queued = this._lockoutTimingTargets.get(faction);
+    if (queued && this._gameElapsed >= queued.deployAt) {
+      const target = state.planets.get(queued.planetId);
+      this._lockoutTimingTargets.delete(faction);
+
+      if (target && target.faction === 'neutral' && (target.lockoutTimer ?? 0) <= 0) {
+        // Lock has lifted — we can colonise now
+        if (target.health < strategy.neutralAttackCap) {
+          const sources = this._gatherCoordinatedSources(sourcePlanets, target, strategy.maxSources);
+          if (sources.length > 0) {
+            this.states.set(faction, 'conquer_neutral');
+            this.deployParticles(sources, target, deployCallback, strategy.neutralFraction, [], state);
+            for (const src of sources) this.aggressorCooldowns.set(src.id, 6);
+            console.log(`[AI] Lockout-timed arrival: ${faction} colonising ${target.id}`);
+            return true;
+          }
+        }
+      }
+      // Target changed faction or lockout still up — abandon and fall through
+    }
+
+    // ── Scan for soon-to-unlock neutrals worth pre-targeting ────────────────
+    for (const planet of state.planets.values()) {
+      if (!this._isLockoutTarget(planet, faction)) continue;
+      if (planet.health >= strategy.neutralAttackCap) continue;
+      if (!this.isPlanetVisible(planet, faction, state)) continue;
+
+      const nearest = this.nearestPlanet(sourcePlanets, planet);
+      if (!nearest) continue;
+
+      const dist = Math.sqrt(this.distSq(nearest, planet));
+      const travelTimeSecs = dist / PARTICLE_SPEED;
+      const lockRemaining  = planet.lockoutTimer ?? 0;
+
+      // Deploy when: lockout will have lifted by the time units arrive
+      // Give one extra eval interval of margin so we don't undershoot.
+      if (lockRemaining <= travelTimeSecs + strategy.evalInterval) {
+        // Queue the deploy for exactly when lockout ≤ travelTime
+        const deployAt = this._gameElapsed + Math.max(0, lockRemaining - travelTimeSecs);
+        const existing = this._lockoutTimingTargets.get(faction);
+
+        // Only replace an existing queue entry if this target is closer
+        if (!existing || deployAt < existing.deployAt) {
+          this._lockoutTimingTargets.set(faction, { planetId: planet.id, deployAt });
+          console.log(
+            `[AI] Lockout timing queued: ${faction} → ${planet.id} ` +
+            `(lock=${lockRemaining.toFixed(1)}s travel=${travelTimeSecs.toFixed(1)}s deployAt=${deployAt.toFixed(1)}s)`
+          );
+        }
+      }
+    }
+
+    return false; // queuing is not a branch-consuming action
+  }
+
+  // -------------------------------------------------------------------------
+  // Production-rate emergency — v5
+  // -------------------------------------------------------------------------
+
+  /**
+   * Returns true when this faction's production rate has fallen behind the
+   * best enemy's rate by more than the role's configured threshold.
+   * This triggers growth-emergency mode: expand/upgrade priority overrides
+   * attack branches.
+   */
+  private _inProductionEmergency(faction: Faction, assessment: SituationAssessment): boolean {
+    const strategy = this.strategies.get(faction)!;
+    if (!strategy.productionEmergencyEnabled) return false;
+    if (assessment.bestEnemyProduction <= 0) return false;
+    return assessment.productionAdvantage < strategy.productionEmergencyThreshold;
+  }
+
+  // -------------------------------------------------------------------------
   // Futility detection — v4
   // -------------------------------------------------------------------------
+
 
   /**
    * Called on every evaluate tick (before attack branches).
@@ -1331,12 +1484,31 @@ export class AIController {
       }
     }
 
+    // --- Branch 0.8: Lockout timing — stage waves to arrive the moment a lock lifts ---
+    if (this._tryLockoutTimedAttack(faction, sourcePlanets, state, deployCallback)) {
+      return;
+    }
+
     // --- Strategic branching based on situation assessment ---
     const hasProductionDisadvantage = assessment.productionAdvantage < 0.8;
     const hasUnitAdvantage = assessment.unitAdvantage > 1.0;
+    const inProductionEmergency = this._inProductionEmergency(faction, assessment);
+    const isBerserker = this.subRoles.get(faction) === 'berserker';
 
-    // --- Branch 1: Expand (higher priority now, especially if production-disadvantaged) ---
-    const expandBias = hasProductionDisadvantage ? 1.0 : strategy.expandWeight;
+    // --- Branch 1: Expand ---
+    // Berserker in production emergency: boost bias but don't force it.
+    // Everyone else in emergency: force expand if neutrals exist.
+    // Normal case: use strategy weight, boosted if generally production-disadvantaged.
+    let expandBias: number;
+    if (inProductionEmergency && !isBerserker) {
+      expandBias = 1.0; // growth emergency — always take free land
+    } else if (inProductionEmergency && isBerserker) {
+      expandBias = Math.min(1.0, strategy.expandWeight * 1.5); // panic-boosted for berserker
+    } else if (hasProductionDisadvantage) {
+      expandBias = Math.min(1.0, strategy.expandWeight * 1.2);
+    } else {
+      expandBias = strategy.expandWeight;
+    }
     const wantsExpand = Math.random() < expandBias;
     if (
       wantsExpand &&
@@ -1359,7 +1531,15 @@ export class AIController {
     }
 
     // --- Branch 2: Upgrade ---
-    const upgradeBias = hasProductionDisadvantage ? Math.min(1.0, strategy.upgradeWeight * 1.3) : strategy.upgradeWeight;
+    // In production emergency, strongly prefer upgrading (more production = recovery).
+    let upgradeBias: number;
+    if (inProductionEmergency) {
+      upgradeBias = Math.min(1.0, strategy.upgradeWeight * 1.5);
+    } else if (hasProductionDisadvantage) {
+      upgradeBias = Math.min(1.0, strategy.upgradeWeight * 1.3);
+    } else {
+      upgradeBias = strategy.upgradeWeight;
+    }
     const wantsUpgrade = Math.random() < upgradeBias;
     if (wantsUpgrade && (sourcePlanets.length > 0 || stationedParticleIds.length > 0) && totalParticles >= strategy.upgradeTrigger) {
       const bestUpgradePlanet = this.findBestPlanetToUpgrade(ownPlanets, strategy.maxUpgrade);
@@ -1385,11 +1565,16 @@ export class AIController {
     }
 
     // --- Branch 2.5: Opportunity Attack (local advantage) ---
-    // Skipped when in growth-pause or early-game attack block.
-    const inGrowthPause   = this._gameElapsed < (this._growthPauseUntil.get(faction) ?? 0);
+    // Skipped when in growth-pause, early-game attack block, OR production emergency
+    // (for non-berserker roles: emergency forces them to grow first).
+    const inGrowthPause    = this._gameElapsed < (this._growthPauseUntil.get(faction) ?? 0);
     const earlyGameBlocked = this._earlyGameAttackBlocked(faction);
+    // Production emergency blocks attacks for non-berserkers only when reachable neutrals exist
+    // (locked neutrals we can't enter don't count as reachable territory)
+    const reachableNeutrals = assessment.neutralsAvailable.filter(n => !this._isLockoutTarget(n, faction));
+    const emergencyBlocksAttack = inProductionEmergency && !isBerserker && reachableNeutrals.length > 0;
 
-    if (!inGrowthPause && !earlyGameBlocked && (sourcePlanets.length > 0 || stationedParticleIds.length > 0)) {
+    if (!inGrowthPause && !earlyGameBlocked && !emergencyBlocksAttack && (sourcePlanets.length > 0 || stationedParticleIds.length > 0)) {
       const opportunityTarget = this._findOpportunityTarget(faction, sourcePlanets, state, stationedParticleIds.length);
       if (opportunityTarget !== null) {
         const sources = this._gatherCoordinatedSources(sourcePlanets, opportunityTarget, strategy.maxSources);
@@ -1402,7 +1587,7 @@ export class AIController {
     }
 
     // --- Branch 3: Attack (global advantage OR strategic necessity) ---
-    // Skipped when in growth-pause or early-game attack block.
+    // Skipped when in growth-pause, early-game attack block, or production emergency with neutrals.
     // Attack if: we have global unit advantage OR we have production advantage and roughly even
     // OR if we're losing production and have units to burn (desperate attack)
     const shouldAttack =
@@ -1411,7 +1596,7 @@ export class AIController {
       (hasProductionDisadvantage && hasUnitAdvantage && assessment.neutralsAvailable.length === 0);
 
     if (
-      !inGrowthPause && !earlyGameBlocked &&
+      !inGrowthPause && !earlyGameBlocked && !emergencyBlocksAttack &&
       shouldAttack &&
       (sourcePlanets.length > 0 || stationedParticleIds.length > 0)
     ) {
@@ -1605,6 +1790,9 @@ export class AIController {
     let bestScore = -Infinity;
 
     for (const neutral of assessment.neutralsAvailable) {
+      // ── Skip locked planets we are not the previous owner of ────────────
+      if (this._isLockoutTarget(neutral, faction)) continue;
+
       let score = 0;
 
       // Distance score (closer to our planets = better)
@@ -1616,6 +1804,18 @@ export class AIController {
 
       // Weakness score (lower health = easier to take)
       score += Math.max(0, 40 - neutral.health) * 0.3;
+
+      // ── Empty-planet bonus ────────────────────────────────────────────────
+      // A completely undefended neutral (health=0, no orbiters) is a free
+      // planet — strongly prioritise it over fighting anyone.
+      const orbiters = this.getOrbitingCount(neutral.id, state);
+      if (neutral.health <= 0 && orbiters === 0) {
+        score += 65; // big bonus — taking this costs nothing
+      }
+
+      // ── Production value bonus ───────────────────────────────────────────
+      // Higher-level neutrals produce more per turn — worth more to capture.
+      score += PLANET_PRODUCTION[neutral.upgradeLevel] * 3;
 
       // Denial score (Normal/Hard): if neutral is closer to enemy than to us, bonus for denial
       if (this._difficulty !== 'easy' && assessment.strongestEnemyFaction) {
