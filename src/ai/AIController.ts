@@ -162,6 +162,58 @@ interface AIStrategy {
    * breakthrough surge (beyond the one just captured).
    */
   breakthroughMaxTargets: number;
+
+  // ── Futility detection ────────────────────────────────────────────────────
+
+  /**
+   * Whether this role will back off from a futile attack campaign.
+   * Berserker sets this false — it waves forever by design.
+   */
+  futilityEnabled: boolean;
+  /**
+   * Seconds of fruitless attacking before the AI concedes and enters growth mode.
+   * Only used when futilityEnabled = true.
+   */
+  futilityTimeoutSecs: number;
+  /**
+   * Wave count ceiling. If the AI sends this many waves with no visible
+   * progress it backs off, regardless of campaign age.
+   */
+  futilityMaxWaves: number;
+  /**
+   * 0–1. Enemy must drop to this fraction of their start-of-campaign particles
+   * for the campaign to be considered "making progress".
+   * e.g. 0.90 = enemy must lose at least 10 % of their units.
+   */
+  futilityProgressThreshold: number;
+  /**
+   * Seconds to spend in growth-only mode (expand + upgrade, no attacks)
+   * after backing off from a futile campaign.
+   */
+  futilityGrowthPauseSecs: number;
+
+  // ── Early-game attack gate ────────────────────────────────────────────────
+
+  /**
+   * Seconds from game start during which this role will not initiate
+   * enemy attacks (opportunity or global). 0 = no restriction.
+   */
+  earlyGameAttackBlockSecs: number;
+}
+
+// ---------------------------------------------------------------------------
+// Futility tracking — records an ongoing attack campaign
+// ---------------------------------------------------------------------------
+
+interface FutilityEntry {
+  /** The faction we are currently hammering. */
+  targetFaction: Faction;
+  /** Game-seconds when the campaign started. */
+  startedAt: number;
+  /** Number of waves dispatched against this faction so far. */
+  wavesSent: number;
+  /** Enemy particle count when the campaign began (baseline for progress check). */
+  enemyParticlesAtStart: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -247,22 +299,29 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     breakthroughSurgeFraction:     0,
     breakthroughConsolidateSecs:   0,
     breakthroughMaxTargets:        0,
+    // Easy: no futility system, no early-game gate
+    futilityEnabled:           false,
+    futilityTimeoutSecs:       0,
+    futilityMaxWaves:          0,
+    futilityProgressThreshold: 1.0,
+    futilityGrowthPauseSecs:   0,
+    earlyGameAttackBlockSecs:  0,
   },
 
   // ── NORMAL ──────────────────────────────────────────────────────────────────
   fortress: {
     evalInterval:     2.5,
     evalJitter:       0.6,
-    minToDeploy:      8,
-    reserveParticles: 6,
-    aggressionRatio:  1.1,
+    minToDeploy:      12,
+    reserveParticles: 10,
+    aggressionRatio:  1.6,
     upgradeTrigger:   30,
-    neutralAttackCap: 12,
+    neutralAttackCap: 25,
     upgradeFraction:  0.55,
-    neutralFraction:  0.65,
-    attackFraction:   0.55,
-    upgradeWeight:    0.80,
-    expandWeight:     0.80,
+    neutralFraction:  0.75,
+    attackFraction:   0.50,
+    upgradeWeight:    0.85,
+    expandWeight:     0.95,
     maxUpgrade:       3,
     hazardToleranceThreshold: -79,
     usesWaypoints:    true,
@@ -274,12 +333,20 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     counterattackDefenseRatio:  0.80,
     counterattackMinDefenders:  10,
     // Fortress: very rarely surges — too defensive-minded
-    breakthroughChance:            0.10,
+    breakthroughChance:            0.05,
     breakthroughScanRadius:        350,
     breakthroughWeaknessThreshold: 8,
     breakthroughSurgeFraction:     0.20,
     breakthroughConsolidateSecs:   25,
     breakthroughMaxTargets:        1,
+    // Fortress: very patient; long growth pause after futile attacks
+    futilityEnabled:           true,
+    futilityTimeoutSecs:       120,
+    futilityMaxWaves:          3,
+    futilityProgressThreshold: 0.90,
+    futilityGrowthPauseSecs:   90,
+    // Fortress: no enemy attacks for first 3 minutes
+    earlyGameAttackBlockSecs:  180,
   },
   balanced: {
     evalInterval:     2.0,
@@ -311,6 +378,13 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     breakthroughSurgeFraction:     0.35,
     breakthroughConsolidateSecs:   20,
     breakthroughMaxTargets:        2,
+    // Balanced: sensible futility gate
+    futilityEnabled:           true,
+    futilityTimeoutSecs:       90,
+    futilityMaxWaves:          4,
+    futilityProgressThreshold: 0.90,
+    futilityGrowthPauseSecs:   60,
+    earlyGameAttackBlockSecs:  0,   // balanced can probe from early on
   },
   opportunist: {
     evalInterval:     1.5,
@@ -342,6 +416,13 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     breakthroughSurgeFraction:     0.50,
     breakthroughConsolidateSecs:   18,
     breakthroughMaxTargets:        2,
+    // Opportunist: tries hard but recognises when a wall won’t crack
+    futilityEnabled:           true,
+    futilityTimeoutSecs:       60,
+    futilityMaxWaves:          5,
+    futilityProgressThreshold: 0.90,
+    futilityGrowthPauseSecs:   45,
+    earlyGameAttackBlockSecs:  0,   // opportunist attacks from the start
   },
   expander: {
     evalInterval:     1.8,
@@ -373,6 +454,13 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     breakthroughSurgeFraction:     0.25,
     breakthroughConsolidateSecs:   15,
     breakthroughMaxTargets:        1,
+    // Expander: prefers neutrals anyway; backs off quickly from dead-end attacks
+    futilityEnabled:           true,
+    futilityTimeoutSecs:       75,
+    futilityMaxWaves:          3,
+    futilityProgressThreshold: 0.90,
+    futilityGrowthPauseSecs:   60,
+    earlyGameAttackBlockSecs:  120,  // 2 min neutrals-only
   },
 
   // ── HARD ────────────────────────────────────────────────────────────────────
@@ -406,6 +494,13 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     breakthroughSurgeFraction:     0.70,
     breakthroughConsolidateSecs:   12,
     breakthroughMaxTargets:        3,
+    // Berserker: waves forever — futility system disabled by design
+    futilityEnabled:           false,
+    futilityTimeoutSecs:       0,
+    futilityMaxWaves:          0,
+    futilityProgressThreshold: 1.0,
+    futilityGrowthPauseSecs:   0,
+    earlyGameAttackBlockSecs:  0,  // attacks from tick 1
   },
   economic: {
     evalInterval:     1.5,
@@ -437,6 +532,13 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     breakthroughSurgeFraction:     0.25,
     breakthroughConsolidateSecs:   30,
     breakthroughMaxTargets:        1,
+    // Economic: patient; waste no units on futile assaults
+    futilityEnabled:           true,
+    futilityTimeoutSecs:       90,
+    futilityMaxWaves:          3,
+    futilityProgressThreshold: 0.90,
+    futilityGrowthPauseSecs:   75,
+    earlyGameAttackBlockSecs:  120,  // 2 min upgrade-first
   },
   blitzkrieg: {
     evalInterval:     1.0,
@@ -468,6 +570,13 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     breakthroughSurgeFraction:     0.60,
     breakthroughConsolidateSecs:   10,
     breakthroughMaxTargets:        3,
+    // Blitzkrieg: hits hard, pivots fast; low tolerance for brick walls
+    futilityEnabled:           true,
+    futilityTimeoutSecs:       45,
+    futilityMaxWaves:          6,
+    futilityProgressThreshold: 0.90,
+    futilityGrowthPauseSecs:   30,
+    earlyGameAttackBlockSecs:  60,  // grab neutrals first for 60s
   },
   dominator: {
     evalInterval:     1.2,
@@ -499,6 +608,13 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     breakthroughSurgeFraction:     0.45,
     breakthroughConsolidateSecs:   20,
     breakthroughMaxTargets:        2,
+    // Dominator: methodical; respects sunk-cost; pauses to rebuild after failures
+    futilityEnabled:           true,
+    futilityTimeoutSecs:       80,
+    futilityMaxWaves:          4,
+    futilityProgressThreshold: 0.90,
+    futilityGrowthPauseSecs:   55,
+    earlyGameAttackBlockSecs:  0,  // dominator targets the weakest faction immediately
   },
 };
 
@@ -591,6 +707,14 @@ export class AIController {
    */
   private _breakthroughs: Map<Faction, BreakthroughEntry> = new Map();
 
+  // ── v4: Futility detection ─────────────────────────────────────────────────────
+
+  /** Active attack campaigns per faction — used to detect futile early assaults. */
+  private _futileAttackTracker: Map<Faction, FutilityEntry> = new Map();
+
+  /** Game-seconds timestamp until which each faction is in growth-only mode (no attacks). */
+  private _growthPauseUntil: Map<Faction, number> = new Map();
+
   constructor(factions: Faction[], difficulty: AIDifficulty = 'normal') {
     this.factions    = factions;
     this._difficulty = difficulty;
@@ -614,6 +738,7 @@ export class AIController {
       this.defendTimers.set(faction, 0);
       this._hasActed.set(faction, false);
       this._adaptiveBoosts.set(faction, 0);
+      this._growthPauseUntil.set(faction, 0);
 
       console.log(`[AI] faction=${faction} difficulty=${difficulty} sub-role=${role}`);
     }
@@ -884,7 +1009,87 @@ export class AIController {
   }
 
   // -------------------------------------------------------------------------
+  // Futility detection — v4
+  // -------------------------------------------------------------------------
+
+  /**
+   * Called on every evaluate tick (before attack branches).
+   * Updates the active campaign entry for this faction and, if the campaign
+   * looks futile, cancels it and enters a growth-only pause.
+   */
+  private _checkFutility(faction: Faction, assessment: SituationAssessment): void {
+    const strategy = this.strategies.get(faction)!;
+    if (!strategy.futilityEnabled) return;
+
+    const entry = this._futileAttackTracker.get(faction);
+    if (!entry) return; // no active campaign
+
+    const campaignAge = this._gameElapsed - entry.startedAt;
+
+    // Look up current enemy particles for the tracked faction
+    const enemyData = assessment.enemyFactions.get(entry.targetFaction);
+    const currentEnemyParticles = enemyData?.particles ?? 0;
+
+    const noProgress = currentEnemyParticles >= entry.enemyParticlesAtStart * strategy.futilityProgressThreshold;
+    const longCampaign = campaignAge >= strategy.futilityTimeoutSecs;
+    const tooManyWaves = entry.wavesSent >= strategy.futilityMaxWaves;
+
+    if ((noProgress && longCampaign) || tooManyWaves) {
+      const pauseUntil = this._gameElapsed + strategy.futilityGrowthPauseSecs;
+      this._growthPauseUntil.set(faction, pauseUntil);
+      this._futileAttackTracker.delete(faction);
+      console.log(
+        `[AI] Futility detected for ${faction} (${this.subRoles.get(faction)}) ` +
+        `against ${entry.targetFaction} — backing off for ${strategy.futilityGrowthPauseSecs}s ` +
+        `(waves=${entry.wavesSent} age=${campaignAge.toFixed(0)}s progress=${noProgress})`
+      );
+    }
+  }
+
+  /**
+   * Called whenever an attack wave is dispatched against an enemy faction.
+   * Creates or updates the campaign entry for futility tracking.
+   */
+  private _recordAttackWave(
+    faction: Faction,
+    targetFaction: Faction,
+    assessment: SituationAssessment,
+  ): void {
+    const strategy = this.strategies.get(faction)!;
+    if (!strategy.futilityEnabled) return;
+    if (targetFaction === 'neutral') return;
+
+    const existing = this._futileAttackTracker.get(faction);
+    const enemyData = assessment.enemyFactions.get(targetFaction);
+    const enemyParticles = enemyData?.particles ?? 0;
+
+    if (existing && existing.targetFaction === targetFaction) {
+      // Same campaign — increment wave count
+      existing.wavesSent++;
+    } else {
+      // New campaign (or switched target) — start fresh
+      this._futileAttackTracker.set(faction, {
+        targetFaction,
+        startedAt:             this._gameElapsed,
+        wavesSent:             1,
+        enemyParticlesAtStart: enemyParticles,
+      });
+    }
+  }
+
+  /**
+   * Returns true if this role's early-game attack block is still active.
+   * Prevents enemy attacks (opportunity and global) before the configured window.
+   */
+  private _earlyGameAttackBlocked(faction: Faction): boolean {
+    const strategy = this.strategies.get(faction)!;
+    if (strategy.earlyGameAttackBlockSecs <= 0) return false;
+    return this._gameElapsed < strategy.earlyGameAttackBlockSecs;
+  }
+
+  // -------------------------------------------------------------------------
   // Situation assessment — lightweight strategic snapshot
+
   // -------------------------------------------------------------------------
 
   private _assessSituation(faction: Faction, state: GameState): SituationAssessment {
@@ -1088,6 +1293,11 @@ export class AIController {
       return;
     }
 
+    // --- Futility check: update campaign tracker; may set/extend growth pause ---
+    if (this._difficulty !== 'easy') {
+      this._checkFutility(faction, assessment);
+    }
+
     // --- Branch 0: Retreat (Normal/Hard only) ---
     if (this._difficulty !== 'easy') {
       if (this._checkRetreat(faction, state, deployCallback)) {
@@ -1175,18 +1385,24 @@ export class AIController {
     }
 
     // --- Branch 2.5: Opportunity Attack (local advantage) ---
-    if (sourcePlanets.length > 0 || stationedParticleIds.length > 0) {
+    // Skipped when in growth-pause or early-game attack block.
+    const inGrowthPause   = this._gameElapsed < (this._growthPauseUntil.get(faction) ?? 0);
+    const earlyGameBlocked = this._earlyGameAttackBlocked(faction);
+
+    if (!inGrowthPause && !earlyGameBlocked && (sourcePlanets.length > 0 || stationedParticleIds.length > 0)) {
       const opportunityTarget = this._findOpportunityTarget(faction, sourcePlanets, state, stationedParticleIds.length);
       if (opportunityTarget !== null) {
         const sources = this._gatherCoordinatedSources(sourcePlanets, opportunityTarget, strategy.maxSources);
         this.states.set(faction, 'attack');
         this.deployParticles(sources.length > 0 ? sources : [], opportunityTarget, deployCallback, strategy.attackFraction, stationedParticleIds, state);
         for (const src of sources) this.aggressorCooldowns.set(src.id, 8);
+        this._recordAttackWave(faction, opportunityTarget.faction as Faction, assessment);
         return;
       }
     }
 
     // --- Branch 3: Attack (global advantage OR strategic necessity) ---
+    // Skipped when in growth-pause or early-game attack block.
     // Attack if: we have global unit advantage OR we have production advantage and roughly even
     // OR if we're losing production and have units to burn (desperate attack)
     const shouldAttack =
@@ -1195,6 +1411,7 @@ export class AIController {
       (hasProductionDisadvantage && hasUnitAdvantage && assessment.neutralsAvailable.length === 0);
 
     if (
+      !inGrowthPause && !earlyGameBlocked &&
       shouldAttack &&
       (sourcePlanets.length > 0 || stationedParticleIds.length > 0)
     ) {
@@ -1204,6 +1421,7 @@ export class AIController {
         const sources = this._gatherCoordinatedSources(sourcePlanets, target, strategy.maxSources);
         this.deployParticles(sources.length > 0 ? sources : [], target, deployCallback, strategy.attackFraction, stationedParticleIds, state);
         for (const src of sources) this.aggressorCooldowns.set(src.id, 8);
+        this._recordAttackWave(faction, target.faction as Faction, assessment);
         return;
       }
     }

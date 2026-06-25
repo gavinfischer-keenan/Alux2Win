@@ -38,7 +38,10 @@ export class EditorSidebar {
   onLoadLevel: () => void = () => {};
   onBack: () => void = () => {};
 
+  onFogChange: (enabled: boolean) => void = () => {};
+
   private toolButtons: Map<EditorTool, HTMLElement> = new Map();
+  private fogCheckbox!: HTMLInputElement;
 
   constructor(container: HTMLElement) {
     this.element = this.createElement();
@@ -95,7 +98,38 @@ export class EditorSidebar {
     spacer.style.flex = '1';
     sidebar.appendChild(spacer);
 
+    // ── Fog of War Toggle ─────────────────────────────────────
+    const fogWrapper = document.createElement('div');
+    fogWrapper.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      padding: 0 6px;
+      margin-bottom: 4px;
+    `;
+    const fogLabel = document.createElement('label');
+    fogLabel.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      color: rgba(255,255,255,0.65);
+      font-size: 9px;
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    `;
+    this.fogCheckbox = document.createElement('input');
+    this.fogCheckbox.type = 'checkbox';
+    this.fogCheckbox.style.cssText = 'appearance: auto; -webkit-appearance: auto; accent-color: #4fc3f7; margin: 0;';
+    this.fogCheckbox.addEventListener('change', () => this.onFogChange(this.fogCheckbox.checked));
+    fogLabel.appendChild(this.fogCheckbox);
+    fogLabel.appendChild(document.createTextNode('Fog of War'));
+    fogWrapper.appendChild(fogLabel);
+    sidebar.appendChild(fogWrapper);
 
+    sidebar.appendChild(this.createDivider());
 
     // ── Save Level button ────────────────────────────────────
     const saveBtn = this.createIconBtn('💾', 'Save Level', '#4fc3f7');
@@ -228,6 +262,12 @@ export class EditorSidebar {
     this.activeTool = tool;
     this.refreshActiveState();
     this.onToolChange(tool);
+  }
+
+  setFogEnabled(enabled: boolean): void {
+    if (this.fogCheckbox) {
+      this.fogCheckbox.checked = enabled;
+    }
   }
 
   destroy(): void {

@@ -516,9 +516,12 @@ export class GameScene {
       fogOfWarConfig:        levelData.fogOfWarConfig,
     };
 
-    // Spawn default starting particles around home planets
+    // Spawn default starting particles around home planets.
+    // IMPORTANT: use the shuffled spawnFaction (same as the planet) so particle
+    // colours always match their home planet from the very first frame.
     levelData.planets.forEach(def => {
       if (def.faction !== 'neutral') {
+        const spawnFaction = factionMap.get(def.faction) ?? def.faction;
         const count = def.startingParticles || 20;
         const lvl = def.upgradeLevel as UpgradeLevel;
         for (let i = 0; i < count; i++) {
@@ -530,7 +533,7 @@ export class GameScene {
             y:              def.y + Math.sin(angle) * orbitRadius,
             vx:             0,
             vy:             0,
-            faction:        def.faction,
+            faction:        spawnFaction,
             mode:           'orbiting',
             strength:       1,
             orbitTimer:     (Math.random() * -5), // slight negative offset so they don't immediately absorb
