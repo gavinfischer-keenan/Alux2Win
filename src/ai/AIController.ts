@@ -294,6 +294,8 @@ interface SituationAssessment {
   bestEnemyProduction: number;
   bestEnemyParticles: number;
   strongestEnemyFaction: Faction | null;
+  /** The faction with the single highest production rate (may differ from strongest by particles) */
+  highestProductionFaction: Faction | null;
   /** myProduction / bestEnemyProduction (Infinity if enemy has 0) */
   productionAdvantage: number;
   /** myParticles / bestEnemyParticles (Infinity if enemy has 0) */
@@ -1416,7 +1418,9 @@ export class AIController {
       }
     }
 
-    // Find strongest enemy
+    // Find strongest enemy — track both by particles AND by production separately
+    let highestProductionFaction: Faction | null = null;
+    let highestProduction = 0;
     for (const [ef, data] of enemyFactions) {
       if (data.particles > bestEnemyParticles) {
         bestEnemyParticles = data.particles;
@@ -1424,6 +1428,10 @@ export class AIController {
       }
       if (data.production > bestEnemyProduction) {
         bestEnemyProduction = data.production;
+      }
+      if (data.production > highestProduction) {
+        highestProduction = data.production;
+        highestProductionFaction = ef;
       }
     }
 
@@ -1444,6 +1452,7 @@ export class AIController {
       bestEnemyProduction,
       bestEnemyParticles,
       strongestEnemyFaction,
+      highestProductionFaction,
       productionAdvantage: bestEnemyProduction > 0 ? myProduction / bestEnemyProduction : Infinity,
       unitAdvantage: bestEnemyParticles > 0 ? myParticles / bestEnemyParticles : Infinity,
       enemyFactions,
@@ -1810,7 +1819,7 @@ export class AIController {
 
   /**
    * Score-based attack target selection. Considers distance, weakness, value,
-   * isolation, and production denial. Difficulty controls which factors are used.
+   * isolation, production denial, threat-leader pressure, and wave fixation.
    */
   private _scoreAttackTarget(
     target: PlanetData,
@@ -1851,6 +1860,22 @@ export class AIController {
 
     score += Math.max(0, 80 - defense) * 0.6; // up to +48 for undefended
 
+    // ── Heavy fixation penalty: already sending waves here ─────────────────
+    // Applied on ALL difficulties (was only Hard before). Stops the AI from
+    // endlessly hammering a well-defended wall. Penalty scales with wave count.
+    const existingWaves = this.activeWaves.filter(w => w.targetPlanetId === target.id && w.faction === faction);
+    if (existingWaves.length > 0) {
+      score -= 25 * existingWaves.length; // -25 per wave already en-route
+    }
+
+    // ── Over-defended penalty: target is clearly too strong ────────────────
+    // If defense > our combined source force, heavily penalise this target
+    // so the AI pivots to something it can actually win.
+    const combinedForce = sourcePlanets.reduce((s, p) => s + this.getOrbitingCount(p.id, state), 0);
+    if (defense > combinedForce * 1.5 && this._difficulty !== 'easy') {
+      score -= 40; // strongly discourage suicide attacks
+    }
+
     // Value bonus (higher upgrade = more valuable to capture)
     score += target.upgradeLevel * 15; // +15 / +30 / +45
 
@@ -1869,15 +1894,21 @@ export class AIController {
         }
         if (nearestAllyDistSq > 250 * 250) score += 12; // isolated planet bonus
       }
-    }
 
-    if (this._difficulty === 'hard') {
-      // Hard: also factor in whether we're already sending a wave there (avoid piling)
-      const existingWaves = this.activeWaves.filter(w => w.targetPlanetId === target.id && w.faction === faction);
-      if (existingWaves.length > 0) score -= 20;
+      // ── Threat-leader bias ──────────────────────────────────────────────
+      // If this planet belongs to the faction with the highest production rate,
+      // apply a bonus that scales with how far ahead they are. Prevents the
+      // entire AI from ganging up on you while the real winner runs away.
+      if (assessment.highestProductionFaction && target.faction === assessment.highestProductionFaction) {
+        const myProd = assessment.myProduction;
+        const theirProd = assessment.enemyFactions.get(assessment.highestProductionFaction)?.production ?? 1;
+        // Bonus grows as they pull ahead: e.g. 2× ahead = +30, 3× ahead = +60
+        const leadRatio = theirProd > 0 ? theirProd / Math.max(myProd, 1) : 1;
+        score += Math.min(60, (leadRatio - 1) * 30);
+      }
 
-      // Hard: prefer targets the player just invested in (disrupt upgrades)
-      if (target.faction === 'player' && target.upgradeLevel >= 2) {
+      // Hard: also prefer disrupting players who are upgrading actively
+      if (this._difficulty === 'hard' && target.faction === 'player' && target.upgradeLevel >= 2) {
         score += 10;
       }
     }
@@ -2571,45 +2602,68 @@ export class AIController {
    * for one of our source planets to take it on, even without global advantage.
    * Now uses per-strategy range and considers combined multi-source force.
    */
-  private _findOpportunityTarget(faction: Faction, sourcePlanets: PlanetData[], state: GameState, stationedCount: number): PlanetData | null {
+  /**
+   * Find an opportunity target — a nearby enemy planet that we can take with
+   * combined local forces. Upgraded to v6:
+   * - Uses _scoreAttackTarget (threat-leader aware, fixation-penalised) not raw defense
+   * - Scans ALL visible enemy planets, not just those within opportunityRange
+   *   (opportunityRange still gates which SOURCE planets contribute force)
+   * - Requires combined force > defense * 1.3 to qualify as an opportunity
+   * - If the threat leader has a clearly undefended planet anywhere on the map,
+   *   that is surfaced even if it requires pooling from distant sources
+   */
+  private _findOpportunityTarget(
+    faction: Faction,
+    sourcePlanets: PlanetData[],
+    state: GameState,
+    stationedCount: number,
+  ): PlanetData | null {
     const strategy = this.strategies.get(faction)!;
+    const assessment = this._assessSituation(faction, state);
     const OPPORTUNITY_RANGE_SQ = strategy.opportunityRange * strategy.opportunityRange;
+
     let best: PlanetData | null = null;
-    let bestScore = Infinity;
+    let bestScore = -Infinity;
 
     for (const planet of state.planets.values()) {
       if (planet.faction === faction || planet.faction === 'neutral') continue;
       if (!this.isPlanetVisible(planet, faction, state)) continue;
-      const enemyOrbit = this.getOrbitingCount(planet.id, state);
+
+      const enemyOrbit  = this.getOrbitingCount(planet.id, state);
       const totalDefense = enemyOrbit + planet.health;
 
-      if (sourcePlanets.length === 0) {
-        if (stationedCount > totalDefense * 1.5) {
-          const score = totalDefense;
-          if (score < bestScore) {
-            bestScore = score;
-            best = planet;
-          }
-        }
-        continue;
-      }
-
-      // Check combined force from all sources within range
-      let combinedForce = stationedCount;
-      let anyInRange = false;
+      // Calculate combined local force (sources within opportunity range)
+      let localForce = stationedCount;
       for (const src of sourcePlanets) {
-        const dSq = this.distSq(src, planet);
-        if (dSq > OPPORTUNITY_RANGE_SQ) continue;
-        anyInRange = true;
-        combinedForce += this.getOrbitingCount(src.id, state);
-      }
-      if (!anyInRange) continue;
-
-      if (combinedForce > totalDefense * 1.3) {
-        if (totalDefense < bestScore) {
-          bestScore = totalDefense;
-          best = planet;
+        if (this.distSq(src, planet) <= OPPORTUNITY_RANGE_SQ) {
+          localForce += this.getOrbitingCount(src.id, state);
         }
+      }
+
+      // Calculate total pooled force (ALL sources, for threat-leader check)
+      const totalPooled = sourcePlanets.reduce(
+        (s, p) => s + this.getOrbitingCount(p.id, state), stationedCount
+      );
+
+      // ── Two qualification paths ─────────────────────────────────────────
+      // Path A: Local opportunity — nearby sources can overwhelm the target
+      const localQualifies = localForce > totalDefense * 1.3;
+
+      // Path B: Threat-leader undefended planet — pool ALL sources against a
+      // weak planet belonging to the winning faction, even if it's far away.
+      const isThreatLeaderPlanet = assessment.highestProductionFaction !== null &&
+        planet.faction === assessment.highestProductionFaction;
+      const leaderQualifies = isThreatLeaderPlanet &&
+        totalDefense <= 8 && // genuinely undefended
+        totalPooled > totalDefense * 1.5;
+
+      if (!localQualifies && !leaderQualifies) continue;
+
+      // Score using the full threat-aware scoring function
+      const score = this._scoreAttackTarget(planet, faction, sourcePlanets, state, assessment);
+      if (score > bestScore) {
+        bestScore = score;
+        best = planet;
       }
     }
     return best;
