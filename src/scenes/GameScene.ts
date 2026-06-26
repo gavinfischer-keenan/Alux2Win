@@ -434,11 +434,9 @@ export class GameScene {
       const lvl = def.upgradeLevel as UpgradeLevel;
       const maxHealth = PLANET_MAX_HEALTH[lvl];
       
-      // Neutral planets use startingParticles for their initial health barrier.
-      // Owned planets start fully healed (maxHealth) and use startingParticles for their initial orbiting units.
-      const initialHealth = def.faction === 'neutral' 
-        ? (def.startingParticles !== undefined && def.startingParticles > 0 ? def.startingParticles : 10)
-        : maxHealth;
+      // All planets start fully healed (maxHealth).
+      // (Owned planets also use startingParticles to spawn initial orbiting units).
+      const initialHealth = maxHealth;
 
       const mappedFaction = factionMap.get(def.faction) ?? def.faction;
 
