@@ -255,12 +255,13 @@ export class GameScene {
     // Only pass active factions to the HUD
     const activeFactions: Faction[] = ['player', ...Array.from(aiFactions)];
     this.hud = new HUD(this.hudContainer, () => this.togglePause(), activeFactions);
+    this.hud.onSpeedChange = (s) => { this._setSpeed(s); };
     this.hud.loadRecords(this._levelId);
 
     // Pause menu (hidden initially)
     this.pauseMenu = new PauseMenu(this.container, this._timeScale, this.isEditorTest);
     this.pauseMenu.onResume      = () => this.togglePause();
-    this.pauseMenu.onSpeedChange = (s) => { this._timeScale = s; };
+    this.pauseMenu.onSpeedChange = (s) => { this._setSpeed(s); };
     this.pauseMenu.onQuitToMenu  = () => {
       this._paused = false;
       this.onGameOver(null);
@@ -297,9 +298,18 @@ export class GameScene {
       (alpha) => this.render(alpha)
     );
 
-    // ESC key toggles pause
+    // ESC key toggles pause; [ ] steps speed down/up
+    const SPEEDS: GameSpeed[] = [0.5, 1, 2, 3];
     this._keyHandler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') this.togglePause();
+      if (e.key === 'Escape') { this.togglePause(); return; }
+      if (e.key === '[') {
+        const idx = SPEEDS.indexOf(this._timeScale);
+        if (idx > 0) this._setSpeed(SPEEDS[idx - 1]);
+      }
+      if (e.key === ']') {
+        const idx = SPEEDS.indexOf(this._timeScale);
+        if (idx < SPEEDS.length - 1) this._setSpeed(SPEEDS[idx + 1]);
+      }
     };
     document.addEventListener('keydown', this._keyHandler);
 
@@ -352,8 +362,8 @@ export class GameScene {
     this.state.running = true;
     this.gameLoop.start();
     this.hud.show();
-    // Init speed from settings and start audio
-    this._timeScale = SettingsStore.get().gameSpeed as typeof this._timeScale;
+    // Always start at 1× regardless of persisted settings
+    this._setSpeed(1);
     audioManager.ensureReady().then(() => audioManager.startAmbient());
   }
 
@@ -409,6 +419,14 @@ export class GameScene {
     } else {
       this.pauseMenu?.hide();
     }
+  }
+
+  /** Single source of truth for speed changes — syncs _timeScale, HUD strip, and PauseMenu. */
+  private _setSpeed(speed: GameSpeed): void {
+    this._timeScale = speed;
+    this.hud?.setSpeed(speed);
+    this.pauseMenu?.syncSpeed(speed);
+    SettingsStore.update({ gameSpeed: speed });
   }
 
   // ── Game State Init ───────────────────────────────────────

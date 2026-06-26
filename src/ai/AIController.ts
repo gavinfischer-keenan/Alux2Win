@@ -302,6 +302,14 @@ interface SituationAssessment {
   unitAdvantage: number;
   /** Per-faction enemy data */
   enemyFactions: Map<Faction, { planets: PlanetData[]; particles: number; production: number }>;
+  /**
+   * True when fog is enabled AND this faction can see NO neutral or enemy
+   * planets at all. Stockpiling under fog is a deadlock — upgrading is the
+   * only way to expand the vision radius and unlock new targets.
+   */
+  isVisionBlocked: boolean;
+  /** isVisionBlocked AND at least one owned planet is below maxUpgrade. */
+  canUpgradeForVision: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -481,6 +489,11 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     futilityProgressThreshold: 0.90,
     futilityGrowthPauseSecs:   45,
     earlyGameAttackBlockSecs:  0,   // opportunist attacks from the start
+    productionEmergencyEnabled:    true,
+    productionEmergencyThreshold:  0.65,
+    overflowThreshold:         18,
+    minToDeployNeutral:        3,
+    earlyGameExpandForcedSecs: 60,  // opportunist grabs territory fast early
   },
   expander: {
     evalInterval:     1.8,
@@ -1134,6 +1147,22 @@ export class AIController {
       const orbiting = this.getOrbitingCount(planet.id, state);
       if (orbiting <= strategy.overflowThreshold) continue;
 
+      // When fog blocks all targets, redirect overflow into an upgrade instead of
+      // searching for invisible enemies. This reinforces the Branch 2 upgrade push.
+      if (assessment.canUpgradeForVision) {
+        const subRole    = this.subRoles.get(faction) as string;
+        const shieldBonus = subRole === 'fortress' ? 20 : subRole === 'balanced' ? 8 : subRole === 'economic' ? 12 : 0;
+        const upgTarget  = this.findBestPlanetToUpgrade(ownPlanets, strategy.maxUpgrade, shieldBonus);
+        if (upgTarget && upgTarget.id !== planet.id) {
+          this.states.set(faction, 'upgrade');
+          this.deployParticles([planet], upgTarget, deployCallback, strategy.upgradeFraction, [], state);
+          this.aggressorCooldowns.set(planet.id, 5);
+          acted = true;
+          break;
+        }
+        continue; // no upgrade target — hold (don't hunt invisible enemies)
+      }
+
       // Find a target: prefer nearest reachable neutral, then nearest enemy
       let target: PlanetData | null = null;
 
@@ -1446,6 +1475,21 @@ export class AIController {
       }
     }
 
+    // Detect vision blockage: fog is on AND this faction can see nothing outside its own planets
+    const fogEnabled = state.fogOfWarConfig?.enabled === true;
+    let visibleEnemyCount = 0;
+    if (fogEnabled) {
+      for (const [, data] of enemyFactions) {
+        for (const ep of data.planets) {
+          if (this.isPlanetVisible(ep, faction, state)) { visibleEnemyCount++; break; }
+        }
+      }
+    }
+    const isVisionBlocked     = fogEnabled && neutralsAvailable.length === 0 && visibleEnemyCount === 0;
+    const strategy            = this.strategies.get(faction)!;
+    const canUpgradeForVision = isVisionBlocked &&
+      myPlanets.some(p => p.upgradeLevel < strategy.maxUpgrade);
+
     return {
       myPlanets,
       myParticles,
@@ -1459,6 +1503,8 @@ export class AIController {
       productionAdvantage: bestEnemyProduction > 0 ? myProduction / bestEnemyProduction : Infinity,
       unitAdvantage: bestEnemyParticles > 0 ? myParticles / bestEnemyParticles : Infinity,
       enemyFactions,
+      isVisionBlocked,
+      canUpgradeForVision,
     };
   }
 
@@ -1710,8 +1756,13 @@ export class AIController {
 
     // --- Branch 2: Upgrade ---
     // In production emergency, strongly prefer upgrading (more production = recovery).
+    // When fog blinds this faction (no visible neutrals or enemies), upgrading is
+    // the ONLY way to expand the vision radius and unlock new territory — make it
+    // deterministic so the AI never randomly falls through to "defend" (accumulate).
     let upgradeBias: number;
-    if (inProductionEmergency) {
+    if (assessment.canUpgradeForVision) {
+      upgradeBias = 1.0; // vision-blocked: deterministic upgrade, no random gate
+    } else if (inProductionEmergency) {
       upgradeBias = Math.min(1.0, strategy.upgradeWeight * 1.5);
     } else if (hasProductionDisadvantage) {
       upgradeBias = Math.min(1.0, strategy.upgradeWeight * 1.3);

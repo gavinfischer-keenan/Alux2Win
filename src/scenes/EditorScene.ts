@@ -193,7 +193,6 @@ export class EditorScene {
     this.sidebar.onLoadLevel  = () => this.showLoadOverlay();
     this.sidebar.onTestLevel  = () => this.testLevel();
     (this.sidebar as any).onLevelNameChange = (name: string) => { this.editState.levelName = name; };
-    (this.sidebar as any).onFogChange = (enabled: boolean) => { this.editState.fogOfWarConfig = enabled ? { enabled: true } : undefined; };
     (this.sidebar as any).onGammaRayChange = (enabled: boolean) => { this.editState.gammaRayConfig = enabled ? { enabled: true, intervalSeconds: 30 } : undefined; };
     (this.sidebar as any).onAsteroidsChange = (enabled: boolean) => { this.editState.asteroidConfig = enabled ? { enabled: true } : undefined; };
 
@@ -1726,9 +1725,6 @@ export class EditorScene {
     
     if ((this.sidebar as any).setLevelName) {
       (this.sidebar as any).setLevelName(ld.name);
-    }
-    if ((this.sidebar as any).setFogEnabled) {
-      (this.sidebar as any).setFogEnabled(ld.fogOfWarConfig?.enabled ?? false);
     }
     if ((this.sidebar as any).setGammaEnabled) {
       (this.sidebar as any).setGammaEnabled(ld.gammaRayConfig?.enabled ?? false);

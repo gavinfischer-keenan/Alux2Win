@@ -63,6 +63,12 @@ export class PauseMenu {
 
   get currentSpeed(): GameSpeed { return this._currentSpeed; }
 
+  /** Update the highlighted button without firing onSpeedChange (prevents feedback loops). */
+  syncSpeed(speed: GameSpeed): void {
+    this._currentSpeed = speed;
+    this._setActiveSpeed(speed);
+  }
+
   destroy(): void {
     this.element.remove();
   }

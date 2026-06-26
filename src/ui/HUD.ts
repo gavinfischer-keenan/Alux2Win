@@ -16,6 +16,8 @@ interface FactionDisplay {
   labelEl: HTMLElement;
 }
 
+import type { GameSpeed } from './PauseMenu';
+
 export class HUD {
   private element: HTMLElement;
   private fpsEl: HTMLElement;
@@ -36,6 +38,11 @@ export class HUD {
   private lastFpsUpdate = 0;
   private frameCount    = 0;
   private currentFps    = 0;
+
+  // Speed pill strip
+  private speedBtns = new Map<GameSpeed, HTMLButtonElement>();
+  private _currentSpeed: GameSpeed = 1;
+  onSpeedChange: (speed: GameSpeed) => void = () => {};
 
   constructor(container: HTMLElement, onPauseClick: () => void = () => {}, activeFactions: Faction[] = ['player', 'enemy_a', 'enemy_b']) {
     this.element      = this._build(onPauseClick, activeFactions);
@@ -67,6 +74,18 @@ export class HUD {
   }
 
   // ── Public API ────────────────────────────────────────────
+
+  /** Sync the speed highlight without firing onSpeedChange (called by external sync). */
+  setSpeed(speed: GameSpeed): void {
+    this._currentSpeed = speed;
+    this.speedBtns.forEach((btn, s) => {
+      const active = s === speed;
+      btn.style.background   = active ? 'rgba(79,195,247,0.25)' : 'rgba(255,255,255,0.06)';
+      btn.style.borderColor  = active ? 'rgba(79,195,247,0.6)'  : 'rgba(255,255,255,0.12)';
+      btn.style.color        = active ? '#4fc3f7'               : 'rgba(255,255,255,0.45)';
+      btn.style.fontWeight   = active ? '800'                   : '600';
+    });
+  }
 
   /** Toggle visual paused state on HUD. */
   setPaused(paused: boolean): void {
@@ -334,22 +353,90 @@ export class HUD {
     });
     el.appendChild(factionsBar);
 
-    // ── Pause button (top-right) ───────────────────────────
+    // ── Speed pill strip + Pause button (top-right) ───────────────────
+    const topRight = document.createElement('div');
+    topRight.style.cssText = `
+      position: absolute;
+      top: 8px; right: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      pointer-events: auto;
+    `;
+
+    // Speed buttons
+    const speeds: { label: string; value: GameSpeed }[] = [
+      { label: '½×', value: 0.5 },
+      { label: '1×', value: 1   },
+      { label: '2×', value: 2   },
+      { label: '3×', value: 3   },
+    ];
+    const btnBase = `
+      height: 28px;
+      padding: 0 7px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 5px;
+      color: rgba(255,255,255,0.45);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      user-select: none;
+      letter-spacing: 0.04em;
+    `;
+    speeds.forEach(({ label, value }) => {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      btn.style.cssText = btnBase;
+      btn.title = `${label} speed  ([ / ])`;
+      btn.addEventListener('click', () => {
+        this.setSpeed(value);
+        this.onSpeedChange(value);
+      });
+      btn.addEventListener('mouseenter', () => {
+        if (value !== this._currentSpeed) {
+          btn.style.background  = 'rgba(255,255,255,0.1)';
+          btn.style.borderColor = 'rgba(255,255,255,0.25)';
+          btn.style.color       = 'rgba(255,255,255,0.7)';
+        }
+      });
+      btn.addEventListener('mouseleave', () => {
+        if (value !== this._currentSpeed) {
+          btn.style.background  = 'rgba(255,255,255,0.06)';
+          btn.style.borderColor = 'rgba(255,255,255,0.12)';
+          btn.style.color       = 'rgba(255,255,255,0.45)';
+        }
+      });
+      this.speedBtns.set(value, btn);
+      topRight.appendChild(btn);
+    });
+    // Highlight initial speed
+    this.setSpeed(1);
+
+    // Divider
+    const divider = document.createElement('div');
+    divider.style.cssText = `
+      width: 1px; height: 20px;
+      background: rgba(255,255,255,0.12);
+      margin: 0 2px;
+    `;
+    topRight.appendChild(divider);
+
+    // Pause button
     const pauseBtn = document.createElement('button');
     pauseBtn.id    = 'hud-pause-btn';
     pauseBtn.title = 'Pause (ESC)';
     pauseBtn.textContent = '⏸';
     pauseBtn.style.cssText = `
-      position: absolute;
-      top: 8px; right: 12px;
-      width: 32px; height: 32px;
+      width: 32px; height: 28px;
       background: rgba(255,255,255,0.06);
       border: 1px solid rgba(255,255,255,0.12);
       border-radius: 6px;
       color: rgba(255,255,255,0.5);
       font-size: 13px;
       cursor: pointer;
-      pointer-events: auto;
       display: flex; align-items: center; justify-content: center;
       transition: background 0.15s, border-color 0.15s, color 0.15s;
       user-select: none;
@@ -368,7 +455,8 @@ export class HUD {
       pauseBtn.style.borderColor  = 'rgba(255,255,255,0.12)';
       pauseBtn.style.color        = 'rgba(255,255,255,0.5)';
     });
-    el.appendChild(pauseBtn);
+    topRight.appendChild(pauseBtn);
+    el.appendChild(topRight);
 
     // ── PAUSED banner (center, hidden by default) ──────────
     const pausedBanner = document.createElement('div');
