@@ -224,6 +224,9 @@ export class GameScene {
     this.entities.whiteHoles         = new WhiteHoleRenderer(this.renderer.layers.whiteHoles);
     this.entities.fog                = new FogRenderer(this.renderer.getWorldContainer());
 
+    // Wire production system into gamma ray so planet resets flush accumulators
+    this.systems.gammaRay.setProductionSystem(this.systems.production);
+
     // Hazard effects renderer (sparkles + shockwaves)
     { const { Graphics } = await import('pixi.js');
       this._effectsGraphics = new Graphics();

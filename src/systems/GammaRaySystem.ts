@@ -15,9 +15,11 @@ import {
   type GammaRayPath,
   type PlanetData,
   PLANET_RADIUS,
+  PLANET_PRODUCTION,
   FACTION_COLORS,
 } from '../types';
 import { audioManager } from '../core/AudioManager';
+import type { ProductionSystem } from './ProductionSystem';
 
 // Maximum retries when generating a path that hits at least one planet.
 const MAX_PATH_RETRIES = 50;
@@ -36,6 +38,12 @@ export class GammaRaySystem {
    * After that we revert to fully random — it should be a real hazard.
    */
   private _firstShotDone = false;
+  private _productionSystem: ProductionSystem | null = null;
+
+  /** Call once after init so gamma cleans can reset production accumulators. */
+  setProductionSystem(ps: ProductionSystem): void {
+    this._productionSystem = ps;
+  }
 
   update(dt: number, state: GameState): void {
     if (state.gammaRay.enabled) {
@@ -299,12 +307,25 @@ export class GammaRaySystem {
       // Signal audio (via a flag in state that GameScene reads)
       (state as any)._pendingPlanetHazardDeaths = ((state as any)._pendingPlanetHazardDeaths ?? 0) + 1;
 
-      // Reset planet to neutral
-      planet.faction       = 'neutral';
-      planet.health        = 40;
-      planet.maxHealth     = 40;
-      planet.absorbedCount = 0;
-      planet.upgradeLevel  = 1;
+      // Full planet reset to neutral — matches _capturePlanet() logic so the
+      // planet renders with the correct neutral color and no stale faction data.
+      const oldFaction = planet.faction;
+      planet.faction               = 'neutral';
+      planet.health                = 40;
+      planet.maxHealth             = 40;
+      planet.absorbedCount         = 0;
+      planet.upgradeLevel          = 1;
+      planet.productionRate        = PLANET_PRODUCTION[1];   // back to base rate
+      planet.colonizer             = null;                    // clear any in-progress colonization
+      planet.originalNeutralHealth = 40;                      // new neutral baseline
+      planet.previousOwner         = oldFaction !== 'neutral' ? oldFaction : undefined;
+      planet.rebellionBonus        = 0;                       // gamma is a hard reset, no rebellion memory
+      planet.lockoutTimer          = 10;                      // short lockout — just cleaned
+      planet.shieldPoints          = 0;
+      planet.shieldTimer           = 0;
+      planet.isShielded            = false;
+      // Reset the production accumulator so it doesn't carry over old faction rate
+      this._productionSystem?.resetPlanet(planetId);
     }
 
     // Helper to check if a point is within the beam
