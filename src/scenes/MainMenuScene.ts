@@ -239,7 +239,7 @@ export class MainMenuScene {
       overflow-y: hidden;
       padding: 10px 10px 30px 10px;
       width: 100%;
-      height: 100%;
+      height: 340px;
       box-sizing: border-box;
     `;
     this._scrollContainer = scrollContainer;
