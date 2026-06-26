@@ -362,9 +362,9 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     reserveParticles: 10,
     aggressionRatio:  1.6,
     upgradeTrigger:   30,
-    neutralAttackCap: 25,
+    neutralAttackCap: 50,   // raised: health+defenders; fortress will push through moderate defense
     upgradeFraction:  0.55,
-    neutralFraction:  0.75,
+    neutralFraction:  0.80, // raised: more committed when colonising
     attackFraction:   0.50,
     upgradeWeight:    0.85,
     expandWeight:     0.95,
@@ -407,9 +407,9 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     reserveParticles: 3,
     aggressionRatio:  0.9,
     upgradeTrigger:   20,
-    neutralAttackCap: 15,
+    neutralAttackCap: 30,   // raised: balanced won't flee a neutral with a small garrison
     upgradeFraction:  0.50,
-    neutralFraction:  0.80,
+    neutralFraction:  0.85, // raised: more committed on colonise
     attackFraction:   0.75,
     upgradeWeight:    0.55,
     expandWeight:     0.85,
@@ -489,7 +489,7 @@ const STRATEGIES: Record<AISubRole, AIStrategy> = {
     reserveParticles: 2,
     aggressionRatio:  1.3,
     upgradeTrigger:   25,
-    neutralAttackCap: 50,
+    neutralAttackCap: 60,   // raised: expanders push through even well-defended neutrals
     upgradeFraction:  0.30,
     neutralFraction:  0.90,
     attackFraction:   0.55,
@@ -1505,7 +1505,8 @@ export class AIController {
         // Also queue an upgrade if we have a second planet
         const secondSource = ownPlanets.find(p => p.id !== richest.id);
         if (secondSource) {
-          const upgradeTarget = this.findBestPlanetToUpgrade(ownPlanets, strategy.maxUpgrade);
+          const shieldBonusEarly = subRole === 'fortress' ? 20 : subRole === 'balanced' ? 8 : 0;
+          const upgradeTarget = this.findBestPlanetToUpgrade(ownPlanets, strategy.maxUpgrade, shieldBonusEarly);
           if (upgradeTarget && upgradeTarget.id !== secondSource.id) {
             this.deployParticles([secondSource], upgradeTarget, deployCallback, strategy.upgradeFraction, [], state);
             this.aggressorCooldowns.set(secondSource.id, 4); // upgrade cooldown stays at 4
@@ -1516,8 +1517,8 @@ export class AIController {
     } else {
       // Normal: colonize or upgrade based on sub-role
       if (subRole === 'fortress') {
-        // Fortress: upgrade first, then expand
-        const upgradeTarget = this.findBestPlanetToUpgrade(ownPlanets, strategy.maxUpgrade);
+        // Fortress: upgrade first, then expand — strongly prefers shielded planets (free defenders)
+        const upgradeTarget = this.findBestPlanetToUpgrade(ownPlanets, strategy.maxUpgrade, 20);
         if (upgradeTarget) {
           const src = ownPlanets.find(p => p.id !== upgradeTarget.id) ?? null;
           if (src) {
@@ -1719,7 +1720,8 @@ export class AIController {
     }
     const wantsUpgrade = Math.random() < upgradeBias;
     if (wantsUpgrade && (sourcePlanets.length > 0 || stationedParticleIds.length > 0) && totalParticles >= strategy.upgradeTrigger) {
-      const bestUpgradePlanet = this.findBestPlanetToUpgrade(ownPlanets, strategy.maxUpgrade);
+      const shieldBonus = subRole === 'fortress' ? 20 : subRole === 'balanced' ? 8 : subRole === 'economic' ? 12 : 0;
+      const bestUpgradePlanet = this.findBestPlanetToUpgrade(ownPlanets, strategy.maxUpgrade, shieldBonus);
       if (bestUpgradePlanet !== null) {
         this.states.set(faction, 'upgrade');
         const nearest = this.nearestPlanet(sourcePlanets, bestUpgradePlanet);
@@ -1857,8 +1859,17 @@ export class AIController {
     }
 
     // Weakness bonus (fewer defenders = easier target)
-    let defense = target.health + this.getOrbitingCount(target.id, state);
-    
+    const orbitersOnTarget = this.getOrbitingCount(target.id, state);
+    let defense = target.health + orbitersOnTarget;
+
+    // ── Shield adds real effective defense cost ────────────────────────────
+    // Shielded planets can absorb damage before their health bar is touched.
+    // Include shield points in the defense score so the AI correctly prefers
+    // unshielded targets over shielded ones at similar health.
+    if (target.isShielded && (target.shieldPoints ?? 0) > 0) {
+      defense += target.shieldPoints!;
+    }
+
     // Retake discount logic
     if (target.faction === 'neutral' && target.previousOwner === faction && (target.rebellionBonus || 0) > 0) {
       defense -= 20;
@@ -1875,11 +1886,12 @@ export class AIController {
     }
 
     // ── Over-defended penalty: target is clearly too strong ────────────────
-    // If defense > our combined source force, heavily penalise this target
-    // so the AI pivots to something it can actually win.
+    // Only applies to ENEMY planets — NOT neutral planets.
+    // Neutrals are unshielded and always conquerable given enough force.
+    // The AI should send more units, not give up on a neutral with 5 defenders.
     const combinedForce = sourcePlanets.reduce((s, p) => s + this.getOrbitingCount(p.id, state), 0);
-    if (defense > combinedForce * 1.5 && this._difficulty !== 'easy') {
-      score -= 40; // strongly discourage suicide attacks
+    if (target.faction !== 'neutral' && defense > combinedForce * 1.5 && this._difficulty !== 'easy') {
+      score -= 40; // strongly discourage suicide attacks on ENEMY planets
     }
 
     // ── Gamma-ray risk penalty ──────────────────────────────────────────────
@@ -2029,12 +2041,25 @@ export class AIController {
       // Weakness score (lower health = easier to take)
       score += Math.max(0, 40 - neutral.health) * 0.3;
 
-      // ── Empty-planet bonus ────────────────────────────────────────────────
-      // A completely undefended neutral (health=0, no orbiters) is a free
-      // planet — strongly prioritise it over fighting anyone.
+      // ── Orbiter / defender scoring ────────────────────────────────────────
+      // Neutrals are NOT shielded and cannot regenerate lost health, so even
+      // defended neutrals are worth attacking — we just prefer the easier ones.
+      //
+      // Scoring:
+      //   0 orbiters + full health  → neutral bonus (easy target, just chip health)
+      //   0 orbiters + low health   → big bonus from weakness score above
+      //   some defenders (1-10)     → mild penalty per defender — prefer cheaper targets
+      //   many defenders (10+)      → stronger but not prohibitive penalty
+      //
+      // CRITICALLY: there is NO hard cap here. The AI can and will attack defended
+      // neutrals — it just prefers cheaper ones when equal alternatives exist.
       const orbiters = this.getOrbitingCount(neutral.id, state);
-      if (neutral.health <= 0 && orbiters === 0) {
-        score += 65; // big bonus — taking this costs nothing
+      if (orbiters === 0) {
+        // No defenders — this is a free planet (just takes health chip damage)
+        score += 30; // strong preference for zero-defender neutrals
+      } else {
+        // Each defender costs us something but doesn't make the planet untouchable
+        score -= orbiters * 2.5; // mild per-orbiter penalty: 5 defenders = -12.5
       }
 
       // ── Production value bonus ───────────────────────────────────────────
@@ -2415,17 +2440,21 @@ export class AIController {
     return best;
   }
 
-  private findBestPlanetToUpgrade(planets: PlanetData[], maxUpgrade: UpgradeLevel): PlanetData | null {
+  private findBestPlanetToUpgrade(planets: PlanetData[], maxUpgrade: UpgradeLevel, shieldBonus = 0): PlanetData | null {
     let best: PlanetData | null = null;
+    let bestScore = -Infinity;
     for (const planet of planets) {
       if (planet.upgradeLevel >= maxUpgrade) continue;
-      if (best === null) { best = planet; continue; }
-      if (planet.upgradeLevel > best.upgradeLevel) {
-        best = planet;
-      } else if (
-        planet.upgradeLevel === best.upgradeLevel &&
-        planet.health > best.health
-      ) {
+      // Score = current upgrade level * 10 (higher level = more progress = worth feeding)
+      //       + health fraction (fuller planet = more efficient)
+      //       + shield bonus for shielded planets (they generate free defenders)
+      let score = planet.upgradeLevel * 10;
+      score += (planet.health / planet.maxHealth) * 5;
+      if (planet.isShielded) {
+        score += shieldBonus; // Role-specific: fortress values shields much more
+      }
+      if (score > bestScore) {
+        bestScore = score;
         best = planet;
       }
     }
