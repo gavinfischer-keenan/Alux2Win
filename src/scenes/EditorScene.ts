@@ -1448,6 +1448,7 @@ export class EditorScene {
       align-items: center;
       justify-content: center;
       z-index: 100;
+      pointer-events: auto;
     `;
 
     const dialog = document.createElement('div');
@@ -1619,6 +1620,7 @@ export class EditorScene {
       align-items: center;
       justify-content: center;
       z-index: 100;
+      pointer-events: auto;
     `;
 
     const dialog = document.createElement('div');
