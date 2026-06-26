@@ -207,11 +207,14 @@ export class ProductionSystem {
   // ---- Neutral Surprise Attacks ----
 
   private _triggerNeutralAttacks(state: GameState): void {
+    // Count orbiting neutral particles per neutral planet
     const neutralOrbiters = new Map<string, ParticleData[]>();
 
-    // Collect orbiters for neutral planets
     for (const p of state.particles) {
       if (!p.alive || p.mode !== 'orbiting' || p.faction !== 'neutral') continue;
+      // Only count particles whose home planet is still neutral
+      const home = state.planets.get(p.homePlanetId);
+      if (!home || home.faction !== 'neutral') continue;
       let list = neutralOrbiters.get(p.homePlanetId);
       if (!list) { list = []; neutralOrbiters.set(p.homePlanetId, list); }
       list.push(p);
@@ -222,7 +225,7 @@ export class ProductionSystem {
         const home = state.planets.get(planetId);
         if (!home) continue;
 
-        // Find nearest non-neutral planet
+        // Find nearest non-neutral planet to attack
         let nearestPlanet: PlanetData | null = null;
         let bestDistSq = Infinity;
         for (const target of state.planets.values()) {
@@ -235,15 +238,17 @@ export class ProductionSystem {
         }
 
         if (nearestPlanet) {
-          // Send 35 particles in a surprise attack
+          // Send 35 particles in a surprise attack — 'traveling' is the valid mode for en-route units
           const attackGroup = orbiters.slice(0, 35);
           for (const p of attackGroup) {
-            p.mode = 'attacking';
+            p.mode = 'traveling';   // was incorrectly set to 'attacking' which is not a valid ParticleMode
             p.targetPlanetId = nearestPlanet.id;
             p.targetX = nearestPlanet.x;
             p.targetY = nearestPlanet.y;
+            p.orbitAngle = undefined;
+            p.orbitRadius = undefined;
             p.orbitTimer = 0;
-            // Add a small deploy timer offset so they launch in a stream like normal deploys
+            // Stagger launch like a normal deploy
             p.deployTimer = Math.random() * 0.5;
           }
         }
