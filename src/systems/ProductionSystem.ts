@@ -20,6 +20,7 @@ export class ProductionSystem {
   update(dt: number, state: GameState): void {
     this._produceParticles(dt, state);
     this._formComposites(state);
+    this._triggerNeutralAttacks(state);
   }
 
   resetPlanet(planetId: string): void {
@@ -201,6 +202,53 @@ export class ProductionSystem {
 
     // Add new 5X particles
     for (const c of newComposites) state.particles.push(c);
+  }
+
+  // ---- Neutral Surprise Attacks ----
+
+  private _triggerNeutralAttacks(state: GameState): void {
+    const neutralOrbiters = new Map<string, ParticleData[]>();
+
+    // Collect orbiters for neutral planets
+    for (const p of state.particles) {
+      if (!p.alive || p.mode !== 'orbiting' || p.faction !== 'neutral') continue;
+      let list = neutralOrbiters.get(p.homePlanetId);
+      if (!list) { list = []; neutralOrbiters.set(p.homePlanetId, list); }
+      list.push(p);
+    }
+
+    for (const [planetId, orbiters] of neutralOrbiters.entries()) {
+      if (orbiters.length >= 40) {
+        const home = state.planets.get(planetId);
+        if (!home) continue;
+
+        // Find nearest non-neutral planet
+        let nearestPlanet: PlanetData | null = null;
+        let bestDistSq = Infinity;
+        for (const target of state.planets.values()) {
+          if (target.faction === 'neutral') continue;
+          const distSq = (target.x - home.x) ** 2 + (target.y - home.y) ** 2;
+          if (distSq < bestDistSq) {
+            bestDistSq = distSq;
+            nearestPlanet = target;
+          }
+        }
+
+        if (nearestPlanet) {
+          // Send 35 particles in a surprise attack
+          const attackGroup = orbiters.slice(0, 35);
+          for (const p of attackGroup) {
+            p.mode = 'attacking';
+            p.targetPlanetId = nearestPlanet.id;
+            p.targetX = nearestPlanet.x;
+            p.targetY = nearestPlanet.y;
+            p.orbitTimer = 0;
+            // Add a small deploy timer offset so they launch in a stream like normal deploys
+            p.deployTimer = Math.random() * 0.5;
+          }
+        }
+      }
+    }
   }
 
   // ---- Spawn helpers ----
