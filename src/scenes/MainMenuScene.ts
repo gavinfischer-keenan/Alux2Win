@@ -232,15 +232,15 @@ export class MainMenuScene {
     const scrollContainer = document.createElement('div');
     scrollContainer.className = 'galaxy-scroller';
     scrollContainer.style.cssText = `
-      display: grid;
-      grid-template-rows: 260px 260px;
-      grid-auto-flow: column;
-      grid-auto-columns: 280px;
-      gap: 20px 24px;
+      display: flex;
+      flex-direction: row;
+      gap: 20px;
       overflow-x: auto;
       overflow-y: hidden;
       padding: 10px 10px 30px 10px;
       width: 100%;
+      height: 100%;
+      box-sizing: border-box;
     `;
     this._scrollContainer = scrollContainer;
 
@@ -317,6 +317,7 @@ export class MainMenuScene {
       const backTile = document.createElement('div');
       backTile.className = 'menu-anim-child';
       backTile.style.cssText = `
+        flex: 0 0 140px;
         height: 100%;
         background: rgba(255, 255, 255, 0.05);
         border: 1px dashed rgba(255, 255, 255, 0.3);
@@ -353,6 +354,8 @@ export class MainMenuScene {
       tile.className = 'menu-anim-child';
       
       tile.style.cssText = `
+        flex: 1;
+        min-width: 180px;
         height: 100%;
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.1);
