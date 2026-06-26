@@ -1753,7 +1753,8 @@ export class AIController {
 
     if (!inGrowthPause && !earlyGameBlocked && !emergencyBlocksAttack && (sourcePlanets.length > 0 || stationedParticleIds.length > 0)) {
       const opportunityTarget = this._findOpportunityTarget(faction, sourcePlanets, state, stationedParticleIds.length);
-      if (opportunityTarget !== null) {
+      // Hard gate: never deploy to a planet the gamma ray is firing on or about to fire on
+      if (opportunityTarget !== null && getGammaRiskForPlanet(state, opportunityTarget.id, opportunityTarget.x, opportunityTarget.y) < 2) {
         const sources = this._gatherCoordinatedSources(sourcePlanets, opportunityTarget, strategy.maxSources);
         this.states.set(faction, 'attack');
         this.deployParticles(sources.length > 0 ? sources : [], opportunityTarget, deployCallback, strategy.attackFraction, stationedParticleIds, state);
@@ -1778,7 +1779,8 @@ export class AIController {
       (sourcePlanets.length > 0 || stationedParticleIds.length > 0)
     ) {
       const target = this._findBestAttackTarget(faction, sourcePlanets, state, assessment);
-      if (target !== null) {
+      // Hard gate: double-check gamma safety even after scoring (belt-and-suspenders)
+      if (target !== null && getGammaRiskForPlanet(state, target.id, target.x, target.y) < 2) {
         this.states.set(faction, 'attack');
         const sources = this._gatherCoordinatedSources(sourcePlanets, target, strategy.maxSources);
         this.deployParticles(sources.length > 0 ? sources : [], target, deployCallback, strategy.attackFraction, stationedParticleIds, state);
@@ -1802,7 +1804,8 @@ export class AIController {
         for (const src of sources) this.aggressorCooldowns.set(src.id, 2);  // short colonisation cooldown
       } else {
         const anyEnemy = this._findBestAttackTarget(faction, sourcePlanets, state, assessment);
-        if (anyEnemy !== null) {
+        // Hard gate: Branch 4 fallback attack also blocked for gamma targets
+        if (anyEnemy !== null && getGammaRiskForPlanet(state, anyEnemy.id, anyEnemy.x, anyEnemy.y) < 2) {
           this.states.set(faction, 'attack');
           const sources = this._gatherCoordinatedSources(sourcePlanets, anyEnemy, strategy.maxSources);
           this.deployParticles(sources.length > 0 ? sources : [], anyEnemy, deployCallback, strategy.attackFraction, stationedParticleIds, state);
@@ -1880,15 +1883,17 @@ export class AIController {
     }
 
     // ── Gamma-ray risk penalty ──────────────────────────────────────────────
-    // Penalise targets that are on a gamma-ray path. Attacking a planet that
-    // is about to be wiped wastes units and cedes any captured territory.
-    //   Risk 3 (firing now)  → -Infinity, never send units into an active beam
-    //   Risk 2 (imminent ≤10s) → -60, strong deterrent
-    //   Risk 1 (locked, >10s)  → -20, mild bias toward safer planets
+    // Planets on the gamma path are worthless to attack — you'll lose the
+    // units AND the capture. Safe planets (risk 0) get an explicit bonus to
+    // make them clearly better options.
+    //   Risk 3 (firing now)      → -Infinity: hard block, never send units here
+    //   Risk 2 (imminent ≤10s)   → -Infinity: guaranteed loss before arrival
+    //   Risk 1 (locked, >10s)    → -40: strong bias away
+    //   Risk 0 (safe)            → +30: positive incentive to pick safe planets
     const gammaRisk = getGammaRiskForPlanet(state, target.id, target.x, target.y);
-    if (gammaRisk === 3) return -Infinity; // actively firing — never target this
-    if (gammaRisk === 2) score -= 60;      // will fire imminently
-    if (gammaRisk === 1) score -= 20;      // will fire eventually
+    if (gammaRisk >= 2) return -Infinity; // firing now or imminent — hard block
+    if (gammaRisk === 1) score -= 40;     // will fire eventually
+    if (gammaRisk === 0) score += 30;     // explicitly reward safe planets
 
     // Value bonus (higher upgrade = more valuable to capture)
     score += target.upgradeLevel * 15; // +15 / +30 / +45
@@ -1953,29 +1958,37 @@ export class AIController {
         }
       }
       if (weakestFaction) {
-        // Score only planets belonging to the weakest faction
+        // Score only planets belonging to the weakest faction.
+        // Hard-skip any planet the gamma ray is firing on or about to fire on.
         let best: PlanetData | null = null;
         let bestScore = -Infinity;
         for (const planet of state.planets.values()) {
           if (planet.faction !== weakestFaction) continue;
           if (!this.isPlanetVisible(planet, faction, state)) continue;
+          const gr = getGammaRiskForPlanet(state, planet.id, planet.x, planet.y);
+          if (gr >= 2) continue; // hard skip — never target gamma-destined planet
           const score = this._scoreAttackTarget(planet, faction, sourcePlanets, state, assessment);
           if (score > bestScore) { bestScore = score; best = planet; }
         }
-        return best;
+        // Return null (not best) if nothing scored above -Infinity
+        return bestScore > -Infinity ? best : null;
       }
     }
 
-    // Default: score all enemy planets and pick the best
+    // Default: score all enemy planets and pick the best.
+    // Hard-skip planets the gamma ray is firing on or about to fire on.
     let best: PlanetData | null = null;
     let bestScore = -Infinity;
     for (const planet of state.planets.values()) {
       if (planet.faction === faction || planet.faction === 'neutral') continue;
       if (!this.isPlanetVisible(planet, faction, state)) continue;
+      const gr = getGammaRiskForPlanet(state, planet.id, planet.x, planet.y);
+      if (gr >= 2) continue; // hard skip — never target a planet being/about to be vaporised
       const score = this._scoreAttackTarget(planet, faction, sourcePlanets, state, assessment);
       if (score > bestScore) { bestScore = score; best = planet; }
     }
-    return best;
+    // Return null if no safe target was found (all visible planets on gamma path)
+    return bestScore > -Infinity ? best : null;
   }
 
   // -------------------------------------------------------------------------
