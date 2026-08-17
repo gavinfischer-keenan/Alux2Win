@@ -2,6 +2,8 @@
 
 A fast-paced, real-time strategy (RTS) space game where you command massive swarms of particles to conquer planets, navigate treacherous cosmic hazards, and outsmart intelligent AI opponents.
 
+> **Architecture Specification**: See [ARCHITECTURE.md](ARCHITECTURE.md) for the end-to-end system design, ECS mechanics, rendering pipeline, and test mapping.
+
 ## 🚀 Features
 
 * **Massive Swarm Combat**: Command thousands of individual particles rendered seamlessly using WebGL. Particles automatically form composite swarms for stronger attacks and break apart when damaged.
