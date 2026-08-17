@@ -45,6 +45,13 @@ class TestSystemsContracts:
         assert "AIController" in content
         assert "update" in content or "think" in content or "evaluate" in content or "decide" in content
 
+    def test_ai_strategies_contract(self):
+        strategies_file = SRC_DIR / "ai" / "AIStrategies.ts"
+        assert strategies_file.exists(), "src/ai/AIStrategies.ts must exist"
+        content = strategies_file.read_text(encoding="utf-8")
+        assert "export" in content
+        assert "executeBerserkerStrategy" in content or "Strategy" in content
+
     def test_types_definitions(self):
         types_file = SRC_DIR / "types.ts"
         assert types_file.exists()

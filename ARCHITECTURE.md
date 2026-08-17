@@ -43,10 +43,11 @@ graph TD
 * **`GammaRaySystem` & `AsteroidSystem` (`src/systems`)**: Dynamic obstacle simulation and cataclysmic zone management.
 
 ### 2.3 Artificial Intelligence Subsystem (`src/ai`)
-* **`AIController` (`src/ai/AIController.ts`)**: Evaluates global game state, planet ownership balance, and threat matrices.
-* **Strategic Profiles**:
-  * *Berserker*: Prioritizes aggressive forward deployment and maximum swarm concentration.
-  * *Dominator*: Focuses on resource capture, planet fortification, and tactical expansion.
+* **`AIController` (`src/ai/AIController.ts`)**: Evaluates global game state, planet ownership balance, and orchestrates personality-driven execution.
+* **`AIStrategies` (`src/ai/AIStrategies.ts`)**: Modular strategy executors:
+  * *Berserker*: Prioritizes aggressive forward deployment and maximum swarm concentration (`executeBerserkerStrategy`).
+  * *Dominator*: Focuses on resource capture, planet fortification, and tactical expansion (`executeDominatorStrategy`).
+  * *Expander & Balanced*: Dynamic territorial defense and calculated risk maneuvers.
 * **Hazard Avoidance**: Vector steering around black hole gravity wells and plasma storm boundaries.
 
 ### 2.4 Scene Management & Level Editor (`src/scenes`, `src/levels`, `src/ui`)
