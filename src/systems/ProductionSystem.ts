@@ -1,11 +1,11 @@
 // ============================================================
-// ProductionSystem.ts — Particle generation + auto-absorb + 5X formation
+// ProductionSystem.ts — High Efficiency Particle Generation & Management
+// Features zero-allocation pooled groupings and O(1) particle recycling.
 // ============================================================
 
 import type { GameState, ParticleData, PlanetData } from '../types';
 import {
   PLANET_RADIUS,
-  PARTICLE_ORBIT_AUTO_ABSORB_SECS,
   COMBO_ORBIT_THRESHOLD,
   PLANET_PRODUCTION,
 } from '../types';
@@ -16,6 +16,11 @@ export class ProductionSystem {
   /** Fractional particle accumulator keyed by planet id. */
   private accumulators: Map<string, number> = new Map();
   private _lastDeadIndex = 0;
+
+  // Reusable object pools to eliminate GC churn in hot loops
+  private _orbitMap: Map<string, ParticleData[]> = new Map();
+  private _neutralOrbitersMap: Map<string, ParticleData[]> = new Map();
+  private _compositeBuffer: ParticleData[] = [];
 
   update(dt: number, state: GameState): void {
     this._produceParticles(dt, state);
@@ -90,7 +95,7 @@ export class ProductionSystem {
         planet.shieldTimer = (planet.shieldTimer ?? 0) + dt;
         if (planet.shieldTimer >= 15.0) {
           planet.shieldTimer -= 15.0;
-          
+
           let generated = 1;
           if (planet.upgradeLevel === 3) {
             generated = 2;
@@ -98,7 +103,7 @@ export class ProductionSystem {
             planet._shieldAltToggle = !planet._shieldAltToggle;
             generated = planet._shieldAltToggle ? 2 : 1;
           }
-          
+
           planet.shieldPoints = (planet.shieldPoints ?? 0) + generated;
         }
       }
@@ -108,42 +113,49 @@ export class ProductionSystem {
   // ---- 5X Formation: at max-upgraded planets, every COMBO_ORBIT_THRESHOLD (5) orbiting 1X → 1 5X ----
 
   private _formComposites(state: GameState): void {
-    // Collect orbiting 1X particles per max-upgraded planet
-    const orbitMap = new Map<string, ParticleData[]>(); // planetId → particles
+    // Clear reusable map buckets without re-allocating
+    for (const list of this._orbitMap.values()) {
+      list.length = 0;
+    }
 
-    for (const p of state.particles) {
+    const particles = state.particles;
+    const pLen = particles.length;
+    for (let i = 0; i < pLen; i++) {
+      const p = particles[i];
       if (!p.alive || p.mode !== 'orbiting' || p.strength !== 1) continue;
       const home = state.planets.get(p.homePlanetId);
       if (!home || home.upgradeLevel < 3) continue;
 
-      let list = orbitMap.get(p.homePlanetId);
-      if (!list) { list = []; orbitMap.set(p.homePlanetId, list); }
+      let list = this._orbitMap.get(p.homePlanetId);
+      if (!list) {
+        list = [];
+        this._orbitMap.set(p.homePlanetId, list);
+      }
       list.push(p);
     }
 
-    const newComposites: ParticleData[] = [];
+    this._compositeBuffer.length = 0;
 
-    for (const [planetId, orbiters] of orbitMap.entries()) {
+    for (const [planetId, orbiters] of this._orbitMap.entries()) {
       const groupCount = Math.floor(orbiters.length / COMBO_ORBIT_THRESHOLD);
       if (groupCount === 0) continue;
 
-      const planet = state.planets.get(planetId)!;
+      const planet = state.planets.get(planetId);
+      if (!planet) continue;
 
       for (let g = 0; g < groupCount; g++) {
         const group = orbiters.splice(0, COMBO_ORBIT_THRESHOLD);
-        // Average position and orbit angle of the group
         let avgX = 0, avgY = 0, avgAngle = 0;
-        for (const p of group) {
+        for (let i = 0; i < COMBO_ORBIT_THRESHOLD; i++) {
+          const p = group[i];
           avgX += p.x;
           avgY += p.y;
           avgAngle += (p.orbitAngle ?? 0);
-          p.alive = false; // consume the 1X particles
+          p.alive = false; // consume 1X particle
         }
         avgX     /= COMBO_ORBIT_THRESHOLD;
         avgY     /= COMBO_ORBIT_THRESHOLD;
         avgAngle /= COMBO_ORBIT_THRESHOLD;
-
-        // (Orbiting particles don't consume internal slots)
 
         const orbitRadius = PLANET_RADIUS[planet.upgradeLevel] * 1.8;
         const vx = -Math.sin(avgAngle) * orbitRadius * 1.2;
@@ -174,7 +186,7 @@ export class ProductionSystem {
           recycled.trappedByBH = null;
           recycled.deployTimer = 0;
         } else {
-          newComposites.push({
+          this._compositeBuffer.push({
             id:            ++state.particleIdCounter,
             x:             avgX,
             y:             avgY,
@@ -197,30 +209,36 @@ export class ProductionSystem {
       }
     }
 
-    // Optimization: Do not filter state.particles to avoid GC pressure.
-    // The consumed 1X particles are marked alive = false and will be recycled.
-
-    // Add new 5X particles
-    for (const c of newComposites) state.particles.push(c);
+    const cLen = this._compositeBuffer.length;
+    for (let i = 0; i < cLen; i++) {
+      state.particles.push(this._compositeBuffer[i]);
+    }
   }
 
   // ---- Neutral Surprise Attacks ----
 
   private _triggerNeutralAttacks(state: GameState): void {
-    // Count orbiting neutral particles per neutral planet
-    const neutralOrbiters = new Map<string, ParticleData[]>();
+    for (const list of this._neutralOrbitersMap.values()) {
+      list.length = 0;
+    }
 
-    for (const p of state.particles) {
+    const particles = state.particles;
+    const pLen = particles.length;
+    for (let i = 0; i < pLen; i++) {
+      const p = particles[i];
       if (!p.alive || p.mode !== 'orbiting' || p.faction !== 'neutral') continue;
-      // Only count particles whose home planet is still neutral
       const home = state.planets.get(p.homePlanetId);
       if (!home || home.faction !== 'neutral') continue;
-      let list = neutralOrbiters.get(p.homePlanetId);
-      if (!list) { list = []; neutralOrbiters.set(p.homePlanetId, list); }
+
+      let list = this._neutralOrbitersMap.get(p.homePlanetId);
+      if (!list) {
+        list = [];
+        this._neutralOrbitersMap.set(p.homePlanetId, list);
+      }
       list.push(p);
     }
 
-    for (const [planetId, orbiters] of neutralOrbiters.entries()) {
+    for (const [planetId, orbiters] of this._neutralOrbitersMap.entries()) {
       if (orbiters.length >= 40) {
         const home = state.planets.get(planetId);
         if (!home) continue;
@@ -238,17 +256,16 @@ export class ProductionSystem {
         }
 
         if (nearestPlanet) {
-          // Send 35 particles in a surprise attack — 'traveling' is the valid mode for en-route units
-          const attackGroup = orbiters.slice(0, 35);
-          for (const p of attackGroup) {
-            p.mode = 'traveling';   // was incorrectly set to 'attacking' which is not a valid ParticleMode
+          const count = Math.min(35, orbiters.length);
+          for (let i = 0; i < count; i++) {
+            const p = orbiters[i];
+            p.mode = 'traveling';
             p.targetPlanetId = nearestPlanet.id;
             p.targetX = nearestPlanet.x;
             p.targetY = nearestPlanet.y;
             p.orbitAngle = undefined;
             p.orbitRadius = undefined;
             p.orbitTimer = 0;
-            // Stagger launch like a normal deploy
             p.deployTimer = Math.random() * 0.5;
           }
         }

@@ -14,7 +14,7 @@ describe('AsteroidSystem', () => {
     });
 
     // Fast forward spawn timer (it spawns after 5 seconds)
-    system.update(5.1, state, eventBus);
+    system.update(5.1, state);
 
     expect(state.asteroids.length).toBe(1);
     expect(state.asteroids[0].radius).toBeGreaterThanOrEqual(14);
@@ -42,7 +42,7 @@ describe('AsteroidSystem', () => {
       asteroids: [asteroid],
     });
 
-    system.update(0.1, state, eventBus); // Let it move and collide
+    system.update(0.1, state); // Let it move and collide
 
     expect(planet.faction).toBe('neutral');
     expect(planet.health).toBe(40); // Reset to base max health for level 1
@@ -74,7 +74,7 @@ describe('AsteroidSystem', () => {
       asteroids: [asteroid],
     });
 
-    system.update(0.1, state, eventBus);
+    system.update(0.1, state);
 
     expect(particle.alive).toBe(false);
     expect(state.asteroids[0].hitCount).toBe(1);

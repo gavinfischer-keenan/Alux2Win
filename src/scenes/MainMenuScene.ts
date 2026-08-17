@@ -34,6 +34,7 @@ import type { GameSettings } from '../core/SettingsStore';
 import { audioManager } from '../core/AudioManager';
 import type { GameSpeed } from '../ui/PauseMenu';
 import { LevelStore } from '../core/LevelStore';
+import { LevelSerializer } from '../levels/LevelSerializer';
 import { HighScoreStore } from '../core/HighScoreStore';
 import { generateRandomLevel } from '../utils/RandomLevelGenerator';
 
@@ -1678,27 +1679,10 @@ export class MainMenuScene {
           this.onOpenEditor(level);
         });
 
-        const saveBtn = createBtn('💾', 'Save to Source Code', '34, 197, 94', (e) => {
+        const saveBtn = createBtn('💾', 'Export JSON File', '79, 195, 247', (e) => {
           e.stopPropagation();
           audioManager.playClick();
-          const originalText = saveBtn.textContent;
-          saveBtn.textContent = '...';
-          fetch('/api/save-level', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(level)
-          }).then(res => res.json()).then(res => {
-            if (res.success) {
-              alert('Level successfully saved to src/levels/' + res.file + '!');
-              saveBtn.textContent = originalText;
-            } else {
-              alert('Error saving to source: ' + res.error);
-              saveBtn.textContent = originalText;
-            }
-          }).catch(err => {
-            alert('Network error: ' + err);
-            saveBtn.textContent = originalText;
-          });
+          LevelSerializer.downloadLevel(level, level.name || 'custom_level');
         });
 
         controls.appendChild(saveBtn);

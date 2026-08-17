@@ -10,7 +10,7 @@ describe('MovementSystem', () => {
 
   const createGameState = (planets: Partial<PlanetData>[] = [], particles: Partial<ParticleData>[] = []): GameState => {
     return createMockGameState({
-      planets: new Map(planets.map(p => [p.id, p as PlanetData])),
+      planets: new Map(planets.map(p => [p.id as string, p as PlanetData])),
       particles: particles as ParticleData[],
       particleIdCounter: particles.length,
     });

@@ -1,5 +1,6 @@
 // ============================================================
-// SpatialHash.ts — Grid-based spatial hash for O(1) particle lookups
+// SpatialHash.ts — High Performance Grid Spatial Hash
+// Features O(1) active/dirty bucket tracking for zero-cost frame clears.
 // ============================================================
 
 import type { ParticleData } from '../types';
@@ -13,29 +14,32 @@ export class SpatialHash {
   private readonly cellSize: number;
   private readonly cols: number;
   private readonly rows: number;
-  private buckets: ParticleData[][];
+  private readonly buckets: ParticleData[][];
+  private readonly dirtyIndices: number[] = [];
 
   /**
    * Two call signatures are supported:
-   *   new SpatialHash(cellSize)                       — world defaults to 8192×8192
+   *   new SpatialHash(cellSize)                       — world defaults to 2048×2048
    *   new SpatialHash(worldWidth, worldHeight, cellSize)
    */
   constructor(
-    worldWidthOrCellSize: number,
-    worldHeight: number = 8192,
+    worldWidthOrCellSize: number = 32,
+    worldHeight: number = 2048,
     cellSize: number = 32
   ) {
-    // Single-argument form: treat first arg as cellSize.
-    if (arguments.length === 1) {
+    let width = 2048;
+    let height = 2048;
+
+    if (arguments.length === 1 && worldWidthOrCellSize <= 128) {
       this.cellSize = worldWidthOrCellSize;
-      const side = 8192;
-      this.cols = Math.ceil(side / this.cellSize);
-      this.rows = Math.ceil(side / this.cellSize);
     } else {
       this.cellSize = cellSize;
-      this.cols = Math.ceil(worldWidthOrCellSize / cellSize);
-      this.rows = Math.ceil(worldHeight / cellSize);
+      width = worldWidthOrCellSize;
+      height = worldHeight;
     }
+
+    this.cols = Math.ceil(width / this.cellSize);
+    this.rows = Math.ceil(height / this.cellSize);
 
     const numCells = this.cols * this.rows;
     this.buckets = new Array(numCells);
@@ -53,12 +57,14 @@ export class SpatialHash {
     return Math.max(0, Math.min(this.rows - 1, Math.floor(y / this.cellSize)));
   }
 
-  /** Reset all buckets. Must be called at the start of each frame. */
+  /** Reset only populated buckets. O(active_cells) instead of O(total_cells). */
   clear(): void {
-    const numCells = this.cols * this.rows;
-    for (let i = 0; i < numCells; i++) {
-      this.buckets[i].length = 0;
+    const dirty = this.dirtyIndices;
+    const len = dirty.length;
+    for (let i = 0; i < len; i++) {
+      this.buckets[dirty[i]].length = 0;
     }
+    dirty.length = 0;
   }
 
   /** Insert a particle into its appropriate cell. */
@@ -66,7 +72,11 @@ export class SpatialHash {
     const cx = this.cellX(particle.x);
     const cy = this.cellY(particle.y);
     const idx = cx * this.rows + cy;
-    this.buckets[idx].push(particle);
+    const bucket = this.buckets[idx];
+    if (bucket.length === 0) {
+      this.dirtyIndices.push(idx);
+    }
+    bucket.push(particle);
   }
 
   /**
@@ -83,7 +93,8 @@ export class SpatialHash {
     for (let cx = minCX; cx <= maxCX; cx++) {
       for (let cy = minCY; cy <= maxCY; cy++) {
         const bucket = this.buckets[cx * this.rows + cy];
-        for (let i = 0; i < bucket.length; i++) {
+        const bLen = bucket.length;
+        for (let i = 0; i < bLen; i++) {
           out.push(bucket[i]);
         }
       }
@@ -106,7 +117,8 @@ export class SpatialHash {
         const ny = cy + dy;
         if (nx < 0 || nx >= this.cols || ny < 0 || ny >= this.rows) continue;
         const bucket = this.buckets[nx * this.rows + ny];
-        for (let i = 0; i < bucket.length; i++) {
+        const bLen = bucket.length;
+        for (let i = 0; i < bLen; i++) {
           out.push(bucket[i]);
         }
       }

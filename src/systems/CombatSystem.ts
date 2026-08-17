@@ -160,7 +160,7 @@ export class CombatSystem {
                   // Attacking the current colonizer's progress!
                   // Heal the planet back towards originalNeutralHealth
                   planet.health += dmg;
-                  if (planet.faction === 'player' || particle.faction === 'player' || planet.colonizer === 'player') {
+                  if (particle.faction === 'player' || planet.colonizer === 'player') {
                      audioManager.playCombatEngage();
                   }
 

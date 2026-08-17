@@ -131,7 +131,7 @@ describe('CombatSystem', () => {
     const particle = createMockParticle({
       id: 1, x: 100, y: 100, vx: 0, vy: 0,
       faction: 'player', mode: 'traveling', targetPlanetId: 'p1',
-      alive: true, strength: 3, homePlanetId: 'p2',
+      alive: true, strength: 5, homePlanetId: 'p2',
     });
 
     const state = createMockGameState({
@@ -141,8 +141,8 @@ describe('CombatSystem', () => {
 
     system.update(state, eventBus);
 
-    // Planet healed by 3
-    expect(planet.health).toBe(23);
+    // Planet healed by 5
+    expect(planet.health).toBe(25);
     // Still neutral — not captured
     expect(planet.faction).toBe('neutral');
     // Colonizer still enemy_a (player didn't overcome them yet)

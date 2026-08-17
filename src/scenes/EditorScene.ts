@@ -26,8 +26,8 @@ import {
   FACTION_COLORS,
   FACTION_COLORS_HEX,
 } from '../types';
-import { Renderer }        from '../engine/Renderer';
-import { EventBus }        from '../engine/EventBus';
+import { Renderer }        from '../core/Renderer';
+import { EventBus }        from '../core/EventBus';
 import { EditorSidebar, EditorTool } from '../ui/EditorSidebar';
 import { PropertiesPanel } from '../ui/PropertiesPanel';
 import { LevelStore }      from '../core/LevelStore';
@@ -1546,8 +1546,8 @@ export class EditorScene {
     cancelBtn.onclick = () => overlay.remove();
 
     const exportBtn = document.createElement('button');
-    exportBtn.textContent = 'Save to Local (Browser + JSON)';
-    exportBtn.style.cssText = 'padding: 8px 16px; background: rgba(79, 195, 247, 0.3); border: 1px solid #4fc3f7; color: #4fc3f7; border-radius: 4px; cursor: pointer;';
+    exportBtn.textContent = '💾 Save & Export JSON';
+    exportBtn.style.cssText = 'padding: 8px 16px; background: rgba(79, 195, 247, 0.3); border: 1px solid #4fc3f7; color: #4fc3f7; border-radius: 4px; cursor: pointer; font-weight: 600;';
     exportBtn.onclick = () => {
       this.editState.levelName = nameField.input.value;
       this.editState.category = catSelect.value || 'Custom';
@@ -1561,45 +1561,24 @@ export class EditorScene {
       overlay.remove();
     };
 
-    const saveBtn = document.createElement('button');
-    saveBtn.textContent = 'Save to Source Code';
-    saveBtn.style.cssText = 'padding: 8px 16px; background: rgba(34, 197, 94, 0.3); border: 1px solid #22c55e; color: #22c55e; border-radius: 4px; cursor: pointer;';
-    saveBtn.onclick = () => {
+    const saveLocalBtn = document.createElement('button');
+    saveLocalBtn.textContent = 'Save to My Levels';
+    saveLocalBtn.style.cssText = 'padding: 8px 16px; background: rgba(34, 197, 94, 0.3); border: 1px solid #22c55e; color: #22c55e; border-radius: 4px; cursor: pointer; font-weight: 600;';
+    saveLocalBtn.onclick = () => {
       this.editState.levelName = nameField.input.value;
       this.editState.category = catSelect.value || 'Custom';
       const ld = this.buildLevelData();
       ld.category = this.editState.category;
-      
-      const originalText = saveBtn.textContent;
-      saveBtn.textContent = 'Saving...';
-      
-      fetch('/api/save-level', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ld)
-      })
-      .then(res => res.json())
-      .then(res => {
-        if (res.success) {
-          if ((this.sidebar as any).setLevelName) {
-            (this.sidebar as any).setLevelName(this.editState.levelName);
-          }
-          overlay.remove();
-          alert('Level successfully saved to src/levels/' + res.file + '!');
-        } else {
-          alert('Error saving to source: ' + res.error);
-          saveBtn.textContent = originalText;
-        }
-      })
-      .catch(err => {
-        alert('Network error saving to source: ' + err);
-        saveBtn.textContent = originalText;
-      });
+      LevelStore.saveLevel(ld);
+      if ((this.sidebar as any).setLevelName) {
+        (this.sidebar as any).setLevelName(this.editState.levelName);
+      }
+      overlay.remove();
     };
 
     btnContainer.appendChild(cancelBtn);
+    btnContainer.appendChild(saveLocalBtn);
     btnContainer.appendChild(exportBtn);
-    btnContainer.appendChild(saveBtn);
     dialog.appendChild(btnContainer);
 
     overlay.appendChild(dialog);

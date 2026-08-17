@@ -30,12 +30,12 @@ import { SettingsStore }    from '../core/SettingsStore';
 import { HighScoreStore }   from '../core/HighScoreStore';
 import type { GameStats }   from '../core/HighScoreStore';
 
-// ── Engine imports ───────────────────────────────────────────
-import { Renderer }        from '../engine/Renderer';
-import { EventBus }        from '../engine/EventBus';
-import { GameLoop }        from '../engine/GameLoop';
-import { InputManager }    from '../engine/InputManager';
-import { SpatialHash }     from '../engine/SpatialHash';
+// ── Core imports ─────────────────────────────────────────────
+import { Renderer }        from '../core/Renderer';
+import { EventBus }        from '../core/EventBus';
+import { GameLoop }        from '../core/GameLoop';
+import { InputManager }    from '../core/InputManager';
+import { SpatialHash }     from '../core/SpatialHash';
 
 // ── System imports ───────────────────────────────────────────
 import { OrbitSystem }               from '../systems/OrbitSystem';
@@ -61,8 +61,8 @@ import { TutorialController } from '../tutorial/TutorialController';
 
 // ── Entity imports ────────────────────────────────────────────
 import { Planet }                       from '../entities/Planet';
-import { ParticleRenderer }             from '../entities/ParticleRenderer';
-import { BlackHoleEntity }              from '../entities/BlackHoleEntity';
+import { ParticleRenderer }             from '../entities/Particle';
+import { BlackHoleEntity }              from '../entities/BlackHole';
 
 import { AsteroidRenderer }             from '../entities/AsteroidEntity';
 import { GammaRayRenderer }             from '../entities/GammaRayRenderer';
