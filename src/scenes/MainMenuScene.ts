@@ -149,10 +149,10 @@ export class MainMenuScene {
     titleWrapper.className = 'menu-anim-child';
 
     const title = document.createElement('h1');
-    title.textContent = 'LUX';
+    title.textContent = 'Pea Puffer';
     title.style.cssText = `
       font-family: 'Orbitron', sans-serif;
-      font-size: clamp(3rem, 6vw, 4.5rem);
+      font-size: clamp(2.2rem, 4vw, 3.2rem);
       font-weight: 900;
       color: #4fc3f7;
       letter-spacing: 0.15em;
@@ -162,7 +162,7 @@ export class MainMenuScene {
     `;
 
     const subtitle = document.createElement('div');
-    subtitle.textContent = 'Choose your Galaxy';
+    subtitle.textContent = 'Lux · Choose your galaxy';
     subtitle.style.cssText = `
       font-family: 'Rajdhani', sans-serif;
       font-size: 1.1rem;
@@ -172,8 +172,16 @@ export class MainMenuScene {
       margin-top: 6px;
     `;
 
-    titleWrapper.appendChild(title);
-    titleWrapper.appendChild(subtitle);
+    titleWrapper.style.cssText = 'display:flex;align-items:center;gap:16px';
+    const animalLogo = document.createElement('img');
+    animalLogo.src = `${import.meta.env.BASE_URL}brand/pea-puffer-logo.jpg`;
+    animalLogo.alt = 'Pea Puffer logo';
+    animalLogo.style.cssText = 'width:84px;height:84px;object-fit:contain;border-radius:50%;background:white';
+    const titleText = document.createElement('div');
+    titleText.appendChild(title);
+    titleText.appendChild(subtitle);
+    titleWrapper.appendChild(animalLogo);
+    titleWrapper.appendChild(titleText);
     header.appendChild(titleWrapper);
 
     // ── Aux Buttons (Settings, Editor, Import) ──────────────
@@ -254,18 +262,18 @@ export class MainMenuScene {
     });
 
     const singleHazards = [
-      { name: 'Asteroids',     desc: 'Asteroids fly through space killing all they touch except the most developed planets. Big Rock Bad', image: '/assets/galaxies/asteroid.png',  locked: false, tutorialId: 'asteroids',  levels: [tutorialAsteroidsData as LevelData, ...(customGroups['Asteroids'] || [])], isTutorial: false },
-      { name: 'Gamma Rays',    desc: 'Intense bursts of radiation that frequently sweep the system, destroying caught units and planets.', image: '/assets/galaxies/nebula.png',    locked: false, tutorialId: 'gamma',      levels: [tutorialGammaData as LevelData, dmzData as LevelData, orbitsHurtData as LevelData, ...(customGroups['Gamma Rays'] || [])], isTutorial: false },
-      { name: 'Speed Traps',   desc: 'Vast zones of accelerated space. Use them to launch surprise attacks across the map.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: 'speedTraps', levels: [tutorialSpeedData as unknown as LevelData, ...(customGroups['Speed Traps'] || [])], isTutorial: false },
-      { name: 'Portals',       desc: 'Instantaneous travel across the system. Send units into one portal to emerge at the exit.', image: '/assets/galaxies/lava.png',      locked: false, tutorialId: 'portals',    levels: [tutorialPortalsData as LevelData, ...(customGroups['Portals'] || [])], isTutorial: false },
-      { name: 'Black Holes',   desc: 'Relentless gravity wells. They consume all particles that wander too close.', image: '/assets/galaxies/void.png',      locked: false, tutorialId: 'blackholes', levels: [tutorialBlackholesData as LevelData, yourCrushingMeData as LevelData, ...(customGroups['Black Holes'] || [])], isTutorial: false },
-      { name: 'White Holes',   desc: 'Sending units into the white hole rewards you with a valuable resource bounty.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: 'whiteholes', levels: [tutorialWhiteholesData as LevelData, aLineData as LevelData, fourthOfJulyData as LevelData, xMarksTheSpotData as unknown as LevelData, ...(customGroups['White Holes'] || [])], isTutorial: false },
-      { name: 'Shielded Planets', desc: 'Master the art of defense. Shielded planets slowly generate a protective energy barrier over time that absorbs incoming attacks.', image: '/assets/galaxies/normal.png', locked: false, tutorialId: 'shield', levels: [shielded1Data as LevelData, shielded2Data as LevelData, ...(customGroups['Shielded Planets'] || [])], isTutorial: false },
-      { name: 'Fog of War',    desc: 'The galaxy is shrouded in darkness. Upgrading your planets expands your limited vision.', image: '/assets/galaxies/nebula.png', locked: false, tutorialId: 'fogofwar', levels: [tutorialFogOfWarData as LevelData, gridOfDoomData as LevelData, notALotToSeeHereData as LevelData, ...(customGroups['Fog of War'] || [])], isTutorial: false },
+      { name: 'Asteroids',     desc: 'Asteroids fly through space killing all they touch except the most developed planets. Big Rock Bad', image: import.meta.env.BASE_URL + 'assets/galaxies/asteroid.png',  locked: false, tutorialId: 'asteroids',  levels: [tutorialAsteroidsData as LevelData, ...(customGroups['Asteroids'] || [])], isTutorial: false },
+      { name: 'Gamma Rays',    desc: 'Intense bursts of radiation that frequently sweep the system, destroying caught units and planets.', image: import.meta.env.BASE_URL + 'assets/galaxies/nebula.png',    locked: false, tutorialId: 'gamma',      levels: [tutorialGammaData as LevelData, dmzData as LevelData, orbitsHurtData as LevelData, ...(customGroups['Gamma Rays'] || [])], isTutorial: false },
+      { name: 'Speed Traps',   desc: 'Vast zones of accelerated space. Use them to launch surprise attacks across the map.', image: import.meta.env.BASE_URL + 'assets/galaxies/quantum.png',   locked: false, tutorialId: 'speedTraps', levels: [tutorialSpeedData as unknown as LevelData, ...(customGroups['Speed Traps'] || [])], isTutorial: false },
+      { name: 'Portals',       desc: 'Instantaneous travel across the system. Send units into one portal to emerge at the exit.', image: import.meta.env.BASE_URL + 'assets/galaxies/lava.png',      locked: false, tutorialId: 'portals',    levels: [tutorialPortalsData as LevelData, ...(customGroups['Portals'] || [])], isTutorial: false },
+      { name: 'Black Holes',   desc: 'Relentless gravity wells. They consume all particles that wander too close.', image: import.meta.env.BASE_URL + 'assets/galaxies/void.png',      locked: false, tutorialId: 'blackholes', levels: [tutorialBlackholesData as LevelData, yourCrushingMeData as LevelData, ...(customGroups['Black Holes'] || [])], isTutorial: false },
+      { name: 'White Holes',   desc: 'Sending units into the white hole rewards you with a valuable resource bounty.', image: import.meta.env.BASE_URL + 'assets/galaxies/quantum.png',   locked: false, tutorialId: 'whiteholes', levels: [tutorialWhiteholesData as LevelData, aLineData as LevelData, fourthOfJulyData as LevelData, xMarksTheSpotData as unknown as LevelData, ...(customGroups['White Holes'] || [])], isTutorial: false },
+      { name: 'Shielded Planets', desc: 'Master the art of defense. Shielded planets slowly generate a protective energy barrier over time that absorbs incoming attacks.', image: import.meta.env.BASE_URL + 'assets/galaxies/normal.png', locked: false, tutorialId: 'shield', levels: [shielded1Data as LevelData, shielded2Data as LevelData, ...(customGroups['Shielded Planets'] || [])], isTutorial: false },
+      { name: 'Fog of War',    desc: 'The galaxy is shrouded in darkness. Upgrading your planets expands your limited vision.', image: import.meta.env.BASE_URL + 'assets/galaxies/nebula.png', locked: false, tutorialId: 'fogofwar', levels: [tutorialFogOfWarData as LevelData, gridOfDoomData as LevelData, notALotToSeeHereData as LevelData, ...(customGroups['Fog of War'] || [])], isTutorial: false },
     ];
 
     const galaxies = [
-      { name: 'Tutorial',      desc: 'Learn the basics of fleet command and cosmic hazards.', image: '/assets/galaxies/tutorial.png',  locked: false, tutorialId: 'commander', levels: [
+      { name: 'Tutorial',      desc: 'Learn the basics of fleet command and cosmic hazards.', image: import.meta.env.BASE_URL + 'assets/galaxies/tutorial.png',  locked: false, tutorialId: 'commander', levels: [
           tutorialCommanderData as LevelData,
           tutorialNormalData as LevelData,
           
@@ -277,9 +285,9 @@ export class MainMenuScene {
           tutorialWhiteholesData as LevelData,
           tutorialMovementData as LevelData,
         ], isTutorial: true },
-      { name: 'Single Hazard Universes', desc: 'Galaxies featuring exactly one extreme cosmic anomaly to master.', image: '/assets/galaxies/nebula.png', locked: false, tutorialId: '', levels: [], isTutorial: false, subcategories: singleHazards },
-      { name: 'Real Life...Many Hazards', desc: 'From straightforward skirmishes to multi-hazard chaos — this galaxy holds everything. Master the fundamentals, then survive the impossible.', image: '/assets/galaxies/void.png', locked: false, tutorialId: '', levels: [simpleGridData as LevelData, simpleSpiralData as LevelData, takingSidesInTheMatterData as LevelData, orbitsData as LevelData, ...(customGroups['Intro Missions'] || []), ...(customGroups['Dual Hazard Universes'] || []), ...(customGroups['Triple Hazard Universes'] || []), ...(customGroups['Real Life...Many Hazards'] || []), ...(customGroups['Custom'] || [])], isTutorial: false },
-      { name: 'Random',        desc: 'An unpredictable, procedurally generated system. Every battle is unique.', image: '/assets/galaxies/quantum.png',   locked: false, tutorialId: '',           levels: [], isTutorial: false },
+      { name: 'Single Hazard Universes', desc: 'Galaxies featuring exactly one extreme cosmic anomaly to master.', image: import.meta.env.BASE_URL + 'assets/galaxies/nebula.png', locked: false, tutorialId: '', levels: [], isTutorial: false, subcategories: singleHazards },
+      { name: 'Real Life...Many Hazards', desc: 'From straightforward skirmishes to multi-hazard chaos — this galaxy holds everything. Master the fundamentals, then survive the impossible.', image: import.meta.env.BASE_URL + 'assets/galaxies/void.png', locked: false, tutorialId: '', levels: [simpleGridData as LevelData, simpleSpiralData as LevelData, takingSidesInTheMatterData as LevelData, orbitsData as LevelData, ...(customGroups['Intro Missions'] || []), ...(customGroups['Dual Hazard Universes'] || []), ...(customGroups['Triple Hazard Universes'] || []), ...(customGroups['Real Life...Many Hazards'] || []), ...(customGroups['Custom'] || [])], isTutorial: false },
+      { name: 'Random',        desc: 'An unpredictable, procedurally generated system. Every battle is unique.', image: import.meta.env.BASE_URL + 'assets/galaxies/quantum.png',   locked: false, tutorialId: '',           levels: [], isTutorial: false },
     ];
 
     this.rootGalaxies = galaxies;

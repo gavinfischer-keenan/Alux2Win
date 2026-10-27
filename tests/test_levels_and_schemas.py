@@ -1,4 +1,4 @@
-"""Tests for Alux2Win level definitions and schema compliance."""
+"""Tests for Pea Puffer / Lux level definitions and schema compliance."""
 from __future__ import annotations
 
 import json

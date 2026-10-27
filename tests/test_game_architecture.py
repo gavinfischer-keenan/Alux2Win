@@ -1,4 +1,4 @@
-"""Tests for Alux2Win project structure, configuration, and architecture integrity."""
+"""Tests for Pea Puffer / Lux project structure, configuration, and architecture integrity."""
 from __future__ import annotations
 
 import json

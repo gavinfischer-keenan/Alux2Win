@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 // Type declarations for non-TS assets imported by Vite
 declare module '*.css' {
   const content: string;

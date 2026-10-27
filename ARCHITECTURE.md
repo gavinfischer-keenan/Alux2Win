@@ -1,8 +1,8 @@
-# Architecture Specification: Alux2Win (Lux)
+# Architecture Specification: Pea Puffer / Lux
 
 ## 1. Overview & System Design
 
-**Alux2Win (Lux)** is a high-performance, real-time strategy (RTS) space game built on an Entity-Component-System (ECS) architecture in TypeScript. It is designed to render and simulate thousands of particle swarm combatants simultaneously at 60 FPS using Pixi.js (WebGL) and optimized Spatial Hashing.
+**Pea Puffer / Lux** is a high-performance, real-time strategy (RTS) space game built on an Entity-Component-System (ECS) architecture in TypeScript. It is designed to render and simulate thousands of particle swarm combatants simultaneously at 60 FPS using Pixi.js (WebGL) and optimized Spatial Hashing.
 
 ```mermaid
 graph TD

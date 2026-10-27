@@ -1,4 +1,4 @@
-"""Tests for Alux2Win TypeScript systems, core components, and AI contracts."""
+"""Tests for Pea Puffer / Lux TypeScript systems, core components, and AI contracts."""
 from __future__ import annotations
 
 import re

@@ -1,4 +1,4 @@
-# Alux2Win (Lux)
+# Pea Puffer / Lux
 
 A fast-paced, real-time strategy (RTS) space game where you command massive swarms of particles to conquer planets, navigate treacherous cosmic hazards, and outsmart intelligent AI opponents.
 
@@ -40,8 +40,8 @@ To run the game locally or contribute to development:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-username/Alux2Win.git
-cd Alux2Win
+git clone https://github.com/gavinfischer-keenan/Alux2Win.git
+cd Pea Puffer / Lux
 
 # 2. Install dependencies
 npm install
