@@ -111,8 +111,13 @@ describe("simulation module contracts", () => {
       createMockParticle({ id: 6, alive: false }),
       createMockParticle({ id: 6, mode: "traveling" }),
     ];
+    for (const wave of waves) {
+      wave.faction = "player";
+      wave.targetPlanetId = "target";
+    }
+    for (const p of particles) p.targetPlanetId = "target";
     tracker.prune(waves, particles);
-    expect(waves.map((w: any) => w.particleIds)).toEqual([[1], [2, 3]]);
+    expect(waves.map((w: any) => w.particleIds)).toEqual([[1], [3]]);
     tracker.prune(waves, []);
     expect(waves).toEqual([]);
   });

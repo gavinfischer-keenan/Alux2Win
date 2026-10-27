@@ -1,3 +1,5 @@
+import {assessSituation} from './assessSituation';
+import {unitStrength,effectiveDefense,selectSurplusIds} from './ForceAssessment';
 import {WaveTracker} from './WaveTracker';
 // ============================================================
 // AIController.ts — Heuristic state-machine AI for LUX
@@ -28,7 +30,7 @@ import {
 
 export type { AIState, AISubRole, AIStrategy } from './AIStrategies';
 
-export type DeployCallback = (fromIds: string[], targetPlanetId: string, stationedParticleIds?: number[], waypointX?: number, waypointY?: number) => void;
+export type DeployCallback = (fromIds: string[], targetPlanetId: string, stationedParticleIds?: number[], waypointX?: number, waypointY?: number, fraction?: number) => void;
 
 // ---------------------------------------------------------------------------
 // AIController
@@ -338,7 +340,7 @@ export class AIController {
       const dy = planet.y - capturedPlanet.y;
       if (dx * dx + dy * dy > scanRadiusSq) continue;
 
-      const orbitCount = this.getOrbitingCount(planet.id, state);
+      const orbitCount = this.getOrbitingStrength(planet.id, state);
       const defense = planet.health + orbitCount;
 
       if (defense <= strategy.breakthroughWeaknessThreshold) {
@@ -368,7 +370,7 @@ export class AIController {
 
       // Find the best source for this target — prefer planets not already used
       const eligibleSources = ownPlanets.filter(p => {
-        const orb = this.getOrbitingCount(p.id, state);
+        const orb = this.getOrbitingStrength(p.id, state);
         return orb > HOLDBACK && !this.aggressorCooldowns.has(p.id);
       });
 
@@ -377,7 +379,7 @@ export class AIController {
       // For rear-guard surge, sort by "most particles available" rather than
       // nearest, so we drain the fat defensive planets first.
       eligibleSources.sort((a, b) =>
-        this.getOrbitingCount(b.id, state) - this.getOrbitingCount(a.id, state)
+        this.getOrbitingStrength(b.id, state) - this.getOrbitingStrength(a.id, state)
       );
 
       // Pick first unused source
@@ -434,7 +436,7 @@ export class AIController {
     let acted = false;
 
     for (const planet of ownPlanets) {
-      const orbiting = this.getOrbitingCount(planet.id, state);
+      const orbiting = this.getOrbitingStrength(planet.id, state);
       if (orbiting <= strategy.overflowThreshold) continue;
 
       // When fog blocks all targets, redirect overflow into an upgrade instead of
@@ -492,7 +494,7 @@ export class AIController {
 
       if (!isGammaDangerous(state, target.x, target.y)) {
         this.states.set(faction, isNeutral ? 'conquer_neutral' : 'attack');
-        deployCallback([planet.id], target.id);
+        this.deployParticles([planet], target, deployCallback, isNeutral ? strategy.neutralFraction : strategy.attackFraction, [], state);
         this.aggressorCooldowns.set(planet.id, cooldown);
         if (!isNeutral) this._recordAttackWave(faction, target.faction as Faction, assessment);
         console.log(`[AI] Overflow: ${faction} planet ${planet.id} (${orbiting} orbs > ${strategy.overflowThreshold}) → ${target.id}`);
@@ -701,101 +703,8 @@ export class AIController {
   // -------------------------------------------------------------------------
 
   private _assessSituation(faction: Faction, state: GameState): SituationAssessment {
-    const myPlanets = this.getOwnPlanets(faction, state);
-    let myParticles = 0;
-    let myProduction = 0;
-
-    for (const p of myPlanets) {
-      myProduction += PLANET_PRODUCTION[p.upgradeLevel];
-    }
-
-    const enemyFactions = new Map<Faction, { planets: PlanetData[]; particles: number; production: number }>();
-    let totalEnemyParticles = 0;
-    let bestEnemyProduction = 0;
-    let bestEnemyParticles = 0;
-    let strongestEnemyFaction: Faction | null = null;
-
-    // Scan planets for enemy data
-    for (const planet of state.planets.values()) {
-      if (planet.faction === 'neutral') continue;
-      if (planet.faction === faction) continue;
-      if (!enemyFactions.has(planet.faction)) {
-        enemyFactions.set(planet.faction, { planets: [], particles: 0, production: 0 });
-      }
-      const entry = enemyFactions.get(planet.faction)!;
-      entry.planets.push(planet);
-      entry.production += PLANET_PRODUCTION[planet.upgradeLevel];
-    }
-
-    // Scan particles
-    for (const p of state.particles) {
-      if (!p.alive) continue;
-      if (p.faction === faction) {
-        myParticles++;
-      } else if (p.faction !== 'neutral') {
-        totalEnemyParticles++;
-        if (enemyFactions.has(p.faction)) {
-          enemyFactions.get(p.faction)!.particles++;
-        }
-      }
-    }
-
-    // Find strongest enemy — track both by particles AND by production separately
-    let highestProductionFaction: Faction | null = null;
-    let highestProduction = 0;
-    for (const [ef, data] of enemyFactions) {
-      if (data.particles > bestEnemyParticles) {
-        bestEnemyParticles = data.particles;
-        strongestEnemyFaction = ef;
-      }
-      if (data.production > bestEnemyProduction) {
-        bestEnemyProduction = data.production;
-      }
-      if (data.production > highestProduction) {
-        highestProduction = data.production;
-        highestProductionFaction = ef;
-      }
-    }
-
-    // Collect visible neutrals
-    const neutralsAvailable: PlanetData[] = [];
-    for (const planet of state.planets.values()) {
-      if (planet.faction === 'neutral' && this.isPlanetVisible(planet, faction, state)) {
-        neutralsAvailable.push(planet);
-      }
-    }
-
-    // Detect vision blockage: fog is on AND this faction can see nothing outside its own planets
-    const fogEnabled = state.fogOfWarConfig?.enabled === true;
-    let visibleEnemyCount = 0;
-    if (fogEnabled) {
-      for (const [, data] of enemyFactions) {
-        for (const ep of data.planets) {
-          if (this.isPlanetVisible(ep, faction, state)) { visibleEnemyCount++; break; }
-        }
-      }
-    }
-    const isVisionBlocked     = fogEnabled && neutralsAvailable.length === 0 && visibleEnemyCount === 0;
-    const strategy            = this.strategies.get(faction)!;
-    const canUpgradeForVision = isVisionBlocked &&
-      myPlanets.some(p => p.upgradeLevel < strategy.maxUpgrade);
-
-    return {
-      myPlanets,
-      myParticles,
-      myProduction,
-      neutralsAvailable,
-      totalEnemyParticles,
-      bestEnemyProduction,
-      bestEnemyParticles,
-      strongestEnemyFaction,
-      highestProductionFaction,
-      productionAdvantage: bestEnemyProduction > 0 ? myProduction / bestEnemyProduction : Infinity,
-      unitAdvantage: bestEnemyParticles > 0 ? myParticles / bestEnemyParticles : Infinity,
-      enemyFactions,
-      isVisionBlocked,
-      canUpgradeForVision,
-    };
+    return assessSituation(faction, state, this.strategies.get(faction)!,
+      (target, observer, snapshot) => this.isPlanetVisible(target, observer, snapshot));
   }
 
   // -------------------------------------------------------------------------
@@ -914,10 +823,12 @@ export class AIController {
       return;
     }
 
+    const stationedIds = new Set(stationedParticleIds);
+    const stationedStrength = unitStrength(state.particles.filter(p => stationedIds.has(p.id)));
     const totalParticles = assessment.myParticles;
 
     const sourcePlanets = ownPlanets.filter(
-      (p) => this.getOrbitingCount(p.id, state) > strategy.minToDeploy &&
+      (p) => this.getOrbitingStrength(p.id, state) > strategy.minToDeploy &&
              !this.aggressorCooldowns.has(p.id),
     );
 
@@ -951,7 +862,7 @@ export class AIController {
     // neutralSourcePlanets: lower bar — for colonisation where costs are low.
     // sourcePlanets: standard bar — for attacks and upgrades.
     const neutralSourcePlanets = ownPlanets.filter(
-      (p) => this.getOrbitingCount(p.id, state) > strategy.minToDeployNeutral,
+      (p) => this.getOrbitingStrength(p.id, state) > strategy.minToDeployNeutral,
       // NOTE: aggressorCooldown intentionally NOT applied here — colonisation
       // should not be blocked by attack cooldowns on the same planet.
     );
@@ -970,8 +881,8 @@ export class AIController {
       if (backcapTarget !== null) {
         const localSource = this.nearestPlanet(sourcePlanets, backcapTarget);
         if (localSource !== null || stationedParticleIds.length > 0) {
-          const localOrbit = localSource ? this.getOrbitingCount(localSource.id, state) : 0;
-          if (localOrbit + stationedParticleIds.length > backcapTarget.health + strategy.reserveParticles) {
+          const localOrbit = localSource ? this.getOrbitingStrength(localSource.id, state) : 0;
+          if (localOrbit + stationedStrength > backcapTarget.health + strategy.reserveParticles) {
             this.states.set(faction, 'attack');
             this.deployParticles(localSource ? [localSource] : [], backcapTarget, deployCallback, strategy.attackFraction, stationedParticleIds, state);
             if (localSource) this.aggressorCooldowns.set(localSource.id, 8);
@@ -1005,7 +916,7 @@ export class AIController {
 
     // Fortress saturation: all planets are at/above garrison cap → needs to expand
     const fortressSaturated = subRole === 'fortress' && ownPlanets.length > 0 &&
-      ownPlanets.every(p => this.getOrbitingCount(p.id, state) >= 20);
+      ownPlanets.every(p => this.getOrbitingStrength(p.id, state) >= 20);
 
     let expandBias: number;
     if (earlyExpandForced || fortressSaturated) {
@@ -1095,7 +1006,7 @@ export class AIController {
     const emergencyBlocksAttack = inProductionEmergency && !isBerserker && reachableNeutrals.length > 0;
 
     if (!inGrowthPause && !earlyGameBlocked && !emergencyBlocksAttack && (sourcePlanets.length > 0 || stationedParticleIds.length > 0)) {
-      const opportunityTarget = this._findOpportunityTarget(faction, sourcePlanets, state, stationedParticleIds.length);
+      const opportunityTarget = this._findOpportunityTarget(faction, sourcePlanets, state, stationedStrength);
       // Hard gate: never deploy to a planet the gamma ray is firing on or about to fire on
       if (opportunityTarget !== null && getGammaRiskForPlanet(state, opportunityTarget.id, opportunityTarget.x, opportunityTarget.y) < 2) {
         const sources = this._gatherCoordinatedSources(sourcePlanets, opportunityTarget, strategy.maxSources);
@@ -1200,7 +1111,7 @@ export class AIController {
     }
 
     // Weakness bonus (fewer defenders = easier target)
-    const orbitersOnTarget = this.getOrbitingCount(target.id, state);
+    const orbitersOnTarget = this.getOrbitingStrength(target.id, state);
     let defense = target.health + orbitersOnTarget;
 
     // ── Shield adds real effective defense cost ────────────────────────────
@@ -1230,7 +1141,7 @@ export class AIController {
     // Only applies to ENEMY planets — NOT neutral planets.
     // Neutrals are unshielded and always conquerable given enough force.
     // The AI should send more units, not give up on a neutral with 5 defenders.
-    const combinedForce = sourcePlanets.reduce((s, p) => s + this.getOrbitingCount(p.id, state), 0);
+    const combinedForce = sourcePlanets.reduce((s, p) => s + this.getOrbitingStrength(p.id, state), 0);
     if (target.faction !== 'neutral' && defense > combinedForce * 1.5 && this._difficulty !== 'easy') {
       score -= 40; // strongly discourage suicide attacks on ENEMY planets
     }
@@ -1394,7 +1305,7 @@ export class AIController {
       //
       // CRITICALLY: there is NO hard cap here. The AI can and will attack defended
       // neutrals — it just prefers cheaper ones when equal alternatives exist.
-      const orbiters = this.getOrbitingCount(neutral.id, state);
+      const orbiters = this.getOrbitingStrength(neutral.id, state);
       if (orbiters === 0) {
         // No defenders — this is a free planet (just takes health chip damage)
         score += 30; // strong preference for zero-defender neutrals
@@ -1508,7 +1419,7 @@ export class AIController {
           p.alive && p.faction !== faction && p.faction !== 'neutral' &&
           p.mode === 'traveling' && p.targetPlanetId === planet.id
         ) {
-          incomingEnemies++;
+          incomingEnemies += p.strength;
           attackerFactions.add(p.faction as Faction);
           if (p.homePlanetId) attackerHomePlanetIds.add(p.homePlanetId);
         }
@@ -1516,7 +1427,7 @@ export class AIController {
 
       if (incomingEnemies === 0) continue;
 
-      const orbiting = this.getOrbitingCount(planet.id, state);
+      const orbiting = this.getOrbitingStrength(planet.id, state);
 
       // ── Compute holdback ─────────────────────────────────────
       // Keep at least counterattackMinDefenders, but also at least
@@ -1560,7 +1471,7 @@ export class AIController {
           const p = state.planets.get(id);
           if (!p || p.faction === faction || p.faction === 'neutral') continue;
           if (!this.isPlanetVisible(p, faction, state)) continue;
-          const def = p.health + this.getOrbitingCount(p.id, state);
+          const def = effectiveDefense(p, this.getOrbitingStrength(p.id, state));
           if (def < lowestDefense) { lowestDefense = def; bestLaunchPlanet = p; }
         }
         counterTarget = bestLaunchPlanet;
@@ -1571,7 +1482,7 @@ export class AIController {
         // "Can threaten" = surplus > planet defense (with a small margin).
         let bestScore = -Infinity;
         for (const p of attackerPlanets) {
-          const def = p.health + this.getOrbitingCount(p.id, state);
+          const def = effectiveDefense(p, this.getOrbitingStrength(p.id, state));
 
           // Skip planets we can't crack with our surplus
           if (surplus < def * 0.8) continue;
@@ -1597,15 +1508,14 @@ export class AIController {
 
       if (!counterTarget) continue;
 
-      // ── Deploy the surplus particles ────────────────────────
-      // We use deployed-from-planet IDs rather than fractions here
-      // because we need precise holdback control.
-      // The deployCallback will send ALL orbiters from the source planet;
-      // we compensate by immediately putting the planet on cooldown.
-      // NOTE: The surplus approximation is correct because deployCallback
-      // sends `attackFraction` of orbiters; we calculated surplus to be safe.
+      // Select exact whole-unit strength so a composite cannot consume the garrison.
+      const orbiters = state.particles.filter(p => p.alive && p.mode === 'orbiting' && p.homePlanetId === planet.id && p.faction === faction);
+      const budget = Math.min(surplus, orbiting * strategy.attackFraction);
+      const surplusIds = selectSurplusIds(orbiters, budget);
+      if (surplusIds.length === 0) continue;
+      if (scoreRoute(state, planet.x, planet.y, counterTarget.x, counterTarget.y) < strategy.hazardToleranceThreshold) continue;
       this.states.set(faction, 'counterattack');
-      this.deployParticles([planet], counterTarget, deployCallback, strategy.attackFraction, [], state);
+      this.deployParticles([], counterTarget, deployCallback, 1, surplusIds, state);
       this.aggressorCooldowns.set(planet.id, 10); // longer cooldown — we just stripped defenders
 
       console.log(`[AI] Counterattack! ${faction} (${subRole}) striking ${counterTarget.id} from ${planet.id} (incoming=${incomingEnemies} surplus=${surplus})`);
@@ -1633,14 +1543,14 @@ export class AIController {
       for (const p of state.particles) {
         if (p.alive && p.faction !== faction && p.faction !== 'neutral' &&
             p.mode === 'traveling' && p.targetPlanetId === planet.id) {
-          incomingEnemies++;
+          incomingEnemies += p.strength;
         }
       }
 
       if (incomingEnemies === 0) continue;
 
-      const orbiting = this.getOrbitingCount(planet.id, state);
-      const totalDefense = orbiting + planet.health;
+      const orbiting = this.getOrbitingStrength(planet.id, state);
+      const totalDefense = effectiveDefense(planet, orbiting);
 
       // If incoming enemies significantly outnumber our defense, retreat
       if (incomingEnemies > totalDefense * 1.5 && orbiting > 3) {
@@ -1648,7 +1558,7 @@ export class AIController {
         const safeTarget = this.nearestPlanet(safePlanets, planet);
         if (safeTarget) {
           this.states.set(faction, 'retreat');
-          deployCallback([planet.id], safeTarget.id);
+          this.deployParticles([planet], safeTarget, deployCallback, 1, [], state);
           this.aggressorCooldowns.set(planet.id, 5);
 
           // Hard: counter-attack the source of the incoming wave
@@ -1665,10 +1575,10 @@ export class AIController {
               const counterTarget = state.planets.get(counterTargetId);
               if (counterTarget && counterTarget.faction !== faction) {
                 const counterSource = safePlanets.find(
-                  p => p.id !== safeTarget.id && this.getOrbitingCount(p.id, state) > 5
+                  p => p.id !== safeTarget.id && this.getOrbitingStrength(p.id, state) > 5
                 );
                 if (counterSource) {
-                  deployCallback([counterSource.id], counterTarget.id);
+                  this.deployParticles([counterSource], counterTarget, deployCallback, this.strategies.get(faction)!.attackFraction, [], state);
                   this.aggressorCooldowns.set(counterSource.id, 8);
                 }
               }
@@ -1721,18 +1631,18 @@ export class AIController {
     return result;
   }
 
-  private getTotalParticles(faction: Faction, state: GameState): number {
+  private getTotalStrength(faction: Faction, state: GameState): number {
     let total = 0;
     for (const particle of state.particles) {
-      if (particle.alive && particle.faction === faction) total++;
+      if (particle.alive && particle.faction === faction) total += particle.strength;
     }
     return total;
   }
 
-  private getOrbitingCount(planetId: string, state: GameState): number {
+  private getOrbitingStrength(planetId: string, state: GameState): number {
     let count = 0;
     for (const particle of state.particles) {
-      if (particle.alive && particle.mode === 'orbiting' && particle.homePlanetId === planetId) count++;
+      if (particle.alive && particle.mode === 'orbiting' && particle.homePlanetId === planetId) count += particle.strength;
     }
     return count;
   }
@@ -1810,13 +1720,20 @@ export class AIController {
     sources: PlanetData[],
     target: PlanetData,
     deployCallback: DeployCallback,
-    _fraction: number,
+    fraction: number,
     stationedParticleIds?: number[],
     state?: GameState
   ): void {
     if (sources.length === 0 && (!stationedParticleIds || stationedParticleIds.length === 0)) return;
 
     if (state && isGammaDangerous(state, target.x, target.y)) return;
+
+    const sourceIds = new Set(sources.map(p => p.id));
+    const stationedIds = new Set(stationedParticleIds ?? []);
+    const candidates = state?.particles.filter(p => p.alive && (
+      (p.mode === 'orbiting' && sourceIds.has(p.homePlanetId)) || stationedIds.has(p.id)
+    )) ?? [];
+    const originalTargetFaction = target.faction;
 
     if (state && sources.length > 0) {
       const faction = sources[0].faction;
@@ -1845,13 +1762,24 @@ export class AIController {
             continue;
           }
         }
-        deployCallback([src.id], target.id, undefined, waypointX, waypointY);
+        deployCallback([src.id], target.id, undefined, waypointX, waypointY, fraction);
       }
     }
 
     if (stationedParticleIds && stationedParticleIds.length > 0) {
-      deployCallback([], target.id, stationedParticleIds, undefined, undefined);
+      deployCallback([], target.id, stationedParticleIds, undefined, undefined, fraction);
     }
+    const launched = candidates.filter(p => p.alive && p.mode === 'traveling' && p.targetPlanetId === target.id);
+    if (launched.length > 0) {
+      // Mixed-faction orders are never intentionally issued by the AI; group defensively.
+      const factions = new Set(launched.map(p => p.faction));
+      for (const faction of factions) this.activeWaves.push({
+        faction, targetPlanetId: target.id,
+        particleIds: launched.filter(p => p.faction === faction).map(p => p.id),
+        originalTargetFaction, sentAt: this._gameElapsed,
+      });
+    }
+
   }
 
   // -------------------------------------------------------------------------
@@ -1874,8 +1802,9 @@ export class AIController {
         continue;
       }
 
+      const waveIds = new Set(wave.particleIds);
       const waveParticles = state.particles.filter(
-        p => p.alive && wave.particleIds.includes(p.id) && (p.mode === 'traveling' || p.mode === 'combat')
+        p => p.alive && p.faction === wave.faction && p.targetPlanetId === wave.targetPlanetId && waveIds.has(p.id) && (p.mode === 'traveling' || p.mode === 'combat')
       );
       if (waveParticles.length === 0) continue;
 
@@ -1898,10 +1827,19 @@ export class AIController {
 
       // Compute new defense strength at captured planet
       const newDefense = capturedPlanet
-        ? (capturedPlanet.health + this.getOrbitingCount(capturedPlanet.id, state))
+        ? effectiveDefense(capturedPlanet, this.getOrbitingStrength(capturedPlanet.id, state))
         : 0;
-      const waveStrength = waveParticles.length;
+      const waveStrength = unitStrength(waveParticles);
       const subRole = this.subRoles.get(wave.faction)!;
+      const redirect = (target: PlanetData, ids: number[]) => {
+        deployCallback([], target.id, ids);
+        wave.targetPlanetId = target.id;
+        wave.originalTargetFaction = target.faction;
+        wave.sentAt = this._gameElapsed;
+        wave.waypointX = undefined;
+        wave.waypointY = undefined;
+      };
+
 
       if (isPastPointOfNoReturn) {
         // Can't turn back — commit or accept as sacrifice
@@ -1916,7 +1854,7 @@ export class AIController {
 
         if (subRole === 'fortress' || subRole === 'economic' || subRole === 'dominator') {
           if (nearestFriendly) {
-            deployCallback([], nearestFriendly.id, waveParticleIds);
+            redirect(nearestFriendly, waveParticleIds);
           }
         } else if (subRole === 'opportunist' || subRole === 'expander' || subRole === 'blitzkrieg') {
           const altNeutral = this.findWeakestNeutral(state, wave.faction);
@@ -1926,15 +1864,15 @@ export class AIController {
           );
           const altTarget = altNeutral ?? altEnemy;
           if (altTarget) {
-            deployCallback([], altTarget.id, waveParticleIds);
+            redirect(altTarget, waveParticleIds);
           } else if (nearestFriendly) {
-            deployCallback([], nearestFriendly.id, waveParticleIds);
+            redirect(nearestFriendly, waveParticleIds);
           }
         } else if (subRole === 'balanced') {
           if (waveStrength >= newDefense * 1.0) {
             // Keep going
           } else if (nearestFriendly) {
-            deployCallback([], nearestFriendly.id, waveParticleIds);
+            redirect(nearestFriendly, waveParticleIds);
           }
         }
         // easy_turtle: do nothing (too dumb to redirect)
@@ -1949,7 +1887,7 @@ export class AIController {
   private richestPlanet(planets: PlanetData[], state?: GameState): PlanetData | null {
     if (planets.length === 0) return null;
     if (!state) return planets[0]; // fallback
-    return planets.reduce((best, p) => (this.getOrbitingCount(p.id, state) > this.getOrbitingCount(best.id, state) ? p : best));
+    return planets.reduce((best, p) => (this.getOrbitingStrength(p.id, state) > this.getOrbitingStrength(best.id, state) ? p : best));
   }
 
   private nearestPlanet(planets: PlanetData[], target: PlanetData | { x: number; y: number }): PlanetData | null {
@@ -1991,7 +1929,7 @@ export class AIController {
       if (!planet || planet.faction === faction || planet.faction === 'neutral') continue;
       if (!this.isPlanetVisible(planet, faction, state)) continue;
 
-      const currentOrbit = this.getOrbitingCount(event.planetId, state);
+      const currentOrbit = this.getOrbitingStrength(event.planetId, state);
       const depleted = event.orbitCountBefore - currentOrbit;
       const score = depleted > 0 ? depleted / Math.max(1, currentOrbit + planet.health) : 0;
       if (score > bestScore && currentOrbit < 15) {
@@ -2034,20 +1972,20 @@ export class AIController {
       if (planet.faction === faction || planet.faction === 'neutral') continue;
       if (!this.isPlanetVisible(planet, faction, state)) continue;
 
-      const enemyOrbit  = this.getOrbitingCount(planet.id, state);
-      const totalDefense = enemyOrbit + planet.health;
+      const enemyOrbit  = this.getOrbitingStrength(planet.id, state);
+      const totalDefense = effectiveDefense(planet, enemyOrbit);
 
       // Calculate combined local force (sources within opportunity range)
       let localForce = stationedCount;
       for (const src of sourcePlanets) {
         if (this.distSq(src, planet) <= OPPORTUNITY_RANGE_SQ) {
-          localForce += this.getOrbitingCount(src.id, state);
+          localForce += this.getOrbitingStrength(src.id, state);
         }
       }
 
       // Calculate total pooled force (ALL sources, for threat-leader check)
       const totalPooled = sourcePlanets.reduce(
-        (s, p) => s + this.getOrbitingCount(p.id, state), stationedCount
+        (s, p) => s + this.getOrbitingStrength(p.id, state), stationedCount
       );
 
       // ── Two qualification paths ─────────────────────────────────────────

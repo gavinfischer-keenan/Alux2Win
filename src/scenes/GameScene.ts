@@ -1,3 +1,4 @@
+import {issueDeploymentOrder} from '../simulation/deployment';
 import {Graphics} from 'pixi.js';
 import {createGameState} from '../simulation/createGameState';
 import {SimulationPipeline} from '../simulation/SimulationPipeline';
@@ -458,8 +459,8 @@ export class GameScene {
     compactAliveParticles(this.state.particles);
 
     // AI - callback matches DeployCallback signature
-    this.aiController.update(dt, this.state, (fromIds, targetPlanetId, stationedParticleIds, waypointX, waypointY) => {
-      this._deployParticles(fromIds, targetPlanetId, stationedParticleIds, undefined, waypointX, waypointY);
+    this.aiController.update(dt, this.state, (fromIds, targetPlanetId, stationedParticleIds, waypointX, waypointY, fraction) => {
+      this._deployParticles(fromIds, targetPlanetId, stationedParticleIds, undefined, undefined, waypointX, waypointY, fraction);
     });
 
     // Tutorial controller (scripted enemy + overlay steps)
@@ -822,98 +823,28 @@ export class GameScene {
 
   /** Core deploy — used by both player input and AI callback. */
   private _deployParticles(
-    sourcePlanetIds: string[],
-    targetPlanetId?: string,
-    stationedParticleIds?: number[],
-    targetX?: number,
-    targetY?: number,
-    waypointX?: number,
-    waypointY?: number
+    sourcePlanetIds: string[], targetPlanetId?: string, stationedParticleIds?: number[],
+    targetX?: number, targetY?: number, waypointX?: number, waypointY?: number, fraction?: number
   ): void {
-    let targetPlanet: PlanetData | undefined;
-    if (targetPlanetId) targetPlanet = this.state.planets.get(targetPlanetId);
-
-    sourcePlanetIds.forEach(srcId => {
-      const src = this.state.planets.get(srcId);
-      if (!src) return;
-
-      // Find orbiting particles belonging to this planet
-      const orbiting = this.state.particles.filter(
-        p => p.alive && p.mode === 'orbiting' && p.homePlanetId === srcId
-      );
-
-      const count = Math.floor(orbiting.length / 2);
-      if (count === 0) return;
-      
-      audioManager.playLaunch();
-
-      const toDeploy = orbiting.slice(0, count);
-
-      for (const p of toDeploy) {
-        p.mode           = 'traveling';
-        p.targetPlanetId = targetPlanetId;
-        p.targetX        = targetX;
-        p.targetY        = targetY;
-        p.waypointX      = waypointX;
-        p.waypointY      = waypointY;
-        p.orbitTimer     = 0;
-        p.deployTimer    = 0;
-
-        const destX = waypointX ?? (targetPlanet ? targetPlanet.x : (targetX ?? p.x));
-        const destY = waypointY ?? (targetPlanet ? targetPlanet.y : (targetY ?? p.y));
-        const dx    = destX - p.x;
-        const dy    = destY - p.y;
-        const len   = Math.sqrt(dx * dx + dy * dy) || 1;
-
-        p.vx = (dx / len) * PARTICLE_SPEED;
-        p.vy = (dy / len) * PARTICLE_SPEED;
-      }
-
-      // Also redeploy any stationed particles from AI
-      if (stationedParticleIds && stationedParticleIds.length > 0) {
-        this._deploySpecificParticles(stationedParticleIds, targetPlanetId, targetX, targetY, waypointX, waypointY);
-      }
-
-      // Fallback: spawn new particles if we somehow didn't have enough orbiting ones
-      const deficit = count - toDeploy.length;
-      for (let i = 0; i < deficit; i++) {
-        const angle  = Math.random() * Math.PI * 2;
-        const r      = PLANET_RADIUS[src.upgradeLevel] + 2;
-        const spawnX = src.x + Math.cos(angle) * r;
-        const spawnY = src.y + Math.sin(angle) * r;
-
-        const destX = waypointX ?? (targetPlanet ? targetPlanet.x : (targetX ?? src.x));
-        const destY = waypointY ?? (targetPlanet ? targetPlanet.y : (targetY ?? src.y));
-        const dx    = destX - spawnX;
-        const dy    = destY - spawnY;
-        const len   = Math.sqrt(dx * dx + dy * dy) || 1;
-
-        const particle: ParticleData = {
-          id:             this.state.particleIdCounter++,
-          x:              spawnX,
-          y:              spawnY,
-          vx:             (dx / len) * PARTICLE_SPEED,
-          vy:             (dy / len) * PARTICLE_SPEED,
-          faction:        src.faction,
-          mode:           'traveling',
-          strength:       1,
-          orbitTimer:     0,
-          deployTimer:    1.5,
-          damage:         0,
-          homePlanetId:   src.id,
-          targetPlanetId: targetPlanetId,
-          targetX:        targetX,
-          targetY:        targetY,
-          waypointX:      waypointX,
-          waypointY:      waypointY,
-          alive:          true,
-          speedMod:       1.0,
-          portalCooldown: 0,
-          trappedByBH:    null,
-        };
-        this.state.particles.push(particle);
-      }
+    const donorIds = new Set(sourcePlanetIds);
+    const explicitIds = new Set(stationedParticleIds ?? []);
+    for (const p of this.state.particles) if (p.alive && p.mode === 'orbiting' && explicitIds.has(p.id)) donorIds.add(p.homePlanetId);
+    const before = new Map<string, number>();
+    for (const id of donorIds) {
+      let strength = 0;
+      for (const p of this.state.particles) if (p.alive && p.mode === 'orbiting' && p.homePlanetId === id) strength += p.strength;
+      before.set(id, strength);
+    }
+    const launched = issueDeploymentOrder(this.state, {
+      sourcePlanetIds, targetPlanetId, stationedParticleIds, targetX, targetY, waypointX, waypointY, fraction,
     });
+    for (const id of donorIds) {
+      const source = this.state.planets.get(id);
+      if (source && launched.some(p => p.homePlanetId === id)) {
+        audioManager.playLaunch();
+        this.aiController.recordDeployEvent(id, source.faction, before.get(id) ?? 0);
+      }
+    }
   }
 
   // ── Hit Tests ─────────────────────────────────────────────

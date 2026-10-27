@@ -85,7 +85,7 @@ graph TD
 - `systems/PlanetCollisionSystem.ts`: simultaneous moving-planet destruction and stranded units.
 - `simulation/maintenance.ts`: stable in-place collection cleanup. Particle and effect array references remain valid.
 - `core/CollisionPairTracker.ts`: object ordinals plus an at-most 8 MiB reusable bitset, sparse fallback above 8,192 particles. Does not assume symmetric neighborhoods after movement.
-- `ai/WaveTracker.ts`: one live-ID index per tick, preserving wave order and first duplicate-ID semantics.
+- `ai/WaveTracker.ts`: one live-ID index per tick, preserving wave order and first duplicate-ID semantics. The follow-up AI pass also drops arrived or reassigned members.
 - `core/SubscriptionScope.ts`: scene-owned listener teardown. GameScene also explicitly destroys its AI controller.
 - `ui/renderUnitGraph.ts`: result-chart presentation, independent of simulation.
 - `GameScene`: lifecycle, input/deployment, HUD/tutorial adapters and results. State construction, scheduling and graph drawing no longer belong here; input/deployment and result-overlay UI remain the next useful extraction seams.
@@ -93,3 +93,21 @@ graph TD
 Performance evidence: deterministic Node collision-only medians, 20 samples after five warmups. Distributed 5,000 particles: 1.88 → 1.45 ms; dense 1,500: 10.56 → 3.90 ms. Local CPU timing only, not a whole-game FPS guarantee. Reproduce with `npx vitest run src/benchmarks/hotPaths.test.ts --disableConsoleIntercept`.
 
 Phase-one verification: 72 unit tests, 12 Python architecture/level checks, strict TypeScript build, tutorial/pause/quit browser smoke checks, independent code review. Existing gameplay strategy parameters, 28 levels and `lux_*` settings keys retained. Compatible locked dependency updates leave `npm audit` with zero findings at verification time.
+
+
+## 6. AI and deployment boundaries (v1.8.0)
+
+The follow-up AI work was performed after the optimization pass, in a separate commit.
+
+- `ai/assessSituation.ts`: builds a strategic snapshot with a supplied visibility predicate; counts actual combat strength.
+- `ai/ForceAssessment.ts`: shared effective-defense and whole-unit surplus selection. Shield walls and composite attackers now affect opportunity and retreat decisions consistently.
+- `simulation/deployment.ts`: applies typed orders to existing units; optional strategy fraction, default half-fleet for humans/tutorials, independent explicit-ID orders for stranded or redirected units. No rendering/audio or synthetic reinforcements.
+- `DeployCallback` now carries the optional fraction after waypoint coordinates. The scene adapter passes both waypoint coordinates into their correct slots.
+- Waves are registered from actual post-callback unit state, never from intended-but-blocked orders. Membership requires the same live faction, destination, and traveling/combat mode; arrivals and reassignment permanently remove old membership. Capture redirects update the tracked destination.
+- `GameScene` records vacated-source events after actual launches, including explicit orbiter deployments. Counterattacks select exact whole-unit IDs within their surplus budget and leave the promised garrison; hopeless planets can evacuate fully.
+
+Existing strategy tables/difficulty names remain intact. Player selection, half-fleet right clicks, tutorial behavior, levels and saved settings remain compatible. Tactical fixtures cover composites, shields, fractions, stranded units, stale waves, redirects and garrison preservation; seeded one-minute simulations cover all three AI difficulties. These verify decisions and state integrity, not a measured improvement in tournament win rate.
+
+Future decomposition: AIController still owns policy branch ordering and campaign memory. Extract target scoring and campaign/cooldown stores behind the existing assessment/order interfaces as those features grow. Editor and menu UI remain separate future cleanup work; they were not rewritten in this pass.
+
+Final v1.8.0 verification: 85 unit/integration tests and 12 architecture/level checks, zero dependency audit findings; independent review resolved stale-wave membership and confirmed garrison preservation.

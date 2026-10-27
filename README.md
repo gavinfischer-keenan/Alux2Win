@@ -68,3 +68,12 @@ npm run test
 ## 🤝 Contributing
 
 Contributions, issues, and feature requests are welcome! Feel free to check the issues page or submit a pull request.
+
+
+### v1.8.0 — modular simulation and tactical AI
+
+Simulation scheduling, state construction, collection maintenance, deployment and result-chart rendering now have focused modules. Collision bookkeeping uses bounded reusable storage; wave lookup is indexed. Scene-owned subscriptions and AI listeners are released on teardown.
+
+AI now evaluates combat strength and shields, honors its strategy deployment fractions, tracks real waves and redirects, orders stranded units correctly, and preserves counterattack garrisons. Human orders retain their normal half-fleet behavior. Everything still runs locally in the browser. See `ARCHITECTURE.md` for module ownership and future extension seams.
+
+Developer checks: `npm test`, `python -m pytest tests`, `npm run build -- --base=/play/`. Preview that production path with `npm run preview -- --base=/play/`.
