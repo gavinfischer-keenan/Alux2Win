@@ -81,6 +81,7 @@ export class GameLoop {
     while (this.accumulator >= FIXED_DT) {
       this.update(FIXED_DT);
       this.accumulator -= FIXED_DT;
+      if (!this._running) return;
     }
 
     // --- Render with interpolation alpha ---
@@ -88,6 +89,6 @@ export class GameLoop {
     this.render(alpha);
 
     // --- Schedule next frame ---
-    this.rafHandle = requestAnimationFrame(this.tick);
+    if (this._running) this.rafHandle = requestAnimationFrame(this.tick);
   };
 }

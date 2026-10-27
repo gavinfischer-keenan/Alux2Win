@@ -280,6 +280,9 @@ export interface GameState {
   whiteHoles:          WhiteHoleData[];
   hazardEffects:       HazardEffect[];
   hazardEffectIdCounter: number;
+  /** Batched audio signals emitted by hazard/planet systems. */
+  _pendingPlanetHazardDeaths?: number;
+  _pendingParticleHazardDeaths?: number;
   fogOfWarConfig?:     { enabled: boolean };
 }
 

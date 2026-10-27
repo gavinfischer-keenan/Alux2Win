@@ -1,3 +1,4 @@
+import {CollisionPairTracker} from '../core/CollisionPairTracker';
 // ============================================================
 // CollisionSystem.ts — Strength-aware particle-particle collision
 // ============================================================
@@ -16,10 +17,10 @@ const COLLISION_DIST_SQ = COLLISION_DISTANCE * COLLISION_DISTANCE;
  *   Pass 2 — Resolve: fully-damaged particles die; 5X particles with
  *             partial damage (damage < 5) devolve into (5 - damage) 1X particles.
  *
- * Pair deduplication prevents double-counting via a processed-pair Set.
+ * A bounded pair tracker deduplicates asymmetric broad-phase neighborhoods.
  */
 export class CollisionSystem {
-  private _processedPairs = new Set<number>();
+  private readonly pairs = new CollisionPairTracker();
   private _nearbyBuffer: ParticleData[] = [];
 
   constructor(private readonly _ownedSpatialHash?: SpatialHash) {}
@@ -33,11 +34,9 @@ export class CollisionSystem {
     }
     if (particles.length < 2) return;
 
-    // ---- Pass 1: Accumulate damage ----
-    // Use numeric pair key to avoid string allocation GC overhead
-    this._processedPairs.clear();
-    const processedPairs = this._processedPairs;
+    this.pairs.begin(particles);
 
+    // ---- Pass 1: Accumulate damage, once per unordered pair ----
     for (const p of particles) {
       if (!p.alive) continue;
 
@@ -48,21 +47,16 @@ export class CollisionSystem {
         if (other === p)                 continue;
         if (!other.alive)                continue;
         if (other.faction === p.faction) continue; // same faction
-        // Deduplicate pair
-        const lo = p.id < other.id ? p.id : other.id;
-        const hi = p.id < other.id ? other.id : p.id;
-        const pairKey = (lo * 1000000000) + hi; // Safe up to MAX_SAFE_INTEGER for IDs < 9,000,000
-        if (processedPairs.has(pairKey)) continue;
 
         const dx = p.x - other.x;
         const dy = p.y - other.y;
         if (dx * dx + dy * dy >= COLLISION_DIST_SQ) continue;
+        if (!this.pairs.markIfNew(p, other)) continue;
 
         if (p.faction === 'player' || other.faction === 'player') {
           audioManager.playCombatEngage();
         }
 
-        processedPairs.add(pairKey);
 
         // Reciprocal damage: each takes the other's strength
         p.damage     += other.strength;
@@ -72,7 +66,6 @@ export class CollisionSystem {
 
     // ---- Pass 2: Resolve deaths and devolve 5X ----
     const devolved: ParticleData[] = [];
-    let anyDied = false;
 
     for (const p of particles) {
       if (p.damage === 0) continue;
@@ -82,11 +75,9 @@ export class CollisionSystem {
       if (dmg >= p.strength) {
         // Fully killed
         p.alive = false;
-        anyDied = true;
       } else if (p.strength === 5) {
         // 5X partially damaged → devolve to (5 - dmg) 1X particles
         p.alive = false;
-        anyDied = true;
         const remainder = p.strength - dmg;
         for (let i = 0; i < remainder; i++) {
           const offsetAngle = (i / remainder) * Math.PI * 2;

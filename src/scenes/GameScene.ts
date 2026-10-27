@@ -1,3 +1,9 @@
+import {Graphics} from 'pixi.js';
+import {createGameState} from '../simulation/createGameState';
+import {SimulationPipeline} from '../simulation/SimulationPipeline';
+import {compactAliveParticles} from '../simulation/maintenance';
+import {SubscriptionScope} from '../core/SubscriptionScope';
+import {renderUnitGraph} from '../ui/renderUnitGraph';
 // ============================================================
 // GameScene.ts — Main gameplay scene for LUX
 // Wires all ECS systems, entities, input, AI, and HUD together.
@@ -5,18 +11,13 @@
 
 import type {
   LevelData,
-  PlanetDef,
-  BlackHoleDef,
   GameState,
   PlanetData,
-  BlackHoleData,
   ParticleData,
   Faction,
   UpgradeLevel,
 } from '../types';
 import {
-  PLANET_MAX_HEALTH,
-  PLANET_PRODUCTION,
   PLANET_RADIUS,
   FACTION_COLORS_HEX,
   PARTICLE_SPEED,
@@ -35,23 +36,9 @@ import { Renderer }        from '../core/Renderer';
 import { EventBus }        from '../core/EventBus';
 import { GameLoop }        from '../core/GameLoop';
 import { InputManager }    from '../core/InputManager';
-import { SpatialHash }     from '../core/SpatialHash';
 
 // ── System imports ───────────────────────────────────────────
-import { OrbitSystem }               from '../systems/OrbitSystem';
-import { ProductionSystem }          from '../systems/ProductionSystem';
-import { MovementSystem }            from '../systems/MovementSystem';
-import { GravitySystem }             from '../systems/GravitySystem';
-import { CollisionSystem }           from '../systems/CollisionSystem';
-import { CombatSystem }              from '../systems/CombatSystem';
-import { UpgradeSystem }             from '../systems/UpgradeSystem';
 
-import { AsteroidSystem }            from '../systems/AsteroidSystem';
-import { GammaRaySystem }            from '../systems/GammaRaySystem';
-import { SpeedZoneSystem }           from '../systems/SpeedZoneSystem';
-import { PortalSystem }              from '../systems/PortalSystem';
-import { TrappingBlackHoleSystem }   from '../systems/TrappingBlackHoleSystem';
-import { WhiteHoleSystem }           from '../systems/WhiteHoleSystem';
 
 // ── AI import ────────────────────────────────────────────────
 import { AIController }    from '../ai/AIController';
@@ -82,24 +69,9 @@ export class GameScene {
   private state!: GameState;
   private hud!: HUD;
   private aiController!: AIController;
-  private spatialHash!: SpatialHash;
   private inputManager!: InputManager;
 
-  private systems = {
-    orbit:              new OrbitSystem(),
-    production:         new ProductionSystem(),
-    movement:           new MovementSystem(),
-    gravity:            new GravitySystem(),
-    collision:          new CollisionSystem(),
-    combat:             new CombatSystem(),
-    upgrade:            new UpgradeSystem(),
-    asteroid:           new AsteroidSystem(),
-    gammaRay:           new GammaRaySystem(),
-    speedZone:          new SpeedZoneSystem(),
-    portal:             new PortalSystem(),
-    trappingBlackHole:  new TrappingBlackHoleSystem(),
-    whiteHole:          new WhiteHoleSystem(),
-  };
+  private readonly simulation = new SimulationPipeline();
 
   private entities: {
     planets:             Map<string, Planet>;
@@ -174,6 +146,7 @@ export class GameScene {
   private _peakParticles = 0;
   private _peakPlanets   = 0;
   private _isDestroyed = false;
+  private readonly subscriptions = new SubscriptionScope();
 
   /** Unit-count history: sampled every ~2s during gameplay, one entry per sample. */
   private _statsHistory: { time: number; counts: Map<string, number> }[] = [];
@@ -196,7 +169,7 @@ export class GameScene {
     this._isTutorial = isTutorial;
     this._tutorialId = tutorialId;
     this.container = uiContainer;
-    this.state = this.initGameState(levelData);
+    this.state = createGameState(levelData);
     this._levelId = (levelData as any).id ?? 'level_unknown';
     this._elapsedTime   = 0;
     this._peakParticles = 0;
@@ -232,10 +205,10 @@ export class GameScene {
     this.entities.fog                = new FogRenderer(this.renderer.getWorldContainer());
 
     // Wire production system into gamma ray so planet resets flush accumulators
-    this.systems.gammaRay.setProductionSystem(this.systems.production);
+
 
     // Hazard effects renderer (sparkles + shockwaves)
-    { const { Graphics } = await import('pixi.js');
+    {
       this._effectsGraphics = new Graphics();
       this.renderer.layers.particles.addChild(this._effectsGraphics); }
 
@@ -283,7 +256,7 @@ export class GameScene {
       }
     });
 
-    this.spatialHash = new SpatialHash(64);
+
 
     // Create tutorial controller if needed (after hudContainer is set up below)
     // We do this after the HUD is attached so we can layer on top of it.
@@ -324,19 +297,19 @@ export class GameScene {
     this.cameraController.attach(this.container);
 
     // Listen for game:over emitted by CombatSystem
-    this.eventBus.on('game:over', (payload: { winner: Faction | null }) => {
+    this.subscriptions.add(this.eventBus.on('game:over', (payload: { winner: Faction | null }) => {
       this.showResultOverlay(payload.winner);
-    });
+    }));
 
     // Listen for early player elimination
-    this.eventBus.on('player:eliminated', () => {
+    this.subscriptions.add(this.eventBus.on('player:eliminated', () => {
       this.showResultOverlay(null, { isEarlyDeath: true });
-    });
+    }));
 
     // Listen for planet captures for audio feedback
-    this.eventBus.on('planet:captured', (payload: { planetId: string; newFaction: string }) => {
+    this.subscriptions.add(this.eventBus.on('planet:captured', (payload: { planetId: string; newFaction: string }) => {
       audioManager.playCapture(payload.newFaction);
-    });
+    }));
 
     // Attach tutorial controller (must be after hudContainer is available)
     if (isTutorial) {
@@ -373,7 +346,10 @@ export class GameScene {
   }
 
   destroy(): void {
+    if (this._isDestroyed) return;
     this._isDestroyed = true;
+    this.subscriptions.dispose();
+    this.aiController?.destroy();
     this.gameLoop?.stop();
     this.inputManager?.destroy();
     if (this._keyHandler) document.removeEventListener('keydown', this._keyHandler);
@@ -431,157 +407,6 @@ export class GameScene {
 
   // ── Game State Init ───────────────────────────────────────
 
-  private initGameState(levelData: LevelData): GameState {
-    const planets   = new Map<string, PlanetData>();
-    const blackHoles = new Map<string, BlackHoleData>();
-
-    // Randomize starting locations by mapping original factions to shuffled factions
-    const activeFactions = new Set<Faction>();
-    levelData.planets.forEach((def: PlanetDef) => {
-      if (def.faction !== 'neutral') {
-        activeFactions.add(def.faction);
-      }
-    });
-
-    const activeFactionsArr = Array.from(activeFactions);
-    const shuffledFactions = [...activeFactionsArr];
-    for (let i = shuffledFactions.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffledFactions[i], shuffledFactions[j]] = [shuffledFactions[j], shuffledFactions[i]];
-    }
-
-    const factionMap = new Map<Faction, Faction>();
-    for (let i = 0; i < activeFactionsArr.length; i++) {
-      factionMap.set(activeFactionsArr[i], shuffledFactions[i]);
-    }
-
-    levelData.planets.forEach((def: PlanetDef) => {
-      const lvl = def.upgradeLevel as UpgradeLevel;
-      const maxHealth = PLANET_MAX_HEALTH[lvl];
-      
-      // All planets start fully healed (maxHealth).
-      // (Owned planets also use startingParticles to spawn initial orbiting units).
-      const initialHealth = maxHealth;
-
-      const mappedFaction = factionMap.get(def.faction) ?? def.faction;
-
-      const data: PlanetData = {
-        id: def.id,
-        x: def.x,
-        y: def.y,
-        faction: mappedFaction,
-        upgradeLevel: lvl,
-        health: initialHealth,
-        maxHealth,
-        productionRate: PLANET_PRODUCTION[lvl],
-        absorbedCount: 0,
-        isOrbiting: def.isOrbiting,
-        orbitCenterX: def.orbitCenterX,
-        orbitCenterY: def.orbitCenterY,
-        orbitRadius: def.orbitRadius,
-        orbitSpeed: def.orbitSpeed,
-        orbitAngle: def.orbitStartAngle ?? 0,
-        isShielded: def.isShielded ?? false,
-        shieldPoints: 0,
-        shieldTimer: 0,
-        colonizer: null,
-        originalNeutralHealth: mappedFaction === 'neutral' ? initialHealth : undefined,
-      };
-      planets.set(def.id, data);
-    });
-
-    levelData.blackHoles.forEach((def: BlackHoleDef) => {
-      const data: BlackHoleData = {
-        id: def.id,
-        x: def.x,
-        y: def.y,
-        radius: def.radius,
-        pullRadius: def.radius * 4,
-        pullStrength: def.pullStrength,
-      };
-      blackHoles.set(def.id, data);
-    });
-
-    const state: GameState = {
-      planets,
-      particles: [],
-      blackHoles,
-      selectedPlanetIds:   new Set(),
-      selectedParticleIds: new Set(),
-      particleIdCounter:   0,
-      tick:                0,
-      running:             false,
-      winner:              null,
-      worldWidth:          levelData.worldWidth,
-      worldHeight:         levelData.worldHeight,
-      asteroids:            [],
-      // Give players 30 seconds to establish themselves before the first asteroid.
-      asteroidRespawnTimer: (levelData.asteroidConfig?.enabled) ? 30 : 9999,
-      asteroidConfig:       levelData.asteroidConfig,
-      gammaRay: {
-        enabled:         !!(levelData.gammaRayConfig?.enabled),
-        timer:           levelData.gammaRayConfig?.intervalSeconds ?? 60,
-        intervalSeconds: levelData.gammaRayConfig?.intervalSeconds ?? 60,
-        targetMode:      levelData.gammaRayConfig?.targetMode ?? 'random',
-        lockedPath:      levelData.gammaRayConfig?.lockedPath,
-        path:            null,
-        firing:          false,
-        fireProgress:    0,
-      },
-      // New hazard systems
-      speedZones:         (levelData.speedZones ?? []).map(def => ({ ...def, pulseAngle: 0 })),
-      portals:            (levelData.portals ?? []).map(def => ({ ...def, pulseAngle: 0 })),
-      trappingBlackHoles: (levelData.trappingBlackHoles ?? []).map(def => ({ ...def, pulseAngle: 0 })),
-      whiteHoles:         (levelData.whiteHoles ?? []).map(def => ({
-        ...def,
-        ownerFaction: null,
-        progress:     0,
-        exploded:     false,
-        pulseAngle:   0,
-      })),
-      hazardEffects:         [],
-      hazardEffectIdCounter: 0,
-      fogOfWarConfig:        levelData.fogOfWarConfig,
-    };
-
-    // Spawn default starting particles around home planets.
-    // IMPORTANT: use the shuffled spawnFaction (same as the planet) so particle
-    // colours always match their home planet from the very first frame.
-    levelData.planets.forEach(def => {
-      if (def.faction !== 'neutral') {
-        const spawnFaction = factionMap.get(def.faction) ?? def.faction;
-        const count = def.startingParticles || 20;
-        const lvl = def.upgradeLevel as UpgradeLevel;
-        for (let i = 0; i < count; i++) {
-          const angle = Math.random() * Math.PI * 2;
-          const orbitRadius = PLANET_RADIUS[lvl] + 8 + Math.random() * 10;
-          state.particles.push({
-            id:             state.particleIdCounter++,
-            x:              def.x + Math.cos(angle) * orbitRadius,
-            y:              def.y + Math.sin(angle) * orbitRadius,
-            vx:             0,
-            vy:             0,
-            faction:        spawnFaction,
-            mode:           'orbiting',
-            strength:       1,
-            orbitTimer:     (Math.random() * -5), // slight negative offset so they don't immediately absorb
-            damage:         0,
-            homePlanetId:   def.id,
-            orbitAngle:     angle,
-            orbitRadius:    orbitRadius,
-            deployTimer:    0,
-            alive:          true,
-            speedMod:       1.0,
-            portalCooldown: 0,
-            trappedByBH:    null,
-          });
-        }
-      }
-    });
-
-    return state;
-  }
-
   // ── Update (Fixed-tick) ───────────────────────────────────
 
   private update(dt: number): void {
@@ -596,8 +421,10 @@ export class GameScene {
 
     // Track elapsed time and peak stats
     this._elapsedTime += dt;
-    const playerParticles = this.state.particles.filter(p => p.alive && p.faction === 'player').length;
-    const playerPlanets   = [...this.state.planets.values()].filter(p => p.faction === 'player').length;
+    let playerParticles = 0;
+    for (const p of this.state.particles) if (p.alive && p.faction === 'player') playerParticles++;
+    let playerPlanets = 0;
+    for (const p of this.state.planets.values()) if (p.faction === 'player') playerPlanets++;
     if (playerParticles > this._peakParticles) this._peakParticles = playerParticles;
     if (playerPlanets   > this._peakPlanets)   this._peakPlanets   = playerPlanets;
 
@@ -613,104 +440,22 @@ export class GameScene {
       this._statsHistory.push({ time: this._elapsedTime, counts });
     }
 
-    // Rebuild spatial hash
-    this.spatialHash.clear();
-    this.state.particles.forEach(p => {
-      if (p.alive) this.spatialHash.insert(p);
-    });
-
-    // Systems in order
-    this.systems.orbit.update(dt, this.state);
-
-    // -- Planet Collision Check --
-    const planetsArr = Array.from(this.state.planets.values());
-    const destroyedPlanetIds = new Set<string>();
-
-    for (let i = 0; i < planetsArr.length; i++) {
-      for (let j = i + 1; j < planetsArr.length; j++) {
-        const p1 = planetsArr[i];
-        const p2 = planetsArr[j];
-        if (!p1.isOrbiting && !p2.isOrbiting) continue; // If both are stationary, they can't collide
-
-        const dx = p2.x - p1.x;
-        const dy = p2.y - p1.y;
-        const distSq = dx * dx + dy * dy;
-        const r1 = PLANET_RADIUS[p1.upgradeLevel];
-        const r2 = PLANET_RADIUS[p2.upgradeLevel];
-        const minDist = r1 + r2;
-
-        if (distSq < minDist * minDist) {
-          destroyedPlanetIds.add(p1.id);
-          destroyedPlanetIds.add(p2.id);
-        }
-      }
-    }
-
-    if (destroyedPlanetIds.size > 0) {
-      // Trigger death effects
-      for (let i = 0; i < destroyedPlanetIds.size; i++) {
-        (this.state as any)._pendingPlanetHazardDeaths = ((this.state as any)._pendingPlanetHazardDeaths ?? 0) + 1;
-      }
-      
-      // Remove destroyed planets
-      for (const id of destroyedPlanetIds) {
-        this.state.planets.delete(id);
-        this.state.selectedPlanetIds.delete(id);
-      }
-
-      // Strand orbiting/traveling particles assigned to these planets
-      this.state.particles.forEach(p => {
-        if (p.alive && p.homePlanetId && destroyedPlanetIds.has(p.homePlanetId)) {
-          p.mode = 'stationed';
-          // p.homePlanetId = null; // Wait, homePlanetId is string type, 'stationed' particles might need it null. We'll leave it as is or assign it to something invalid. Since they are stationed, the MovementSystem will just stop them.
-          p.vx = 0;
-          p.vy = 0;
-        }
-      });
-    }
-
-    this.systems.production.update(dt, this.state);
-    this.systems.movement.update(dt, this.state, this.spatialHash);
-    this.systems.gravity.update(dt, this.state);
-    this.systems.collision.update(this.state, this.spatialHash);
-    this.systems.combat.update(this.state, this.eventBus);
-    this.systems.upgrade.update(this.state);
-
-    // Hazard systems (only active if level enables them)
-    if (this.state.asteroids.length > 0 || this.state.asteroidRespawnTimer < 9999)
-      this.systems.asteroid.update(dt, this.state);
-    if (this.state.gammaRay.enabled)
-      this.systems.gammaRay.update(dt, this.state);
-    // New hazard systems
-    if (this.state.speedZones.length > 0)
-      this.systems.speedZone.update(dt, this.state);
-    if (this.state.portals.length > 0)
-      this.systems.portal.update(dt, this.state);
-    if (this.state.trappingBlackHoles.length > 0)
-      this.systems.trappingBlackHole.update(dt, this.state);
-    if (this.state.whiteHoles.length > 0)
-      this.systems.whiteHole.update(dt, this.state);
-
-    // Tick + expire hazard effects
-    this.state.hazardEffects = this.state.hazardEffects.filter(fx => {
-      fx.age += dt;
-      return fx.age < fx.duration;
-    });
+    this.simulation.update(dt, this.state, this.eventBus);
 
     // Process pending hazard death audio signals
-    const pendingPlanet   = (this.state as any)._pendingPlanetHazardDeaths ?? 0;
-    const pendingParticle = (this.state as any)._pendingParticleHazardDeaths ?? 0;
+    const pendingPlanet   = this.state._pendingPlanetHazardDeaths ?? 0;
+    const pendingParticle = this.state._pendingParticleHazardDeaths ?? 0;
     if (pendingPlanet > 0) {
       for (let i = 0; i < pendingPlanet; i++) audioManager.playPlanetHazardDeath();
-      (this.state as any)._pendingPlanetHazardDeaths = 0;
+      this.state._pendingPlanetHazardDeaths = 0;
     }
     if (pendingParticle > 0) {
       audioManager.playParticleHazardDeath(); // batched — plays at most once per 3s
-      (this.state as any)._pendingParticleHazardDeaths = 0;
+      this.state._pendingParticleHazardDeaths = 0;
     }
 
     // Prune dead particles
-    this.state.particles = this.state.particles.filter(p => p.alive);
+    compactAliveParticles(this.state.particles);
 
     // AI - callback matches DeployCallback signature
     this.aiController.update(dt, this.state, (fromIds, targetPlanetId, stationedParticleIds, waypointX, waypointY) => {
@@ -1610,7 +1355,7 @@ export class GameScene {
       btnRow.appendChild(watchBtn);
     }
     // ── Unit-count graph ────────────────────────────────────────────────────
-    const graphCanvas = this._buildUnitGraph();
+    const graphCanvas = renderUnitGraph(this._statsHistory);
     if (graphCanvas) {
       graphCanvas.style.cssText = `
         margin-bottom: 24px;
@@ -1632,142 +1377,5 @@ export class GameScene {
 
   // ── Unit-count graph renderer ─────────────────────────────────────────────
 
-  private _buildUnitGraph(): HTMLCanvasElement | null {
-    const history = this._statsHistory;
-    if (history.length < 2) return null;
 
-    // Determine which factions actually appeared
-    const factionOrder: Faction[] = ['player', 'enemy_a', 'enemy_b', 'enemy_c'];
-    const activeFactions = factionOrder.filter(f =>
-      history.some(s => (s.counts.get(f) ?? 0) > 0)
-    );
-    if (activeFactions.length === 0) return null;
-
-    const FACTION_COLORS_CSS: Record<string, string> = {
-      player:  '#4fc3f7',
-      enemy_a: '#ef5350',
-      enemy_b: '#66bb6a',
-      enemy_c: '#ab47bc',
-    };
-    const FACTION_LABELS: Record<string, string> = {
-      player:  'You',
-      enemy_a: 'Enemy A',
-      enemy_b: 'Enemy B',
-      enemy_c: 'Enemy C',
-    };
-
-    const W = 560, H = 220;
-    const PAD = { top: 18, right: 20, bottom: 40, left: 50 };
-    const innerW = W - PAD.left - PAD.right;
-    const innerH = H - PAD.top  - PAD.bottom;
-
-    const canvas = document.createElement('canvas');
-    canvas.width  = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d')!;
-
-    // Dark background
-    ctx.fillStyle = 'rgba(10,15,30,0.85)';
-    ctx.fillRect(0, 0, W, H);
-
-    // Max value for Y axis
-    let maxVal = 0;
-    for (const s of history) {
-      for (const f of activeFactions) {
-        const v = s.counts.get(f) ?? 0;
-        if (v > maxVal) maxVal = v;
-      }
-    }
-    maxVal = Math.max(maxVal, 10); // never collapse to 0
-    const yMax = Math.ceil(maxVal / 10) * 10;
-
-    const totalTime = history[history.length - 1].time;
-
-    const toX = (t: number) => PAD.left + (t / totalTime) * innerW;
-    const toY = (v: number) => PAD.top + innerH - (v / yMax) * innerH;
-
-    // Grid lines
-    const yTicks = 5;
-    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= yTicks; i++) {
-      const y = PAD.top + (i / yTicks) * innerH;
-      ctx.beginPath();
-      ctx.moveTo(PAD.left, y);
-      ctx.lineTo(PAD.left + innerW, y);
-      ctx.stroke();
-    }
-
-    // Y axis labels
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.font = '10px Rajdhani, sans-serif';
-    ctx.textAlign = 'right';
-    for (let i = 0; i <= yTicks; i++) {
-      const val = Math.round((yMax / yTicks) * (yTicks - i));
-      const y   = PAD.top + (i / yTicks) * innerH;
-      ctx.fillText(val.toString(), PAD.left - 6, y + 4);
-    }
-
-    // X axis labels (time)
-    const xTicks = Math.min(6, history.length - 1);
-    ctx.textAlign = 'center';
-    for (let i = 0; i <= xTicks; i++) {
-      const t = (totalTime / xTicks) * i;
-      const x = toX(t);
-      const mins = Math.floor(t / 60);
-      const secs = Math.floor(t % 60);
-      ctx.fillText(`${mins}:${String(secs).padStart(2,'0')}`, x, PAD.top + innerH + 16);
-    }
-
-    // Axis lines
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(PAD.left, PAD.top);
-    ctx.lineTo(PAD.left, PAD.top + innerH);
-    ctx.lineTo(PAD.left + innerW, PAD.top + innerH);
-    ctx.stroke();
-
-    // Draw a line per faction
-    for (const faction of activeFactions) {
-      const color = FACTION_COLORS_CSS[faction];
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 6;
-      ctx.beginPath();
-      let first = true;
-      for (const s of history) {
-        const x = toX(s.time);
-        const y = toY(s.counts.get(faction) ?? 0);
-        if (first) { ctx.moveTo(x, y); first = false; }
-        else { ctx.lineTo(x, y); }
-      }
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    }
-
-    // Legend (bottom right)
-    ctx.shadowBlur = 0;
-    const legendX = PAD.left + innerW - 4;
-    let legendY = PAD.top + 6;
-    for (const faction of activeFactions) {
-      const color = FACTION_COLORS_CSS[faction];
-      ctx.fillStyle = color;
-      ctx.fillRect(legendX - 60, legendY, 14, 3);
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.font = '10px Rajdhani, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(FACTION_LABELS[faction], legendX - 42, legendY + 5);
-      legendY += 16;
-    }
-
-    // Chart title
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.font = '10px Rajdhani, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('UNIT STRENGTH OVER TIME', PAD.left + 2, PAD.top - 4);
-
-    return canvas;
-  }
 }

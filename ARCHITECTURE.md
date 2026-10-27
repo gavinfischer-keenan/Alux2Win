@@ -76,3 +76,20 @@ graph TD
 | `tests/test_levels_and_schemas.py` | `src/levels/*.json`, Level Schema | Level JSON formatting & entity validation |
 | `tests/test_systems_contracts.py` | `src/systems/`, `src/core/`, `src/ai/` | ECS system signatures & game mechanics |
 | `src/systems/__tests__/*` | Core TypeScript systems | Unit tests for combat, gravity, movement |
+
+
+## 5. Refactor boundaries (2026-10-27)
+
+- `simulation/createGameState.ts`: state construction with injectable randomness; never owns DOM/renderers.
+- `simulation/SimulationPipeline.ts`: ordered system schedule and spatial index. Preserve ordering when adding systems: orbit → planet collisions → production → movement → gravity → particle collisions → combat → upgrades → enabled hazards → effect aging. The tick-start hash intentionally remains in the same position for gameplay compatibility.
+- `systems/PlanetCollisionSystem.ts`: simultaneous moving-planet destruction and stranded units.
+- `simulation/maintenance.ts`: stable in-place collection cleanup. Particle and effect array references remain valid.
+- `core/CollisionPairTracker.ts`: object ordinals plus an at-most 8 MiB reusable bitset, sparse fallback above 8,192 particles. Does not assume symmetric neighborhoods after movement.
+- `ai/WaveTracker.ts`: one live-ID index per tick, preserving wave order and first duplicate-ID semantics.
+- `core/SubscriptionScope.ts`: scene-owned listener teardown. GameScene also explicitly destroys its AI controller.
+- `ui/renderUnitGraph.ts`: result-chart presentation, independent of simulation.
+- `GameScene`: lifecycle, input/deployment, HUD/tutorial adapters and results. State construction, scheduling and graph drawing no longer belong here; input/deployment and result-overlay UI remain the next useful extraction seams.
+
+Performance evidence: deterministic Node collision-only medians, 20 samples after five warmups. Distributed 5,000 particles: 1.88 → 1.45 ms; dense 1,500: 10.56 → 3.90 ms. Local CPU timing only, not a whole-game FPS guarantee. Reproduce with `npx vitest run src/benchmarks/hotPaths.test.ts --disableConsoleIntercept`.
+
+Phase-one verification: 72 unit tests, 12 Python architecture/level checks, strict TypeScript build, tutorial/pause/quit browser smoke checks, independent code review. Existing gameplay strategy parameters, 28 levels and `lux_*` settings keys retained. Compatible locked dependency updates leave `npm audit` with zero findings at verification time.

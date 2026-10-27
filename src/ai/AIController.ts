@@ -1,3 +1,4 @@
+import {WaveTracker} from './WaveTracker';
 // ============================================================
 // AIController.ts — Heuristic state-machine AI for LUX
 // ============================================================
@@ -66,6 +67,7 @@ export class AIController {
 
   /** Active waves: groups of particles in flight toward a tracked target. */
   private activeWaves: AIWave[] = [];
+  private readonly waveTracker = new WaveTracker();
 
   /** Planet capture events queued for re-evaluation on next update tick. */
   private _pendingCaptureEvals: Array<{ planetId: string; newFaction: Faction; oldFaction: Faction }> = [];
@@ -154,6 +156,7 @@ export class AIController {
    * Call this once after construction, before the first update().
    */
   subscribeEvents(eventBus: EventBus): void {
+    this._unsubCapture?.();
     this._unsubCapture = eventBus.on('planet:captured', (payload) => {
       this._pendingCaptureEvals.push(payload);
     });
@@ -194,13 +197,7 @@ export class AIController {
     this.recentDeployEvents = this.recentDeployEvents.filter(e => e.time > cutoff);
 
     // Prune completed waves (particles that are dead or no longer traveling)
-    this.activeWaves = this.activeWaves.filter(wave => {
-      const alive = wave.particleIds.some(id => {
-        const p = state.particles.find(p => p.id === id);
-        return p && p.alive && (p.mode === 'traveling' || p.mode === 'combat');
-      });
-      return alive;
-    });
+    this.waveTracker.prune(this.activeWaves, state.particles);
 
     // ── Tick and expire breakthrough campaigns ───────────────
     for (const [faction, bt] of this._breakthroughs) {
