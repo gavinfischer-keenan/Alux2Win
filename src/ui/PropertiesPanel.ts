@@ -14,6 +14,8 @@ import { FACTION_COLORS_HEX } from '../types';
 
 export class PropertiesPanel {
   private element: HTMLElement;
+  private mobileToggleBtn: HTMLButtonElement;
+  private _mobileOpen = false;
 
   // Callbacks
   onPlanetChange:     (planetId: string, changes: Partial<PlanetDef>)            => void = () => {};
@@ -35,30 +37,46 @@ export class PropertiesPanel {
 
   constructor(container: HTMLElement) {
     this.element = this.createElement();
+    this.mobileToggleBtn = this.createMobileToggle();
     container.appendChild(this.element);
+    container.appendChild(this.mobileToggleBtn);
+  }
+
+  private createMobileToggle(): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.id = 'editor-props-toggle';
+    btn.className = 'lux-editor-props-toggle';
+    btn.textContent = '⚙ Props';
+    btn.title = 'Toggle Properties Panel';
+    btn.addEventListener('mousedown', (e) => e.stopPropagation());
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._mobileOpen = !this._mobileOpen;
+      this.syncVisibility(true);
+    });
+    return btn;
+  }
+
+  private syncVisibility(hasContent: boolean): void {
+    const isNarrow = typeof window !== 'undefined' && window.innerWidth <= 768;
+    if (!hasContent) {
+      this.element.style.display = 'none';
+      this.mobileToggleBtn.textContent = '⚙ Props';
+      return;
+    }
+    if (isNarrow && !this._mobileOpen) {
+      this.element.style.display = 'none';
+      this.mobileToggleBtn.textContent = '⚙ Props';
+    } else {
+      this.element.style.display = 'flex';
+      this.mobileToggleBtn.textContent = '✕ Close';
+    }
   }
 
   private createElement(): HTMLElement {
     const panel = document.createElement('div');
     panel.id = 'editor-props-panel';
-    panel.style.cssText = `
-      position: absolute;
-      top: 0; right: 0;
-      width: 220px;
-      height: 100%;
-      background: rgba(10, 10, 26, 0.85);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-left: 1px solid rgba(255,255,255,0.08);
-      z-index: 30;
-      display: none;
-      flex-direction: column;
-      padding: 12px 10px;
-      gap: 12px;
-      pointer-events: auto;
-      overflow-y: auto;
-      font-family: 'Rajdhani', sans-serif;
-    `;
+    panel.className = 'lux-editor-props';
     
     // Stop events from bubbling down to the canvas
     panel.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -91,7 +109,8 @@ export class PropertiesPanel {
 
     this.currentPlanetId = planet.id;
     this.element.innerHTML = '';
-    this.element.style.display = 'flex';
+    this._mobileOpen = true;
+    this.syncVisibility(true);
 
     // Header
     this.element.appendChild(this.buildHeader('🪐 Planet', planet.id));
@@ -168,7 +187,8 @@ export class PropertiesPanel {
 
     this.currentBhId = bh.id;
     this.element.innerHTML = '';
-    this.element.style.display = 'flex';
+    this._mobileOpen = true;
+    this.syncVisibility(true);
 
     // Header
     this.element.appendChild(this.buildHeader('⚫ Black Hole', bh.id));
@@ -233,7 +253,8 @@ export class PropertiesPanel {
   showSpeedZonePlacingUI(onCloseLoop: () => void): void {
     this.clearCurrentIds();
     this.element.innerHTML = '';
-    this.element.style.display = 'flex';
+    this._mobileOpen = true;
+    this.syncVisibility(true);
 
     this.element.appendChild(this.buildHeader('💨 Placing Speed Zone', 'New'));
 
@@ -259,7 +280,8 @@ export class PropertiesPanel {
     this.clearCurrentIds();
     this.currentSpeedZoneId = sz.id;
     this.element.innerHTML = '';
-    this.element.style.display = 'flex';
+    this._mobileOpen = true;
+    this.syncVisibility(true);
 
     // Header
     this.element.appendChild(this.buildHeader('💨 Speed Zone', sz.id));
@@ -319,7 +341,8 @@ export class PropertiesPanel {
     this.clearCurrentIds();
     this.currentPortalId = portal.id;
     this.element.innerHTML = '';
-    this.element.style.display = 'flex';
+    this._mobileOpen = true;
+    this.syncVisibility(true);
 
     // Header
     this.element.appendChild(this.buildHeader('🌀 Portal', portal.id));
@@ -404,7 +427,8 @@ export class PropertiesPanel {
     this.clearCurrentIds();
     this.currentTBHId = tbh.id;
     this.element.innerHTML = '';
-    this.element.style.display = 'flex';
+    this._mobileOpen = true;
+    this.syncVisibility(true);
 
     // Header
     this.element.appendChild(this.buildHeader('🕳️ Trapping Black Hole', tbh.id));
@@ -443,7 +467,8 @@ export class PropertiesPanel {
     this.clearCurrentIds();
     this.currentWhiteHoleId = wh.id;
     this.element.innerHTML = '';
-    this.element.style.display = 'flex';
+    this._mobileOpen = true;
+    this.syncVisibility(true);
 
     // Header
     this.element.appendChild(this.buildHeader('⭐ White Hole', wh.id));
@@ -467,7 +492,7 @@ export class PropertiesPanel {
   showLevelSettings(state: any): void {
     this.clearCurrentIds();
     this.element.innerHTML = '';
-    this.element.style.display = 'flex';
+    this.syncVisibility(true);
 
     this.element.appendChild(this.buildHeader('⚙️ Level Settings', ''));
 
@@ -627,10 +652,13 @@ export class PropertiesPanel {
 
   hide(): void {
     this.clearCurrentIds();
+    this._mobileOpen = false;
     this.element.style.display = 'none';
+    this.mobileToggleBtn.textContent = '⚙ Props';
   }
 
   destroy(): void {
+    this.mobileToggleBtn.remove();
     this.element.remove();
   }
 
@@ -652,11 +680,13 @@ export class PropertiesPanel {
       letter-spacing: 0.04em;
     `;
     titleEl.textContent = title;
-    const idEl = document.createElement('div');
-    idEl.style.cssText = 'font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 2px;';
-    idEl.textContent = `id: ${id}`;
     header.appendChild(titleEl);
-    header.appendChild(idEl);
+    if (id) {
+      const idEl = document.createElement('div');
+      idEl.style.cssText = 'font-size: 10px; color: rgba(255,255,255,0.45); margin-top: 2px;';
+      idEl.textContent = `id: ${id}`;
+      header.appendChild(idEl);
+    }
     return header;
   }
 
@@ -1024,6 +1054,7 @@ export class PropertiesPanel {
       btn.style.boxShadow = 'none';
     });
     btn.addEventListener('click', () => {
+      this._mobileOpen = false;
       this.onDeselect();
     });
     return btn;

@@ -112,13 +112,30 @@ export function scoreRoute(
   // ── Speed Zones ───────────────────────────────────────────────────────────
   for (const zone of state.speedZones) { if (!zone.points || zone.points.length < 3) continue; let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity; for (const p of zone.points) { if (p.x < minX) minX = p.x; if (p.y < minY) minY = p.y; if (p.x > maxX) maxX = p.x; if (p.y > maxY) maxY = p.y; } const cx = (minX + maxX) / 2; const cy = (minY + maxY) / 2; const r = Math.max(maxX - minX, maxY - minY) / 2; const dist = segmentToPointMinDist(sx, sy, tx, ty, cx, cy); if (dist < r) { if (zone.type === 'speedup') { score += 60; } else { score -= 80; } } }
 
-  // ── Gamma Ray (temporal — active beam is dangerous) ───────────────────────
-  if (state.gammaRay.firing && state.gammaRay.path) {
-    const gr = state.gammaRay.path;
-    // Check if the target planet is near the beam endpoint area
-    const beamDist = segmentToPointMinDist(gr.x1, gr.y1, gr.x2, gr.y2, tx, ty);
-    if (beamDist < gr.width * 2) {
-      score -= 300;
+  // ── Gamma Ray 1 & 2 (temporal — active or imminent beam is dangerous) ────
+  const rays = [state.gammaRay, ...(state.gammaRay2 ? [state.gammaRay2] : [])];
+  for (const ray of rays) {
+    if (!ray.enabled) continue;
+    if (ray.firing && ray.path) {
+      const beamDist = segmentToPointMinDist(ray.path.x1, ray.path.y1, ray.path.x2, ray.path.y2, tx, ty);
+      if (beamDist < ray.path.width * 2) {
+        score -= 300;
+      }
+    } else if (ray.lockedPath && ray.timer <= 6) {
+      const lockDist = segmentToPointMinDist(ray.lockedPath.x1, ray.lockedPath.y1, ray.lockedPath.x2, ray.lockedPath.y2, tx, ty);
+      if (lockDist < ray.lockedPath.width * 1.5) {
+        score -= 220;
+      }
+    }
+  }
+
+  // ── White Holes near supernova eruption ──────────────────────────────────
+  for (const wh of state.whiteHoles) {
+    if (!wh.exploded && wh.ownerFaction && wh.ownerFaction !== 'neutral' && wh.progress >= 65) {
+      const dist = segmentToPointMinDist(sx, sy, tx, ty, wh.x, wh.y);
+      if (dist < 120) {
+        score -= 250;
+      }
     }
   }
 
@@ -126,14 +143,67 @@ export function scoreRoute(
 }
 
 /**
- * Returns true if the gamma ray is actively firing and the target is near
+ * Returns true if any gamma ray is actively firing and the target is near
  * the current beam path. Used for temporal suppression of launches.
  */
 export function isGammaDangerous(state: GameState, tx: number, ty: number): boolean {
-  if (!state.gammaRay.firing || !state.gammaRay.path) return false;
-  const gr = state.gammaRay.path;
-  const dist = segmentToPointMinDist(gr.x1, gr.y1, gr.x2, gr.y2, tx, ty);
-  return dist < gr.width * 3;
+  const rays = [state.gammaRay, ...(state.gammaRay2 ? [state.gammaRay2] : [])];
+  for (const ray of rays) {
+    if (!ray.enabled || !ray.firing || !ray.path) continue;
+    const dist = segmentToPointMinDist(ray.path.x1, ray.path.y1, ray.path.x2, ray.path.y2, tx, ty);
+    if (dist < ray.path.width * 3) return true;
+  }
+  return false;
+}
+
+export interface PortalRouteEstimate {
+  effectiveDistance: number;
+  entryPortalX?: number;
+  entryPortalY?: number;
+}
+
+/**
+ * Computes direct distance vs. routing through any linked portal pair.
+ * Returns a portal entry waypoint when using a portal saves >=25% distance.
+ */
+export function getEffectiveDistanceAndPortal(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  state: GameState,
+): PortalRouteEstimate {
+  const directDist = Math.hypot(bx - ax, by - ay);
+  if (!state.portals || state.portals.length < 2) {
+    return { effectiveDistance: directDist };
+  }
+
+  let bestDist = directDist;
+  let bestEntry: { x: number; y: number } | null = null;
+
+  for (let i = 0; i < state.portals.length; i++) {
+    const p1 = state.portals[i];
+    for (let j = 0; j < state.portals.length; j++) {
+      if (i === j) continue;
+      const p2 = state.portals[j];
+      if (p1.pairId !== p2.pairId) continue;
+
+      const viaDist = Math.hypot(p1.x - ax, p1.y - ay) + Math.hypot(bx - p2.x, by - p2.y);
+      if (viaDist < directDist * 0.75 && viaDist < bestDist) {
+        bestDist = viaDist;
+        bestEntry = { x: p1.x, y: p1.y };
+      }
+    }
+  }
+
+  if (bestEntry) {
+    return {
+      effectiveDistance: bestDist,
+      entryPortalX: bestEntry.x,
+      entryPortalY: bestEntry.y,
+    };
+  }
+  return { effectiveDistance: directDist };
 }
 
 /**

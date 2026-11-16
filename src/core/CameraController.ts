@@ -3,6 +3,7 @@
 // ============================================================
 
 import type { Container } from 'pixi.js';
+import { isTypingInInput } from '../ui/KeyboardShortcuts';
 
 const PAN_SPEED  = 380;   // screen px/sec via keyboard
 const ZOOM_RATE  = 1.8;   // zoom factor per second via keyboard hold
@@ -101,8 +102,10 @@ export class CameraController {
   };
 
   private readonly _onKeyDown = (e: KeyboardEvent): void => {
+    if (isTypingInInput(e)) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     this._keysDown.add(e.code);
-    if (e.code === 'Home' || e.code === 'KeyR') {
+    if (e.code === 'Home' || e.code === 'KeyC') {
       this.reset();
     }
   };
@@ -168,17 +171,17 @@ export class CameraController {
     const screenCX = this._screenW / 2;
     const screenCY = this._screenH / 2;
 
-    // Keyboard pan
+    // Keyboard pan (arrow keys)
     const panDelta = PAN_SPEED * dt;
-    if (this._keysDown.has('ArrowLeft')  || this._keysDown.has('KeyA')) { this._panX += panDelta; changed = true; }
-    if (this._keysDown.has('ArrowRight') || this._keysDown.has('KeyD')) { this._panX -= panDelta; changed = true; }
-    if (this._keysDown.has('ArrowUp')    || this._keysDown.has('KeyW')) { this._panY += panDelta; changed = true; }
-    if (this._keysDown.has('ArrowDown')  || this._keysDown.has('KeyS')) { this._panY -= panDelta; changed = true; }
+    if (this._keysDown.has('ArrowLeft'))  { this._panX += panDelta; changed = true; }
+    if (this._keysDown.has('ArrowRight')) { this._panX -= panDelta; changed = true; }
+    if (this._keysDown.has('ArrowUp'))    { this._panY += panDelta; changed = true; }
+    if (this._keysDown.has('ArrowDown'))  { this._panY -= panDelta; changed = true; }
 
     // Keyboard zoom
     const zoomFactor = Math.pow(ZOOM_RATE, dt);
-    const zoomIn  = this._keysDown.has('Equal') || this._keysDown.has('NumpadAdd')      || this._keysDown.has('BracketRight');
-    const zoomOut = this._keysDown.has('Minus')  || this._keysDown.has('NumpadSubtract') || this._keysDown.has('BracketLeft');
+    const zoomIn  = this._keysDown.has('Equal') || this._keysDown.has('NumpadAdd');
+    const zoomOut = this._keysDown.has('Minus') || this._keysDown.has('NumpadSubtract');
     if (zoomIn)  { this._applyZoom(zoomFactor,       screenCX, screenCY); changed = true; }
     if (zoomOut) { this._applyZoom(1 / zoomFactor,   screenCX, screenCY); changed = true; }
 

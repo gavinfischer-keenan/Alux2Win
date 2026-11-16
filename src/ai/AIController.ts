@@ -14,7 +14,13 @@ import {
   PARTICLE_SPEED,
 } from '../types';
 import type { AIDifficulty } from '../core/SettingsStore';
-import { scoreRoute, isGammaDangerous, getGammaRiskForPlanet, computeWaypoint } from './HazardPathChecker';
+import {
+  scoreRoute,
+  isGammaDangerous,
+  getGammaRiskForPlanet,
+  computeWaypoint,
+  getEffectiveDistanceAndPortal,
+} from './HazardPathChecker';
 import type { EventBus } from '../core/EventBus';
 import {
   AIState,
@@ -23,6 +29,7 @@ import {
   FutilityEntry,
   AIWave,
   BreakthroughEntry,
+  IncomingEnemySummary,
   SituationAssessment,
   STRATEGIES,
   pickSubRole,
@@ -123,6 +130,10 @@ export class AIController {
    */
   private _lockoutTimingTargets: Map<Faction, { planetId: string; deployAt: number }> = new Map();
 
+  /** Per-evaluate O(1) particle lookup caches populated from assessSituation(). */
+  private _activeOrbitingMap: Map<string, number> | null = null;
+  private _activeIncomingMap: Map<string, IncomingEnemySummary> | null = null;
+
   constructor(factions: Faction[], difficulty: AIDifficulty = 'normal') {
     this.factions    = factions;
     this._difficulty = difficulty;
@@ -194,8 +205,8 @@ export class AIController {
       else this.aggressorCooldowns.set(planetId, next);
     }
 
-    // Expire old deploy events (> 12s)
-    const cutoff = performance.now() - 12000;
+    // Expire old deploy events (> 12s simulation time)
+    const cutoff = this._gameElapsed - 12;
     this.recentDeployEvents = this.recentDeployEvents.filter(e => e.time > cutoff);
 
     // Prune completed waves (particles that are dead or no longer traveling)
@@ -257,7 +268,7 @@ export class AIController {
 
   /** Call this whenever any faction deploys units away from a planet. */
   recordDeployEvent(planetId: string, faction: Faction, orbitCountBefore: number): void {
-    this.recentDeployEvents.push({ planetId, faction, time: performance.now(), orbitCountBefore });
+    this.recentDeployEvents.push({ planetId, faction, time: this._gameElapsed, orbitCountBefore });
     // Keep buffer small
     if (this.recentDeployEvents.length > 20) this.recentDeployEvents.shift();
   }
@@ -444,7 +455,7 @@ export class AIController {
       if (assessment.canUpgradeForVision) {
         const subRole    = this.subRoles.get(faction) as string;
         const shieldBonus = subRole === 'fortress' ? 20 : subRole === 'balanced' ? 8 : subRole === 'economic' ? 12 : 0;
-        const upgTarget  = this.findBestPlanetToUpgrade(ownPlanets, strategy.maxUpgrade, shieldBonus);
+        const upgTarget  = this.findBestPlanetToUpgrade(ownPlanets, strategy.maxUpgrade, shieldBonus, state);
         if (upgTarget && upgTarget.id !== planet.id) {
           this.states.set(faction, 'upgrade');
           this.deployParticles([planet], upgTarget, deployCallback, strategy.upgradeFraction, [], state);
@@ -811,6 +822,23 @@ export class AIController {
   ): void {
     const strategy = this.strategies.get(faction)!;
     const assessment = this._assessSituation(faction, state);
+    this._activeOrbitingMap = assessment.orbitingStrengthByPlanet;
+    this._activeIncomingMap = assessment.incomingEnemiesByPlanet;
+    try {
+      this._evaluateWithAssessment(faction, state, deployCallback, strategy, assessment);
+    } finally {
+      this._activeOrbitingMap = null;
+      this._activeIncomingMap = null;
+    }
+  }
+
+  private _evaluateWithAssessment(
+    faction: Faction,
+    state: GameState,
+    deployCallback: DeployCallback,
+    strategy: AIStrategy,
+    assessment: SituationAssessment,
+  ): void {
     const ownPlanets = assessment.myPlanets;
 
     // Gather any stationed particles belonging to this faction
@@ -970,10 +998,14 @@ export class AIController {
     } else {
       upgradeBias = strategy.upgradeWeight;
     }
+    if (state.asteroidConfig?.enabled) {
+      // Asteroids destroy Level 1 planets — push harder for resilient Level 2+ upgrades
+      upgradeBias = Math.min(1.0, upgradeBias + 0.2);
+    }
     const wantsUpgrade = Math.random() < upgradeBias;
     if (wantsUpgrade && (sourcePlanets.length > 0 || stationedParticleIds.length > 0) && totalParticles >= strategy.upgradeTrigger) {
       const shieldBonus = subRole === 'fortress' ? 20 : subRole === 'balanced' ? 8 : subRole === 'economic' ? 12 : 0;
-      const bestUpgradePlanet = this.findBestPlanetToUpgrade(ownPlanets, strategy.maxUpgrade, shieldBonus);
+      const bestUpgradePlanet = this.findBestPlanetToUpgrade(ownPlanets, strategy.maxUpgrade, shieldBonus, state);
       if (bestUpgradePlanet !== null) {
         this.states.set(faction, 'upgrade');
         const nearest = this.nearestPlanet(sourcePlanets, bestUpgradePlanet);
@@ -1006,7 +1038,7 @@ export class AIController {
     const emergencyBlocksAttack = inProductionEmergency && !isBerserker && reachableNeutrals.length > 0;
 
     if (!inGrowthPause && !earlyGameBlocked && !emergencyBlocksAttack && (sourcePlanets.length > 0 || stationedParticleIds.length > 0)) {
-      const opportunityTarget = this._findOpportunityTarget(faction, sourcePlanets, state, stationedStrength);
+      const opportunityTarget = this._findOpportunityTarget(faction, sourcePlanets, state, stationedStrength, assessment);
       // Hard gate: never deploy to a planet the gamma ray is firing on or about to fire on
       if (opportunityTarget !== null && getGammaRiskForPlanet(state, opportunityTarget.id, opportunityTarget.x, opportunityTarget.y) < 2) {
         const sources = this._gatherCoordinatedSources(sourcePlanets, opportunityTarget, strategy.maxSources);
@@ -1101,10 +1133,16 @@ export class AIController {
 
     let score = 0;
 
-    // Distance penalty (use nearest source)
+    // Distance penalty (portal-aware on Normal/Hard)
     const nearest = this.nearestPlanet(sourcePlanets, target);
     if (nearest) {
-      const dist = Math.sqrt(this.distSq(nearest, target));
+      let dist = Math.sqrt(this.distSq(nearest, target));
+      if (this._difficulty !== 'easy' && state.portals.length >= 2) {
+        for (const src of sourcePlanets) {
+          const eff = getEffectiveDistanceAndPortal(src.x, src.y, target.x, target.y, state).effectiveDistance;
+          if (eff < dist) dist = eff;
+        }
+      }
       score -= dist * 0.05; // 200px = -10 score
     } else {
       score -= 50; // no nearby source is bad
@@ -1283,10 +1321,12 @@ export class AIController {
 
       let score = 0;
 
-      // Distance score (closer to our planets = better)
+      // Distance score (closer to our planets = better, portal-aware on Normal/Hard)
       const nearestOwn = this.nearestPlanet(allOwnPlanets, neutral);
       if (nearestOwn) {
-        const dist = Math.sqrt(this.distSq(nearestOwn, neutral));
+        const dist = this._difficulty !== 'easy' && state.portals.length >= 2
+          ? getEffectiveDistanceAndPortal(nearestOwn.x, nearestOwn.y, neutral.x, neutral.y, state).effectiveDistance
+          : Math.sqrt(this.distSq(nearestOwn, neutral));
         score -= dist * 0.04;
       }
 
@@ -1409,21 +1449,11 @@ export class AIController {
     if (ownPlanets.length === 0) return false;
 
     for (const planet of ownPlanets) {
-      // ── Count incoming enemy particles ───────────────────────
-      let incomingEnemies = 0;
-      const attackerFactions = new Set<Faction>();
-      const attackerHomePlanetIds = new Set<string>();
-
-      for (const p of state.particles) {
-        if (
-          p.alive && p.faction !== faction && p.faction !== 'neutral' &&
-          p.mode === 'traveling' && p.targetPlanetId === planet.id
-        ) {
-          incomingEnemies += p.strength;
-          attackerFactions.add(p.faction as Faction);
-          if (p.homePlanetId) attackerHomePlanetIds.add(p.homePlanetId);
-        }
-      }
+      // ── Count incoming enemy particles (O(1) via assessment index when available) ──
+      const incoming = this._getIncomingEnemies(planet.id, faction, state);
+      const incomingEnemies = incoming.strength;
+      const attackerFactions = incoming.factions;
+      const attackerHomePlanetIds = incoming.homePlanetIds;
 
       if (incomingEnemies === 0) continue;
 
@@ -1539,13 +1569,8 @@ export class AIController {
 
     for (const planet of ownPlanets) {
       // Count incoming enemy particles heading toward this planet
-      let incomingEnemies = 0;
-      for (const p of state.particles) {
-        if (p.alive && p.faction !== faction && p.faction !== 'neutral' &&
-            p.mode === 'traveling' && p.targetPlanetId === planet.id) {
-          incomingEnemies += p.strength;
-        }
-      }
+      const incoming = this._getIncomingEnemies(planet.id, faction, state);
+      const incomingEnemies = incoming.strength;
 
       if (incomingEnemies === 0) continue;
 
@@ -1563,13 +1588,7 @@ export class AIController {
 
           // Hard: counter-attack the source of the incoming wave
           if (this._difficulty === 'hard' && safePlanets.length > 1) {
-            const attackerSources = new Set<string>();
-            for (const p of state.particles) {
-              if (p.alive && p.faction !== faction && p.faction !== 'neutral' &&
-                  p.mode === 'traveling' && p.targetPlanetId === planet.id && p.homePlanetId) {
-                attackerSources.add(p.homePlanetId);
-              }
-            }
+            const attackerSources = incoming.homePlanetIds;
             if (attackerSources.size > 0) {
               const counterTargetId = attackerSources.values().next().value as string;
               const counterTarget = state.planets.get(counterTargetId);
@@ -1639,7 +1658,38 @@ export class AIController {
     return total;
   }
 
+  private _getIncomingEnemies(
+    planetId: string,
+    faction: Faction,
+    state: GameState,
+  ): IncomingEnemySummary {
+    if (this._activeIncomingMap) {
+      return this._activeIncomingMap.get(planetId) ?? {
+        strength: 0,
+        factions: new Set<Faction>(),
+        homePlanetIds: new Set<string>(),
+      };
+    }
+    let strength = 0;
+    const factions = new Set<Faction>();
+    const homePlanetIds = new Set<string>();
+    for (const p of state.particles) {
+      if (
+        p.alive && p.faction !== faction && p.faction !== 'neutral' &&
+        p.mode === 'traveling' && p.targetPlanetId === planetId
+      ) {
+        strength += p.strength;
+        factions.add(p.faction);
+        if (p.homePlanetId) homePlanetIds.add(p.homePlanetId);
+      }
+    }
+    return { strength, factions, homePlanetIds };
+  }
+
   private getOrbitingStrength(planetId: string, state: GameState): number {
+    if (this._activeOrbitingMap) {
+      return this._activeOrbitingMap.get(planetId) ?? 0;
+    }
     let count = 0;
     for (const particle of state.particles) {
       if (particle.alive && particle.mode === 'orbiting' && particle.homePlanetId === planetId) count += particle.strength;
@@ -1691,18 +1741,31 @@ export class AIController {
     return best;
   }
 
-  private findBestPlanetToUpgrade(planets: PlanetData[], maxUpgrade: UpgradeLevel, shieldBonus = 0): PlanetData | null {
+  private findBestPlanetToUpgrade(
+    planets: PlanetData[],
+    maxUpgrade: UpgradeLevel,
+    shieldBonus = 0,
+    state?: GameState,
+  ): PlanetData | null {
     let best: PlanetData | null = null;
     let bestScore = -Infinity;
     for (const planet of planets) {
       if (planet.upgradeLevel >= maxUpgrade) continue;
+      if (state && getGammaRiskForPlanet(state, planet.id, planet.x, planet.y) >= 2) continue;
+
       // Score = current upgrade level * 10 (higher level = more progress = worth feeding)
+      //       + absorption progress toward next level (up to +12)
       //       + health fraction (fuller planet = more efficient)
-      //       + shield bonus for shielded planets (they generate free defenders)
-      let score = planet.upgradeLevel * 10;
+      //       + shield bonus / asteroid Level-1 survival bonus
+      const threshold = planet.upgradeLevel === 1 ? 50 : 100;
+      const progressFrac = Math.min(1, Math.max(0, planet.absorbedCount / threshold));
+      let score = planet.upgradeLevel * 10 + progressFrac * 12;
       score += (planet.health / planet.maxHealth) * 5;
       if (planet.isShielded) {
         score += shieldBonus; // Role-specific: fortress values shields much more
+      }
+      if (state?.asteroidConfig?.enabled && planet.upgradeLevel === 1) {
+        score += 18; // Promote fragile Level 1 planets before asteroids destroy them
       }
       if (score > bestScore) {
         bestScore = score;
@@ -1760,6 +1823,16 @@ export class AIController {
           } else if (routeScore <= -900) {
             // Lethal hazard, and role doesn't use waypoints! Abort attack for this source.
             continue;
+          }
+        } else if (strategy.usesWaypoints && this._difficulty !== 'easy' && state.portals.length >= 2) {
+          const portalEstimate = getEffectiveDistanceAndPortal(src.x, src.y, target.x, target.y, state);
+          if (
+            portalEstimate.entryPortalX !== undefined &&
+            portalEstimate.entryPortalY !== undefined &&
+            scoreRoute(state, src.x, src.y, portalEstimate.entryPortalX, portalEstimate.entryPortalY) >= strategy.hazardToleranceThreshold
+          ) {
+            waypointX = portalEstimate.entryPortalX;
+            waypointY = portalEstimate.entryPortalY;
           }
         }
         deployCallback([src.id], target.id, undefined, waypointX, waypointY, fraction);
@@ -1916,13 +1989,12 @@ export class AIController {
    * and are now weakly defended.
    */
   private _findBackcapTarget(faction: Faction, state: GameState): PlanetData | null {
-    const now = performance.now();
     let best: PlanetData | null = null;
     let bestScore = 0;
 
     for (const event of this.recentDeployEvents) {
-      const age = (now - event.time) / 1000; // seconds
-      if (age > 10) continue;
+      const age = this._gameElapsed - event.time; // simulation seconds
+      if (age < 0 || age > 10) continue;
       if (event.faction === faction) continue;
 
       const planet = state.planets.get(event.planetId);
@@ -1960,10 +2032,16 @@ export class AIController {
     sourcePlanets: PlanetData[],
     state: GameState,
     stationedCount: number,
+    existingAssessment?: SituationAssessment,
   ): PlanetData | null {
     const strategy = this.strategies.get(faction)!;
-    const assessment = this._assessSituation(faction, state);
+    const assessment = existingAssessment ?? this._assessSituation(faction, state);
     const OPPORTUNITY_RANGE_SQ = strategy.opportunityRange * strategy.opportunityRange;
+
+    // Hoist pooled force outside the candidate loop
+    const totalPooled = sourcePlanets.reduce(
+      (s, p) => s + this.getOrbitingStrength(p.id, state), stationedCount
+    );
 
     let best: PlanetData | null = null;
     let bestScore = -Infinity;
@@ -1982,11 +2060,6 @@ export class AIController {
           localForce += this.getOrbitingStrength(src.id, state);
         }
       }
-
-      // Calculate total pooled force (ALL sources, for threat-leader check)
-      const totalPooled = sourcePlanets.reduce(
-        (s, p) => s + this.getOrbitingStrength(p.id, state), stationedCount
-      );
 
       // ── Two qualification paths ─────────────────────────────────────────
       // Path A: Local opportunity — nearby sources can overwhelm the target

@@ -7,6 +7,8 @@ class AudioManager {
   private _ctx: AudioContext | null = null;
   private _masterGain: GainNode | null = null;
   private _volume = 0.6;
+  private _muted = false;
+  private _volumeBeforeMute = 0.6;
 
   // Ambient drone state
   private _ambientGain: GainNode | null = null;
@@ -42,7 +44,7 @@ class AudioManager {
     }
     this._ctx = new AudioContext();
     this._masterGain = this._ctx.createGain();
-    this._masterGain.gain.setValueAtTime(this._volume, this._ctx.currentTime);
+    this._masterGain.gain.setValueAtTime(this._muted ? 0 : this._volume, this._ctx.currentTime);
     this._masterGain.connect(this._ctx.destination);
     
     // Discover all MP3 files dynamically inside src/assets/audio/
@@ -82,9 +84,36 @@ class AudioManager {
 
   setVolume(v: number): void {
     this._volume = Math.max(0, Math.min(1, v));
-    if (this._masterGain && this._ctx) {
-      this._masterGain.gain.setValueAtTime(this._volume, this._ctx.currentTime);
+    if (this._volume > 0) {
+      this._muted = false;
+      this._volumeBeforeMute = this._volume;
     }
+    if (this._masterGain && this._ctx) {
+      this._masterGain.gain.setValueAtTime(this._muted ? 0 : this._volume, this._ctx.currentTime);
+    }
+  }
+
+  getVolume(): number {
+    return this._muted ? 0 : this._volume;
+  }
+
+  isMuted(): boolean {
+    return this._muted || this._volume === 0;
+  }
+
+  toggleMute(): boolean {
+    if (this.isMuted()) {
+      this._muted = false;
+      const restore = this._volumeBeforeMute > 0 ? this._volumeBeforeMute : 0.6;
+      this._volume = restore;
+    } else {
+      if (this._volume > 0) this._volumeBeforeMute = this._volume;
+      this._muted = true;
+    }
+    if (this._masterGain && this._ctx) {
+      this._masterGain.gain.setValueAtTime(this._muted ? 0 : this._volume, this._ctx.currentTime);
+    }
+    return this.isMuted();
   }
 
   // ── Ambient drone ─────────────────────────────────────────

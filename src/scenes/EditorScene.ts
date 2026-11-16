@@ -30,6 +30,7 @@ import { Renderer }        from '../core/Renderer';
 import { EventBus }        from '../core/EventBus';
 import { EditorSidebar, EditorTool } from '../ui/EditorSidebar';
 import { PropertiesPanel } from '../ui/PropertiesPanel';
+import { isTypingInInput } from '../ui/KeyboardShortcuts';
 import { LevelStore }      from '../core/LevelStore';
 import { lineSegmentsIntersect } from '../utils/MathUtils';
 
@@ -170,6 +171,7 @@ export class EditorScene {
     this.lastTime = 0;
 
     // PixiJS rendering layer for editor graphics
+    this.renderer.setWorldSize(this.editState.worldWidth, this.editState.worldHeight);
     this.editorContainer = new Container();
     this.renderer.getWorldContainer().addChild(this.editorContainer);
     this.editorGfx     = new Graphics();
@@ -237,6 +239,22 @@ export class EditorScene {
 
   destroy(): void {
     this.hide();
+  }
+
+  public setTool(tool: EditorTool): void {
+    this.sidebar?.setActiveTool(tool);
+  }
+
+  public saveLevelModal(): void {
+    this.showSaveOverlay();
+  }
+
+  public loadLevelModal(): void {
+    this.showLoadOverlay();
+  }
+
+  public triggerTestLevel(): void {
+    this.testLevel();
   }
 
   // ── Render Loop ───────────────────────────────────────────
@@ -747,6 +765,7 @@ export class EditorScene {
     };
 
     this._onKeyDown = (e: KeyboardEvent) => {
+      if (isTypingInInput(e)) return;
       if (e.key === 'Enter') {
         if (this.editState.tool === 'place_speedzone') {
           this.finishPlacingPolygon();
@@ -881,10 +900,12 @@ export class EditorScene {
     const div = document.createElement('div');
     div.textContent = msg;
     div.style.cssText = `
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      background: rgba(239, 68, 68, 0.9); color: white; padding: 12px 24px; border-radius: 8px;
-      font-family: sans-serif; font-weight: bold; font-size: 18px; pointer-events: none; z-index: 9999;
-      transition: opacity 0.5s; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(239, 68, 68, 0.94); color: white; padding: 12px 20px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.25);
+      font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: clamp(12px, 2vw, 15px);
+      max-width: 90vw; text-align: center; pointer-events: none; z-index: 9999;
+      transition: opacity 0.5s; box-shadow: 0 8px 24px rgba(0,0,0,0.6);
     `;
     document.body.appendChild(div);
     setTimeout(() => { div.style.opacity = '0'; setTimeout(() => div.remove(), 500); }, 2000);
@@ -1452,22 +1473,26 @@ export class EditorScene {
     `;
 
     const dialog = document.createElement('div');
+    dialog.className = 'editor-modal-dialog';
     dialog.style.cssText = `
-      background: rgba(20, 20, 40, 0.85);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      padding: 24px;
-      width: 400px;
+      background: rgba(12, 16, 34, 0.96);
+      border: 1px solid rgba(79, 195, 247, 0.3);
+      border-radius: 14px;
+      padding: clamp(16px, 3vw, 24px);
+      width: min(420px, 92vw);
+      max-height: 88vh;
+      overflow-y: auto;
       display: flex;
       flex-direction: column;
       gap: 16px;
       font-family: 'Rajdhani', sans-serif;
       color: white;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8);
     `;
 
     const title = document.createElement('h2');
     title.textContent = 'Save / Export Level';
-    title.style.cssText = 'margin: 0; text-align: center; font-size: 24px;';
+    title.style.cssText = "margin: 0; text-align: center; font-family: 'Orbitron', sans-serif; font-size: clamp(1rem, 2.5vw, 1.35rem); color: #4fc3f7; letter-spacing: 0.08em;";
     dialog.appendChild(title);
 
     const form = document.createElement('div');
@@ -1538,16 +1563,19 @@ export class EditorScene {
     dialog.appendChild(form);
 
     const btnContainer = document.createElement('div');
-    btnContainer.style.cssText = 'display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end;';
+    btnContainer.className = 'editor-modal-actions';
+    btnContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; justify-content: flex-end;';
 
     const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'lux-btn-secondary';
     cancelBtn.textContent = 'Cancel';
-    cancelBtn.style.cssText = 'padding: 8px 16px; background: rgba(255,255,255,0.1); border: none; color: white; border-radius: 4px; cursor: pointer;';
+    cancelBtn.style.cssText = 'padding: 9px 14px; font-size: 11px; flex: 1 1 90px;';
     cancelBtn.onclick = () => overlay.remove();
 
     const exportBtn = document.createElement('button');
+    exportBtn.className = 'btn-primary';
     exportBtn.textContent = '💾 Save & Export JSON';
-    exportBtn.style.cssText = 'padding: 8px 16px; background: rgba(79, 195, 247, 0.3); border: 1px solid #4fc3f7; color: #4fc3f7; border-radius: 4px; cursor: pointer; font-weight: 600;';
+    exportBtn.style.cssText = 'padding: 9px 14px; font-size: 11px; flex: 1 1 150px; white-space: nowrap;';
     exportBtn.onclick = () => {
       this.editState.levelName = nameField.input.value;
       this.editState.category = catSelect.value || 'Custom';
@@ -1562,8 +1590,9 @@ export class EditorScene {
     };
 
     const saveLocalBtn = document.createElement('button');
+    saveLocalBtn.className = 'btn-success';
     saveLocalBtn.textContent = 'Save to My Levels';
-    saveLocalBtn.style.cssText = 'padding: 8px 16px; background: rgba(34, 197, 94, 0.3); border: 1px solid #22c55e; color: #22c55e; border-radius: 4px; cursor: pointer; font-weight: 600;';
+    saveLocalBtn.style.cssText = 'padding: 9px 14px; font-size: 11px; flex: 1 1 140px; white-space: nowrap;';
     saveLocalBtn.onclick = () => {
       this.editState.levelName = nameField.input.value;
       this.editState.category = catSelect.value || 'Custom';
@@ -1603,27 +1632,30 @@ export class EditorScene {
     `;
 
     const dialog = document.createElement('div');
+    dialog.className = 'editor-modal-dialog';
     dialog.style.cssText = `
-      background: rgba(20, 20, 40, 0.85);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      padding: 24px;
-      width: 500px;
-      max-height: 80%;
+      background: rgba(12, 16, 34, 0.96);
+      border: 1px solid rgba(79, 195, 247, 0.3);
+      border-radius: 14px;
+      padding: clamp(16px, 3vw, 24px);
+      width: min(500px, 92vw);
+      max-height: 88vh;
       display: flex;
       flex-direction: column;
       gap: 16px;
       font-family: 'Rajdhani', sans-serif;
       color: white;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8);
     `;
 
     const title = document.createElement('h2');
     title.textContent = 'Load Custom Level';
-    title.style.cssText = 'margin: 0; text-align: center; font-size: 24px;';
+    title.style.cssText = "margin: 0; text-align: center; font-family: 'Orbitron', sans-serif; font-size: clamp(1rem, 2.5vw, 1.35rem); color: #4fc3f7; letter-spacing: 0.08em;";
     dialog.appendChild(title);
 
     const list = document.createElement('div');
-    list.style.cssText = 'display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; padding-right: 8px;';
+    list.className = 'lux-table-scroll';
+    list.style.cssText = 'display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; padding-right: 4px;';
 
     if (levels.length === 0) {
       const noLevels = document.createElement('div');
@@ -1634,8 +1666,9 @@ export class EditorScene {
     } else {
       levels.forEach(ld => {
         const item = document.createElement('div');
+        item.className = 'editor-load-item';
         item.style.cssText = `
-          display: flex; justify-content: space-between; align-items: center;
+          display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
           padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
           border-radius: 6px; cursor: pointer; transition: background 0.1s;
         `;
@@ -1643,12 +1676,12 @@ export class EditorScene {
         item.onmouseleave = () => item.style.background = 'rgba(0,0,0,0.3)';
         
         const info = document.createElement('div');
-        info.innerHTML = `<strong>${ld.name}</strong><br><span style="font-size:12px;color:rgba(255,255,255,0.5)">Category: ${ld.category || 'Custom'}</span>`;
+        info.innerHTML = `<strong>${ld.name}</strong><br><span style="font-size:12px;color:rgba(255,255,255,0.55)">Category: ${ld.category || 'Custom'}</span>`;
         item.appendChild(info);
 
         const loadBtn = document.createElement('button');
         loadBtn.textContent = 'Load';
-        loadBtn.style.cssText = 'padding: 6px 12px; background: #fbc02d; border: none; color: black; border-radius: 4px; cursor: pointer; font-family: inherit; font-weight: bold;';
+        loadBtn.style.cssText = "padding: 6px 12px; background: #fbc02d; border: none; color: black; border-radius: 6px; cursor: pointer; font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: bold;";
         loadBtn.onclick = (e) => {
           e.stopPropagation();
           this.loadLevelData(ld);
@@ -1657,8 +1690,9 @@ export class EditorScene {
         item.onclick = () => loadBtn.click();
         
         const delBtn = document.createElement('button');
+        delBtn.className = 'btn-danger';
         delBtn.textContent = 'Delete';
-        delBtn.style.cssText = 'padding: 6px 12px; background: #ef5350; border: none; color: white; border-radius: 4px; cursor: pointer; font-family: inherit; margin-left: 8px;';
+        delBtn.style.cssText = 'padding: 6px 12px; font-size: 11px;';
         delBtn.onclick = (e) => {
           e.stopPropagation();
           if (ld.id) LevelStore.deleteLevel(ld.id);
@@ -1666,6 +1700,7 @@ export class EditorScene {
         };
 
         const btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display: flex; gap: 8px; align-items: center;';
         btnRow.appendChild(loadBtn);
         btnRow.appendChild(delBtn);
         item.appendChild(btnRow);
@@ -1677,10 +1712,11 @@ export class EditorScene {
     dialog.appendChild(list);
 
     const btnContainer = document.createElement('div');
-    btnContainer.style.cssText = 'display: flex; justify-content: center; margin-top: 16px;';
+    btnContainer.style.cssText = 'display: flex; justify-content: center; margin-top: 8px;';
     const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'lux-btn-secondary';
     cancelBtn.textContent = 'Cancel';
-    cancelBtn.style.cssText = 'padding: 8px 32px; background: rgba(255,255,255,0.1); border: none; color: white; border-radius: 4px; cursor: pointer; font-family: inherit;';
+    cancelBtn.style.cssText = 'padding: 8px 32px; font-size: 12px;';
     cancelBtn.onclick = () => overlay.remove();
     btnContainer.appendChild(cancelBtn);
 
@@ -1702,6 +1738,7 @@ export class EditorScene {
     this.editState.levelName = ld.name;
     this.editState.worldWidth = ld.worldWidth;
     this.editState.worldHeight = ld.worldHeight;
+    this.renderer.setWorldSize(ld.worldWidth, ld.worldHeight);
     this.editState.fogOfWarConfig = ld.fogOfWarConfig;
     
     if ((this.sidebar as any).setLevelName) {
