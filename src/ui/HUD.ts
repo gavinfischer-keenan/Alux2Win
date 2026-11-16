@@ -43,6 +43,7 @@ export class HUD {
   private speedBtns = new Map<GameSpeed, HTMLButtonElement>();
   private _currentSpeed: GameSpeed = 1;
   onSpeedChange: (speed: GameSpeed) => void = () => {};
+  onShortcutsClick: () => void = () => {};
 
   constructor(container: HTMLElement, onPauseClick: () => void = () => {}, activeFactions: Faction[] = ['player', 'enemy_a', 'enemy_b']) {
     this.element      = this._build(onPauseClick, activeFactions);
@@ -220,19 +221,13 @@ export class HUD {
 
     // ── FPS counter & Timer (top-left) ─────────────────────────────
     const topLeftContainer = document.createElement('div');
-    topLeftContainer.style.cssText = `
-      position: absolute;
-      top: 10px; left: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    `;
+    topLeftContainer.className = 'lux-hud-top-left';
 
     const fpsEl = document.createElement('div');
     fpsEl.id = 'hud-fps';
     fpsEl.style.cssText = `
       font-size: 11px;
-      color: rgba(255,255,255,0.28);
+      color: rgba(255,255,255,0.45);
       font-family: 'Orbitron', sans-serif;
       letter-spacing: 0.05em;
       user-select: none;
@@ -289,18 +284,10 @@ export class HUD {
 
     el.appendChild(topLeftContainer);
 
-    // ── Faction counts (top-center) ────────────────────────
+    // ── Faction counts (top-center, wraps cleanly below bar on <=1024px) ────────
     const factionsBar = document.createElement('div');
-    factionsBar.style.cssText = `
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 24px;
-      align-items: center;
-      pointer-events: none;
-    `;
+    factionsBar.id = 'hud-factions-bar';
+    factionsBar.className = 'lux-hud-factions';
 
     const factionDefs: Array<{ faction: Faction; label: string }> = [
       { faction: 'player' as Faction,  label: 'Player 1' },
@@ -327,10 +314,11 @@ export class HUD {
       labelEl.id = `hud-label-${faction}`;
       labelEl.style.cssText = `
         font-size: 11px;
-        color: rgba(255,255,255,0.45);
+        color: rgba(255,255,255,0.68);
         text-transform: uppercase;
         letter-spacing: 0.07em;
         font-weight: 600;
+        white-space: nowrap;
       `;
       labelEl.textContent = label;
 
@@ -353,16 +341,9 @@ export class HUD {
     });
     el.appendChild(factionsBar);
 
-    // ── Speed pill strip + Pause button (top-right) ───────────────────
+    // ── Speed pill strip + Shortcuts + Pause button (top-right) ──────
     const topRight = document.createElement('div');
-    topRight.style.cssText = `
-      position: absolute;
-      top: 8px; right: 12px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      pointer-events: auto;
-    `;
+    topRight.className = 'lux-hud-top-right';
 
     // Speed buttons
     const speeds: { label: string; value: GameSpeed }[] = [
@@ -424,6 +405,41 @@ export class HUD {
     `;
     topRight.appendChild(divider);
 
+    // Shortcuts (?) button
+    const helpBtn = document.createElement('button');
+    helpBtn.id = 'hud-shortcuts-btn';
+    helpBtn.title = 'Keyboard Shortcuts (?)';
+    helpBtn.textContent = '?';
+    helpBtn.style.cssText = `
+      width: 28px; height: 28px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      color: rgba(255,255,255,0.68);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      user-select: none;
+    `;
+    helpBtn.addEventListener('click', () => {
+      audioManager.playClick();
+      this.onShortcutsClick();
+    });
+    helpBtn.addEventListener('mouseenter', () => {
+      helpBtn.style.background = 'rgba(79,195,247,0.15)';
+      helpBtn.style.borderColor = 'rgba(79,195,247,0.4)';
+      helpBtn.style.color = '#4fc3f7';
+    });
+    helpBtn.addEventListener('mouseleave', () => {
+      helpBtn.style.background = 'rgba(255,255,255,0.06)';
+      helpBtn.style.borderColor = 'rgba(255,255,255,0.12)';
+      helpBtn.style.color = 'rgba(255,255,255,0.68)';
+    });
+    topRight.appendChild(helpBtn);
+
     // Pause button
     const pauseBtn = document.createElement('button');
     pauseBtn.id    = 'hud-pause-btn';
@@ -434,7 +450,7 @@ export class HUD {
       background: rgba(255,255,255,0.06);
       border: 1px solid rgba(255,255,255,0.12);
       border-radius: 6px;
-      color: rgba(255,255,255,0.5);
+      color: rgba(255,255,255,0.7);
       font-size: 13px;
       cursor: pointer;
       display: flex; align-items: center; justify-content: center;
@@ -453,7 +469,7 @@ export class HUD {
     pauseBtn.addEventListener('mouseleave', () => {
       pauseBtn.style.background   = 'rgba(255,255,255,0.06)';
       pauseBtn.style.borderColor  = 'rgba(255,255,255,0.12)';
-      pauseBtn.style.color        = 'rgba(255,255,255,0.5)';
+      pauseBtn.style.color        = 'rgba(255,255,255,0.7)';
     });
     topRight.appendChild(pauseBtn);
     el.appendChild(topRight);
@@ -467,7 +483,7 @@ export class HUD {
       top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       font-family: 'Orbitron', sans-serif;
-      font-size: 2.8rem;
+      font-size: clamp(1.6rem, 5vw, 2.8rem);
       font-weight: 900;
       color: rgba(79, 195, 247, 0.12);
       letter-spacing: 0.25em;
@@ -475,27 +491,15 @@ export class HUD {
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.2s;
+      white-space: nowrap;
     `;
     el.appendChild(pausedBanner);
 
     // ── Control hint (bottom-center) ───────────────────────
     const hint = document.createElement('div');
     hint.id = 'hud-hint';
-    hint.style.cssText = `
-      position: absolute;
-      bottom: 18px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 11px;
-      color: rgba(255,255,255,0.22);
-      letter-spacing: 0.06em;
-      white-space: nowrap;
-      font-family: 'Rajdhani', sans-serif;
-      font-weight: 500;
-      user-select: none;
-      pointer-events: none;
-    `;
-    hint.textContent = 'Drag to select  |  Right-click to send  |  ESC to pause';
+    hint.className = 'lux-hud-hint';
+    hint.textContent = 'Drag to select · Right-click to send · ? shortcuts · Ctrl+K commands';
     el.appendChild(hint);
 
     // ── Gamma-ray countdown (bottom-center, replaces hint) ─

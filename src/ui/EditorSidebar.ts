@@ -2,6 +2,8 @@
 // EditorSidebar.ts — Level editor left tool palette
 // ============================================================
 
+import { isTypingInInput } from './KeyboardShortcuts';
+
 export type EditorTool =
   | 'select'
   | 'place_planet'
@@ -49,23 +51,7 @@ export class EditorSidebar {
   private createElement(): HTMLElement {
     const sidebar = document.createElement('div');
     sidebar.id = 'editor-sidebar';
-    sidebar.style.cssText = `
-      position: absolute;
-      top: 0; left: 0;
-      width: 120px;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      background: rgba(10, 10, 26, 0.85);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-right: 1px solid rgba(255,255,255,0.08);
-      z-index: 30;
-      padding: 8px 0;
-      gap: 4px;
-      pointer-events: auto;
-    `;
+    sidebar.className = 'lux-editor-sidebar';
 
     // Stop events from bubbling down to the canvas
     sidebar.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -119,6 +105,7 @@ export class EditorSidebar {
 
   private createToolBtn(tool: ToolDef): HTMLElement {
     const btn = document.createElement('button');
+    btn.className = 'editor-tool-btn';
     btn.title = tool.title;
     btn.style.cssText = `
       width: 104px;
@@ -180,7 +167,7 @@ export class EditorSidebar {
   private createDivider(): HTMLElement {
     const d = document.createElement('div');
     d.style.cssText = `
-      width: 104px;
+      width: 88%;
       height: 1px;
       background: rgba(255,255,255,0.08);
       margin: 4px 0;
@@ -207,7 +194,9 @@ export class EditorSidebar {
 
   private bindKeyboard(): void {
     this._keyHandler = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).tagName === 'INPUT') return;
+      if (isTypingInInput(e)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (document.getElementById('lux-command-palette') || document.getElementById('lux-shortcuts-modal')) return;
       switch (e.key.toLowerCase()) {
         case 's': this.setActiveTool('select');           break;
         case 'p': this.setActiveTool('place_planet');     break;

@@ -21,9 +21,10 @@ export class PauseMenu {
   private _currentSpeed: GameSpeed = 1;
 
   // ── Callbacks ─────────────────────────────────────────────
-  onResume:     () => void = () => {};
-  onSpeedChange: (speed: GameSpeed) => void = () => {};
-  onQuitToMenu: () => void = () => {};
+  onResume:         () => void = () => {};
+  onSpeedChange:    (speed: GameSpeed) => void = () => {};
+  onQuitToMenu:     () => void = () => {};
+  onShortcutsClick: () => void = () => {};
 
   constructor(container: HTMLElement, initialSpeed?: GameSpeed, isEditorTest: boolean = false) {
     this._currentSpeed = initialSpeed ?? (SettingsStore.get().gameSpeed as GameSpeed);
@@ -98,14 +99,17 @@ export class PauseMenu {
       flex-direction: column;
       align-items: center;
       gap: 10px;
-      padding: 36px 48px 28px;
-      background: rgba(0, 0, 14, 0.82);
+      padding: clamp(20px, 4vw, 36px) clamp(20px, 5vw, 48px) 24px;
+      background: rgba(0, 0, 14, 0.9);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(79, 195, 247, 0.18);
+      border: 1px solid rgba(79, 195, 247, 0.22);
       border-radius: 18px;
-      box-shadow: 0 0 60px rgba(79, 195, 247, 0.06), 0 8px 48px rgba(0,0,0,0.7);
-      min-width: 280px;
+      box-shadow: 0 0 60px rgba(79, 195, 247, 0.08), 0 8px 48px rgba(0,0,0,0.75);
+      width: min(350px, 90vw);
+      max-height: 90vh;
+      overflow-y: auto;
+      min-width: 0;
     `;
     overlay.appendChild(card);
 
@@ -204,9 +208,16 @@ export class PauseMenu {
     });
     card.appendChild(resumeBtn);
 
+    const shortcutsBtn = this._buildActionBtn('?  SHORTCUTS', '#9575cd', '#b39ddb');
+    shortcutsBtn.addEventListener('click', () => {
+      audioManager.playClick();
+      this.onShortcutsClick();
+    });
+    card.appendChild(shortcutsBtn);
+
     // ■ Quit button ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
     const quitText = isEditorTest ? '⏹  QUIT TO EDITOR' : '⏹  QUIT TO MENU';
-    const quitBtn = this._buildActionBtn(quitText, '#78909c', '#90a4ae');
+    const quitBtn = this._buildActionBtn(quitText, '#90a4ae', '#b0bec5');
     quitBtn.addEventListener('click', () => {
       audioManager.playClick();
       this.onQuitToMenu();
@@ -215,13 +226,14 @@ export class PauseMenu {
 
     // ── ESC hint ──────────────────────────────────────────────
     const hint = document.createElement('div');
-    hint.textContent = 'Press ESC to resume';
+    hint.textContent = 'Press ESC to resume · Ctrl+K commands';
     hint.style.cssText = `
       font-family: 'Rajdhani', sans-serif;
-      font-size: 0.68rem;
-      color: rgba(255,255,255,0.2);
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.45);
       letter-spacing: 0.08em;
       margin-top: 4px;
+      text-align: center;
     `;
     card.appendChild(hint);
 

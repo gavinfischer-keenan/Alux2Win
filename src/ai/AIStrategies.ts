@@ -99,6 +99,12 @@ export interface BreakthroughEntry {
   consolidateSecs: number;
 }
 
+export interface IncomingEnemySummary {
+  strength: number;
+  factions: Set<Faction>;
+  homePlanetIds: Set<string>;
+}
+
 export interface SituationAssessment {
   myPlanets: PlanetData[];
   myParticles: number;
@@ -112,6 +118,8 @@ export interface SituationAssessment {
   productionAdvantage: number;
   unitAdvantage: number;
   enemyFactions: Map<Faction, { planets: PlanetData[]; particles: number; production: number }>;
+  orbitingStrengthByPlanet: Map<string, number>;
+  incomingEnemiesByPlanet: Map<string, IncomingEnemySummary>;
   isVisionBlocked: boolean;
   canUpgradeForVision: boolean;
 }

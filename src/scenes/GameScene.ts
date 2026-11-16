@@ -26,6 +26,7 @@ import {
 import { HUD } from '../ui/HUD';
 import { PauseMenu } from '../ui/PauseMenu';
 import type { GameSpeed } from '../ui/PauseMenu';
+import { isTypingInInput } from '../ui/KeyboardShortcuts';
 import { CameraController } from '../core/CameraController';
 import { audioManager }     from '../core/AudioManager';
 import { SettingsStore }    from '../core/SettingsStore';
@@ -155,6 +156,7 @@ export class GameScene {
   private static readonly STATS_SAMPLE_INTERVAL = 2; // seconds
 
   onGameOver: (winner: Faction | null) => void = () => {};
+  onOpenShortcuts: () => void = () => {};
 
   private isEditorTest: boolean;
 
@@ -230,13 +232,15 @@ export class GameScene {
     const activeFactions: Faction[] = ['player', ...Array.from(aiFactions)];
     this.hud = new HUD(this.hudContainer, () => this.togglePause(), activeFactions);
     this.hud.onSpeedChange = (s) => { this._setSpeed(s); };
+    this.hud.onShortcutsClick = () => { this.onOpenShortcuts(); };
     this.hud.loadRecords(this._levelId);
 
     // Pause menu (hidden initially)
     this.pauseMenu = new PauseMenu(this.container, this._timeScale, this.isEditorTest);
-    this.pauseMenu.onResume      = () => this.togglePause();
-    this.pauseMenu.onSpeedChange = (s) => { this._setSpeed(s); };
-    this.pauseMenu.onQuitToMenu  = () => {
+    this.pauseMenu.onResume         = () => this.togglePause();
+    this.pauseMenu.onSpeedChange    = (s) => { this._setSpeed(s); };
+    this.pauseMenu.onShortcutsClick = () => { this.onOpenShortcuts(); };
+    this.pauseMenu.onQuitToMenu     = () => {
       this._paused = false;
       this.onGameOver(null);
     };
@@ -272,18 +276,32 @@ export class GameScene {
       (alpha) => this.render(alpha)
     );
 
-    // ESC key toggles pause; [ ] steps speed down/up
-    const SPEEDS: GameSpeed[] = [0.5, 1, 2, 3];
+    // Keyboard shortcuts (ignored while typing in inputs or when global modals are open)
     this._keyHandler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { this.togglePause(); return; }
-      if (e.key === '[') {
-        const idx = SPEEDS.indexOf(this._timeScale);
-        if (idx > 0) this._setSpeed(SPEEDS[idx - 1]);
+      if (isTypingInInput(e)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (document.getElementById('lux-command-palette') || document.getElementById('lux-shortcuts-modal')) return;
+
+      if (e.key === 'Escape') {
+        this.togglePause();
+        return;
       }
-      if (e.key === ']') {
-        const idx = SPEEDS.indexOf(this._timeScale);
-        if (idx < SPEEDS.length - 1) this._setSpeed(SPEEDS[idx + 1]);
+      const lower = e.key.toLowerCase();
+      if (e.code === 'Space' || lower === 'p') {
+        e.preventDefault();
+        this.togglePause();
+        return;
       }
+      if (e.key === '[') { this.stepGameSpeed(-1); return; }
+      if (e.key === ']') { this.stepGameSpeed(1); return; }
+      if (e.key === '1') { this._setSpeed(0.5); return; }
+      if (e.key === '2') { this._setSpeed(1); return; }
+      if (e.key === '3') { this._setSpeed(2); return; }
+      if (e.key === '4') { this._setSpeed(3); return; }
+      if (lower === 'a') { this.selectAllPlayerUnits(); return; }
+      if (lower === 'd' || e.key === 'Backspace') { this.clearSelection(); return; }
+      if (lower === 'r') { this.repeatLastAction(); return; }
+      if (lower === 'c' || e.key === 'Home') { this.resetCamera(); return; }
     };
     document.addEventListener('keydown', this._keyHandler);
 
@@ -296,6 +314,14 @@ export class GameScene {
       this.renderer.getWidth(), this.renderer.getHeight()
     );
     this.cameraController.attach(this.container);
+    this.subscriptions.add(this.renderer.onResize((w, h) => {
+      const updatedFit = this.renderer.getFitTransform();
+      this.cameraController?.setBaseline(
+        updatedFit.x, updatedFit.y, updatedFit.scale,
+        levelData.worldWidth, levelData.worldHeight,
+        w, h,
+      );
+    }));
 
     // Listen for game:over emitted by CombatSystem
     this.subscriptions.add(this.eventBus.on('game:over', (payload: { winner: Faction | null }) => {
@@ -404,6 +430,101 @@ export class GameScene {
     this.hud?.setSpeed(speed);
     this.pauseMenu?.syncSpeed(speed);
     SettingsStore.update({ gameSpeed: speed });
+  }
+
+  setGameSpeed(speed: GameSpeed): void {
+    this._setSpeed(speed);
+  }
+
+  stepGameSpeed(delta: -1 | 1): void {
+    const SPEEDS: GameSpeed[] = [0.5, 1, 2, 3];
+    const idx = SPEEDS.indexOf(this._timeScale);
+    const nextIdx = Math.max(0, Math.min(SPEEDS.length - 1, idx + delta));
+    if (nextIdx !== idx) this._setSpeed(SPEEDS[nextIdx]);
+  }
+
+  isPaused(): boolean {
+    return this._paused;
+  }
+
+  selectAllPlayerUnits(): void {
+    if (!this.state) return;
+    this.state.selectedPlanetIds.clear();
+    this.state.selectedParticleIds.clear();
+    this.state.planets.forEach((planet, id) => {
+      if (planet.faction === 'player') {
+        this.state.selectedPlanetIds.add(id);
+      }
+    });
+    for (const p of this.state.particles) {
+      if (p.alive && p.faction === 'player' && p.mode === 'stationed') {
+        this.state.selectedParticleIds.add(p.id);
+      }
+    }
+    if (this.state.selectedPlanetIds.size > 0 || this.state.selectedParticleIds.size > 0) {
+      audioManager.playSelect();
+    }
+    this._updateSelectionBadge();
+  }
+
+  clearSelection(): void {
+    if (!this.state) return;
+    this.state.selectedPlanetIds.clear();
+    this.state.selectedParticleIds.clear();
+    this._updateSelectionBadge();
+  }
+
+  resetCamera(): void {
+    this.cameraController?.reset();
+  }
+
+  repeatLastAction(): boolean {
+    const la = this._lastAction;
+    if (!la || !this.state) return false;
+
+    this.state.selectedPlanetIds.clear();
+    this.state.selectedParticleIds.clear();
+
+    if (la.selBoxWorld) {
+      const { x1, y1, x2, y2 } = la.selBoxWorld;
+      this.state.planets.forEach((planet, id) => {
+        if (planet.faction !== 'player') return;
+        if (planet.x >= x1 && planet.x <= x2 && planet.y >= y1 && planet.y <= y2) {
+          this.state.selectedPlanetIds.add(id);
+        }
+      });
+      for (const p of this.state.particles) {
+        if (!p.alive || p.faction !== 'player') continue;
+        if (p.x >= x1 && p.x <= x2 && p.y >= y1 && p.y <= y2) {
+          this.state.selectedParticleIds.add(p.id);
+        }
+      }
+    }
+
+    if (this.state.selectedPlanetIds.size === 0 && this.state.selectedParticleIds.size === 0) {
+      la.selPlanetIds.forEach(id => {
+        const p = this.state.planets.get(id);
+        if (p && p.faction === 'player') this.state.selectedPlanetIds.add(id);
+      });
+      la.selParticleIds.forEach(id => {
+        if (this.state.particles.find(p => p.alive && p.faction === 'player' && p.id === id)) {
+          this.state.selectedParticleIds.add(id);
+        }
+      });
+    }
+
+    if (this.state.selectedPlanetIds.size > 0 || this.state.selectedParticleIds.size > 0) {
+      if (this.state.selectedPlanetIds.size > 0) {
+        this.deployFromSelected(la.targetPlanetId, la.targetX, la.targetY);
+      }
+      if (this.state.selectedParticleIds.size > 0) {
+        this._redeploySelectedParticles(la.targetPlanetId, la.targetX, la.targetY);
+      }
+      audioManager.playCommand();
+      this._updateSelectionBadge();
+      return true;
+    }
+    return false;
   }
 
   // ── Game State Init ───────────────────────────────────────
@@ -666,50 +787,7 @@ export class GameScene {
 
     // ── Double right-click: replay last action ──────────────────────────────
     if (isDoubleClick && this._lastAction) {
-      const la = this._lastAction;
-
-      // Re-apply selection: try the saved world box first
-      this.state.selectedPlanetIds.clear();
-      this.state.selectedParticleIds.clear();
-
-      if (la.selBoxWorld) {
-        const { x1, y1, x2, y2 } = la.selBoxWorld;
-        this.state.planets.forEach((planet, id) => {
-          if (planet.faction !== 'player') return;
-          if (planet.x >= x1 && planet.x <= x2 && planet.y >= y1 && planet.y <= y2) {
-            this.state.selectedPlanetIds.add(id);
-          }
-        });
-        for (const p of this.state.particles) {
-          if (!p.alive || p.faction !== 'player') continue;
-          if (p.x >= x1 && p.x <= x2 && p.y >= y1 && p.y <= y2) {
-            this.state.selectedParticleIds.add(p.id);
-          }
-        }
-      }
-
-      // Fallback: use saved IDs if box gave nothing
-      if (this.state.selectedPlanetIds.size === 0 && this.state.selectedParticleIds.size === 0) {
-        la.selPlanetIds.forEach(id => {
-          if (this.state.planets.has(id)) this.state.selectedPlanetIds.add(id);
-        });
-        la.selParticleIds.forEach(id => {
-          if (this.state.particles.find(p => p.alive && p.id === id)) {
-            this.state.selectedParticleIds.add(id);
-          }
-        });
-      }
-
-      if (this.state.selectedPlanetIds.size > 0 || this.state.selectedParticleIds.size > 0) {
-        if (this.state.selectedPlanetIds.size > 0) {
-          this.deployFromSelected(la.targetPlanetId, la.targetX, la.targetY);
-        }
-        if (this.state.selectedParticleIds.size > 0) {
-          this._redeploySelectedParticles(la.targetPlanetId, la.targetX, la.targetY);
-        }
-        audioManager.playCommand();
-        this._updateSelectionBadge();
-      }
+      this.repeatLastAction();
       return;
     }
 
@@ -1016,10 +1094,8 @@ export class GameScene {
   private _buildSelectionBadge(): void {
     const badge = document.createElement('div');
     badge.id = 'selection-badge';
+    badge.className = 'lux-selection-badge';
     badge.style.cssText = `
-      position: absolute;
-      top: 72px;
-      left: 12px;
       display: none;
       pointer-events: none;
       z-index: 25;
@@ -1157,16 +1233,18 @@ export class GameScene {
 
     // Stats card
     const statsCard = document.createElement('div');
+    statsCard.className = 'result-stats-card';
     statsCard.style.cssText = `
       background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.12);
       border-radius: 16px;
-      padding: 24px 40px;
+      padding: clamp(16px, 4vw, 24px) clamp(16px, 5vw, 40px);
       margin-bottom: 28px;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px 40px;
-      min-width: 380px;
+      gap: 14px 20px;
+      width: min(420px, 92vw);
+      min-width: 0;
     `;
 
     const addStat = (label: string, value: string, highlight = false) => {

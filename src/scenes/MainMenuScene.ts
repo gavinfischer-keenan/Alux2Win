@@ -38,6 +38,15 @@ import { LevelSerializer } from '../levels/LevelSerializer';
 import { HighScoreStore } from '../core/HighScoreStore';
 import { generateRandomLevel } from '../utils/RandomLevelGenerator';
 
+export interface PlayableLevelEntry {
+  id: string;
+  name: string;
+  category: string;
+  levelData: LevelData;
+  isTutorial: boolean;
+  tutorialId?: string;
+}
+
 export class MainMenuScene {
   private element: HTMLElement;
   private settingsPanel: HTMLElement | null = null;
@@ -49,6 +58,8 @@ export class MainMenuScene {
 
   onPlay: (levelData: LevelData, isTutorial?: boolean, tutorialId?: string) => void = () => {};
   onOpenEditor: (levelData?: LevelData) => void = () => {};
+  onOpenCommandPalette: () => void = () => {};
+  onOpenShortcuts: () => void = () => {};
 
   constructor(container: HTMLElement) {
     this.element = this.createMenu();
@@ -56,6 +67,70 @@ export class MainMenuScene {
   }
 
   // ── Public API ────────────────────────────────────────────
+
+  openSettingsPanel(): void {
+    if (this.systemsPanel) {
+      this.systemsPanel.remove();
+      this.systemsPanel = null;
+    }
+    this.openSettings();
+  }
+
+  openGalaxyByName(name: string): void {
+    if (this.settingsPanel && this.settingsPanel.style.display !== 'none') {
+      this.closeSettings();
+    }
+    const lower = name.toLowerCase();
+    for (const g of this.rootGalaxies) {
+      if (g.name.toLowerCase() === lower) {
+        if (g.subcategories) {
+          this.currentCategoryList = g.subcategories;
+          this.renderGalaxyGrid();
+        } else if (g.name === 'Random') {
+          this.onPlay(generateRandomLevel(), false);
+        } else {
+          this.openSystemsPanel(g);
+        }
+        return;
+      }
+      if (g.subcategories) {
+        for (const sub of g.subcategories) {
+          if (sub.name.toLowerCase() === lower) {
+            this.openSystemsPanel(sub);
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  getAllPlayableLevels(): PlayableLevelEntry[] {
+    const entries: PlayableLevelEntry[] = [];
+    const seen = new Set<string>();
+    const collect = (galaxies: any[], parentCat?: string) => {
+      for (const g of galaxies) {
+        if (g.subcategories) {
+          collect(g.subcategories, g.name);
+        }
+        const levels = (g.levels ?? []) as LevelData[];
+        levels.forEach((lvl, idx) => {
+          const id = `${g.name}:${lvl.id ?? lvl.name ?? idx}`;
+          if (seen.has(id)) return;
+          seen.add(id);
+          entries.push({
+            id,
+            name: lvl.name || `System ${idx + 1}`,
+            category: parentCat ? `${parentCat} · ${g.name}` : g.name,
+            levelData: lvl,
+            isTutorial: !!g.isTutorial || (idx === 0 && !!g.tutorialId),
+            tutorialId: g.tutorialId || undefined,
+          });
+        });
+      }
+    };
+    collect(this.rootGalaxies);
+    return entries;
+  }
 
   show(): void {
     this.element.style.display = 'flex';
@@ -110,40 +185,20 @@ export class MainMenuScene {
       z-index: 20;
       pointer-events: auto;
       user-select: none;
-      overflow: hidden;
-      padding: 20px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: clamp(8px, 2vw, 20px);
     `;
 
     // ── Inner card (Container) ──────────────────────────────
     const card = document.createElement('div');
-    card.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-      padding: 40px;
-      background: rgba(0, 0, 10, 0.65);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      border: 1px solid rgba(79, 195, 247, 0.15);
-      border-radius: 24px;
-      box-shadow: 0 0 60px rgba(79, 195, 247, 0.08), 0 8px 40px rgba(0,0,0,0.6);
-      width: 95vw;
-      max-width: 1600px;
-      transition: opacity 0.3s ease, transform 0.3s ease;
-    `;
+    card.className = 'lux-menu-card';
     this._mainCard = card;
     overlay.appendChild(card);
 
     // ── Header (Title & Aux Buttons) ────────────────────────
     const header = document.createElement('div');
-    header.style.cssText = `
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      margin-bottom: 10px;
-      flex-wrap: wrap;
-      gap: 20px;
-    `;
+    header.className = 'lux-menu-header';
     
     const titleWrapper = document.createElement('div');
     titleWrapper.className = 'menu-anim-child';
@@ -152,11 +207,11 @@ export class MainMenuScene {
     title.textContent = 'Pea Puffer';
     title.style.cssText = `
       font-family: 'Orbitron', sans-serif;
-      font-size: clamp(2.2rem, 4vw, 3.2rem);
+      font-size: clamp(1.45rem, 3.8vw, 3.1rem);
       font-weight: 900;
       color: #4fc3f7;
-      letter-spacing: 0.15em;
-      line-height: 1;
+      letter-spacing: 0.12em;
+      line-height: 1.05;
       animation: title-glow 3s ease-in-out infinite;
       margin: 0;
     `;
@@ -165,33 +220,29 @@ export class MainMenuScene {
     subtitle.textContent = 'Lux · Choose your galaxy';
     subtitle.style.cssText = `
       font-family: 'Rajdhani', sans-serif;
-      font-size: 1.1rem;
-      color: rgba(79, 195, 247, 0.55);
-      letter-spacing: 0.25em;
+      font-size: clamp(0.78rem, 1.5vw, 1.08rem);
+      color: rgba(79, 195, 247, 0.7);
+      letter-spacing: 0.18em;
       text-transform: uppercase;
-      margin-top: 6px;
+      margin-top: 4px;
     `;
 
-    titleWrapper.style.cssText = 'display:flex;align-items:center;gap:16px';
+    titleWrapper.style.cssText = 'display:flex;align-items:center;gap:clamp(10px, 2vw, 16px);min-width:0;max-width:100%';
     const animalLogo = document.createElement('img');
     animalLogo.src = `${import.meta.env.BASE_URL}brand/pea-puffer-logo.jpg`;
     animalLogo.alt = 'Pea Puffer logo';
-    animalLogo.style.cssText = 'width:84px;height:84px;object-fit:contain;border-radius:50%;background:white';
+    animalLogo.style.cssText = 'width:clamp(48px, 7vw, 84px);height:clamp(48px, 7vw, 84px);object-fit:contain;border-radius:50%;background:white;flex-shrink:0';
     const titleText = document.createElement('div');
+    titleText.style.minWidth = '0';
     titleText.appendChild(title);
     titleText.appendChild(subtitle);
     titleWrapper.appendChild(animalLogo);
     titleWrapper.appendChild(titleText);
     header.appendChild(titleWrapper);
 
-    // ── Aux Buttons (Settings, Editor, Import) ──────────────
+    // ── Aux Buttons (Commands, Shortcuts, Import, Editor, Settings) ──
     const auxContainer = document.createElement('div');
-    auxContainer.className = 'menu-anim-child';
-    auxContainer.style.cssText = `
-      display: flex;
-      gap: 12px;
-      align-items: center;
-    `;
+    auxContainer.className = 'menu-anim-child lux-aux-bar';
 
     // Import file input
     const fileInput = document.createElement('input');
@@ -216,10 +267,16 @@ export class MainMenuScene {
     });
     auxContainer.appendChild(fileInput);
 
+    const paletteBtn = this.createAuxButton('⌘K COMMANDS', '#4fc3f7', () => this.onOpenCommandPalette());
+    paletteBtn.title = 'Open Command Palette (Ctrl/Cmd+K)';
+    const shortcutsBtn = this.createAuxButton('? KEYS', '#80cbc4', () => this.onOpenShortcuts());
+    shortcutsBtn.title = 'Keyboard Shortcuts (?)';
     const importBtn = this.createAuxButton('📂 IMPORT', '#b0bec5', () => fileInput.click());
     const editorBtn = this.createAuxButton('🛠 EDITOR', '#f59e0b', () => this.onOpenEditor());
-    const settingsBtn = this.createAuxButton('⚙ SETTINGS', '#9575cd', () => this.openSettings());
+    const settingsBtn = this.createAuxButton('⚙ SETTINGS', '#b39ddb', () => this.openSettings());
 
+    auxContainer.appendChild(paletteBtn);
+    auxContainer.appendChild(shortcutsBtn);
     auxContainer.appendChild(importBtn);
     auxContainer.appendChild(editorBtn);
     auxContainer.appendChild(settingsBtn);
@@ -228,29 +285,8 @@ export class MainMenuScene {
     card.appendChild(header);
 
     // ── Grid Galaxy View ───────────────────────
-    // Inject a <style> block for custom huge scrollbars
-    const styleEl = document.createElement('style');
-    styleEl.innerHTML = `
-      .galaxy-scroller::-webkit-scrollbar { height: 24px; }
-      .galaxy-scroller::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 12px; margin: 0 10px; }
-      .galaxy-scroller::-webkit-scrollbar-thumb { background: rgba(79, 195, 247, 0.5); border-radius: 12px; border: 4px solid #000; }
-      .galaxy-scroller::-webkit-scrollbar-thumb:hover { background: rgba(79, 195, 247, 0.8); }
-    `;
-    document.head.appendChild(styleEl);
-
     const scrollContainer = document.createElement('div');
     scrollContainer.className = 'galaxy-scroller';
-    scrollContainer.style.cssText = `
-      display: flex;
-      flex-direction: row;
-      gap: 20px;
-      overflow-x: auto;
-      overflow-y: hidden;
-      padding: 10px 10px 30px 10px;
-      width: 100%;
-      height: 340px;
-      box-sizing: border-box;
-    `;
     this._scrollContainer = scrollContainer;
 
     const customLevels = LevelStore.loadLevels();
@@ -323,23 +359,28 @@ export class MainMenuScene {
 
     if (this.currentCategoryList) {
       // Add a BACK tile
-      const backTile = document.createElement('div');
-      backTile.className = 'menu-anim-child';
+      const backTile = document.createElement('button');
+      backTile.type = 'button';
+      backTile.className = 'menu-anim-child galaxy-back-tile';
       backTile.style.cssText = `
-        flex: 0 0 140px;
-        height: 100%;
         background: rgba(255, 255, 255, 0.05);
-        border: 1px dashed rgba(255, 255, 255, 0.3);
+        border: 1px dashed rgba(255, 255, 255, 0.35);
         border-radius: 16px;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         cursor: pointer;
-        transition: transform 0.2s ease, background 0.2s ease;
+        transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
       `;
-      backTile.addEventListener('mouseenter', () => { backTile.style.background = 'rgba(255,255,255,0.1)'; });
-      backTile.addEventListener('mouseleave', () => { backTile.style.background = 'rgba(255,255,255,0.05)'; });
+      backTile.addEventListener('mouseenter', () => {
+        backTile.style.background = 'rgba(255,255,255,0.12)';
+        backTile.style.borderColor = 'rgba(79, 195, 247, 0.6)';
+      });
+      backTile.addEventListener('mouseleave', () => {
+        backTile.style.background = 'rgba(255,255,255,0.05)';
+        backTile.style.borderColor = 'rgba(255,255,255,0.35)';
+      });
       backTile.addEventListener('click', () => {
         audioManager.playClick();
         this.currentCategoryList = null;
@@ -350,9 +391,9 @@ export class MainMenuScene {
       backText.textContent = '← BACK';
       backText.style.cssText = `
         font-family: 'Orbitron', sans-serif;
-        font-size: 1.5rem;
+        font-size: clamp(1rem, 2vw, 1.35rem);
         font-weight: 800;
-        color: rgba(255,255,255,0.8);
+        color: rgba(255,255,255,0.88);
       `;
       backTile.appendChild(backText);
       container.appendChild(backTile);
@@ -360,14 +401,21 @@ export class MainMenuScene {
 
     listToRender.forEach((g) => {
       const tile = document.createElement('div');
-      tile.className = 'menu-anim-child';
+      tile.className = 'menu-anim-child galaxy-tile';
+      if (!g.locked && !g.isPlaceholder) {
+        tile.setAttribute('role', 'button');
+        tile.tabIndex = 0;
+        tile.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            tile.click();
+          }
+        });
+      }
       
       tile.style.cssText = `
-        flex: 1;
-        min-width: 180px;
-        height: 100%;
         background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.14);
         border-radius: 16px;
         overflow: hidden;
         display: flex;
@@ -619,20 +667,22 @@ export class MainMenuScene {
 
   private createSettingsPanel(): HTMLElement {
     const panel = document.createElement('div');
+    panel.id = 'lux-settings-panel';
     panel.style.cssText = `
       position: absolute;
       display: none;
       flex-direction: column;
       align-items: center;
       gap: 14px;
-      padding: 36px 48px 28px;
-      background: rgba(0, 0, 10, 0.82);
+      padding: clamp(20px, 4vw, 36px) clamp(18px, 5vw, 44px) 24px;
+      background: rgba(0, 0, 12, 0.92);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(149, 117, 205, 0.22);
+      border: 1px solid rgba(149, 117, 205, 0.28);
       border-radius: 20px;
-      box-shadow: 0 0 60px rgba(149, 117, 205, 0.07), 0 8px 48px rgba(0,0,0,0.7);
-      min-width: 320px;
+      box-shadow: 0 0 60px rgba(149, 117, 205, 0.08), 0 8px 48px rgba(0,0,0,0.75);
+      width: min(420px, 92vw);
+      min-width: 0;
       max-height: 90vh;
       overflow-y: auto;
       pointer-events: none;
@@ -969,11 +1019,11 @@ export class MainMenuScene {
 
     // ── Version text ────────────────────────────────────────
     const version = document.createElement('div');
-    version.textContent = 'v0.1.0';
+    version.textContent = 'v' + __APP_VERSION__;
     version.style.cssText = `
       font-family: 'Rajdhani', sans-serif;
       font-size: 11px;
-      color: rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.45);
       letter-spacing: 0.1em;
       margin-top: 12px;
     `;
@@ -989,7 +1039,7 @@ export class MainMenuScene {
       font-family: 'Rajdhani', sans-serif;
       font-size: 0.72rem;
       font-weight: 600;
-      color: rgba(255,255,255,0.35);
+      color: rgba(255,255,255,0.55);
       letter-spacing: 0.14em;
       text-transform: uppercase;
       align-self: flex-start;
@@ -1000,27 +1050,17 @@ export class MainMenuScene {
 
   private createAuxButton(text: string, color: string, onClick: () => void): HTMLButtonElement {
     const btn = document.createElement('button');
+    btn.className = 'lux-aux-btn';
     btn.textContent = text;
-    btn.style.cssText = `
-      padding: 8px 16px;
-      background: transparent;
-      border: 1px solid ${color}55;
-      border-radius: 8px;
-      color: ${color};
-      font-family: 'Orbitron', sans-serif;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    `;
+    btn.style.border = `1px solid ${color}55`;
+    btn.style.color = color;
     btn.addEventListener('mouseenter', () => {
       btn.style.background = `${color}22`;
       btn.style.borderColor = `${color}99`;
       btn.style.boxShadow = `0 0 12px ${color}44`;
     });
     btn.addEventListener('mouseleave', () => {
-      btn.style.background = 'transparent';
+      btn.style.background = 'rgba(255,255,255,0.03)';
       btn.style.borderColor = `${color}55`;
       btn.style.boxShadow = 'none';
     });
@@ -1089,23 +1129,24 @@ export class MainMenuScene {
 
   private createSystemsPanel(galaxy: any): HTMLElement {
     const panel = document.createElement('div');
+    panel.id = 'lux-systems-panel';
     panel.style.cssText = `
       position: absolute;
       display: none;
       flex-direction: column;
       align-items: center;
-      gap: 20px;
-      padding: 40px;
-      background: rgba(0, 0, 12, 0.88);
+      gap: clamp(14px, 2vw, 20px);
+      padding: clamp(16px, 3.5vw, 36px);
+      background: rgba(0, 0, 12, 0.9);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
-      border: 1px solid rgba(79, 195, 247, 0.2);
-      border-radius: 24px;
+      border: 1px solid rgba(79, 195, 247, 0.22);
+      border-radius: clamp(16px, 2vw, 24px);
       box-shadow: 0 0 60px rgba(79, 195, 247, 0.1), 0 8px 48px rgba(0,0,0,0.8);
-      width: 90%;
-      max-width: 1000px;
-      max-height: 90vh;
+      width: min(1000px, 94vw);
+      max-height: 92vh;
       overflow-y: auto;
+      overflow-x: hidden;
       pointer-events: none;
       opacity: 0;
       transform: translateX(40px);
@@ -1129,45 +1170,38 @@ export class MainMenuScene {
 
     // Header
     const header = document.createElement('div');
-    header.style.cssText = 'display:flex; align-items:center; width:100%; gap:20px; margin-bottom:10px;';
+    header.className = 'lux-systems-header';
 
     const backBtn = document.createElement('button');
     backBtn.textContent = '← BACK';
     backBtn.style.cssText = `
-      background: transparent;
-      border: 1px solid rgba(79, 195, 247, 0.4);
+      background: rgba(79, 195, 247, 0.06);
+      border: 1px solid rgba(79, 195, 247, 0.45);
       border-radius: 8px;
-      color: rgba(79, 195, 247, 0.9);
+      color: rgba(79, 195, 247, 0.95);
       font-family: 'Orbitron', sans-serif;
-      font-size: 14px;
+      font-size: clamp(11px, 1.5vw, 13px);
       font-weight: 700;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.08em;
       cursor: pointer;
-      padding: 10px 16px;
+      padding: 8px 14px;
       transition: all 0.2s;
+      flex-shrink: 0;
+      white-space: nowrap;
     `;
     backBtn.addEventListener('click', () => this.closeSystemsPanel());
     backBtn.addEventListener('mouseenter', () => {
-      backBtn.style.background = 'rgba(79, 195, 247, 0.1)';
+      backBtn.style.background = 'rgba(79, 195, 247, 0.14)';
       backBtn.style.borderColor = 'rgba(79, 195, 247, 0.8)';
     });
     backBtn.addEventListener('mouseleave', () => {
-      backBtn.style.background = 'transparent';
-      backBtn.style.borderColor = 'rgba(79, 195, 247, 0.4)';
+      backBtn.style.background = 'rgba(79, 195, 247, 0.06)';
+      backBtn.style.borderColor = 'rgba(79, 195, 247, 0.45)';
     });
 
     const title = document.createElement('div');
+    title.className = 'lux-systems-title';
     title.textContent = `${galaxy.name.toUpperCase()} SYSTEMS`;
-    title.style.cssText = `
-      font-family: 'Orbitron', sans-serif;
-      font-size: 2rem;
-      font-weight: 900;
-      color: #4fc3f7;
-      letter-spacing: 0.15em;
-      text-shadow: 0 0 20px rgba(79, 195, 247, 0.5);
-      flex: 1;
-      text-align: right;
-    `;
 
     header.appendChild(backBtn);
     header.appendChild(title);
@@ -1175,12 +1209,7 @@ export class MainMenuScene {
 
     // Grid of systems — branched by galaxy type
     const grid = document.createElement('div');
-    grid.style.cssText = `
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 20px;
-      width: 100%;
-    `;
+    grid.className = 'lux-systems-grid';
 
     if (galaxy.name === 'Tutorial') {
       this.buildTutorialSystemTiles(grid, galaxy);
@@ -1217,7 +1246,7 @@ export class MainMenuScene {
       background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,165,0,0.04));
       border: 1px solid rgba(255, 215, 0, 0.35);
       border-radius: 20px;
-      padding: 32px 36px;
+      padding: clamp(16px, 3vw, 32px);
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -1257,20 +1286,20 @@ export class MainMenuScene {
     `;
 
     const featuredRow = document.createElement('div');
-    featuredRow.style.cssText = 'display: flex; align-items: center; gap: 18px;';
+    featuredRow.style.cssText = 'display: flex; align-items: center; flex-wrap: wrap; gap: 14px 18px;';
 
     const featuredIcon = document.createElement('div');
     featuredIcon.textContent = '🚀';
-    featuredIcon.style.cssText = 'font-size: 3rem; line-height: 1; filter: drop-shadow(0 0 16px rgba(255,215,0,0.5));';
+    featuredIcon.style.cssText = 'font-size: clamp(2.2rem, 4vw, 3rem); line-height: 1; filter: drop-shadow(0 0 16px rgba(255,215,0,0.5));';
 
     const featuredText = document.createElement('div');
-    featuredText.style.cssText = 'display: flex; flex-direction: column; gap: 4px;';
+    featuredText.style.cssText = 'display: flex; flex-direction: column; gap: 4px; flex: 1 1 200px; min-width: 0;';
 
     const featuredName = document.createElement('div');
     featuredName.textContent = 'Commander Training';
     featuredName.style.cssText = `
       font-family: 'Orbitron', sans-serif;
-      font-size: 1.5rem;
+      font-size: clamp(1.1rem, 2.5vw, 1.5rem);
       font-weight: 900;
       color: #ffd700;
       letter-spacing: 0.08em;
@@ -1716,9 +1745,10 @@ export class MainMenuScene {
     header.textContent = 'TIMES';
     header.style.cssText = `
       font-family: 'Rajdhani', sans-serif;
-      font-size: 0.6rem;
-      color: rgba(255,255,255,0.25);
-      letter-spacing: 0.2em;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.52);
+      letter-spacing: 0.18em;
       margin-bottom: 2px;
     `;
     wrapper.appendChild(header);
@@ -1728,9 +1758,9 @@ export class MainMenuScene {
       row.textContent = `1. --:--`;
       row.style.cssText = `
         font-family: 'Rajdhani', sans-serif;
-        font-size: 0.65rem;
-        font-weight: 400;
-        color: rgba(255,255,255,0.2);
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: rgba(255,255,255,0.45);
         letter-spacing: 0.05em;
       `;
       wrapper.appendChild(row);
@@ -1743,7 +1773,7 @@ export class MainMenuScene {
         if (rank === 1) {
           row.style.cssText = `
             font-family: 'Rajdhani', sans-serif;
-            font-size: 0.72rem;
+            font-size: 0.82rem;
             font-weight: 700;
             color: rgba(255,215,0,0.95);
             letter-spacing: 0.05em;
@@ -1751,9 +1781,9 @@ export class MainMenuScene {
         } else {
           row.style.cssText = `
             font-family: 'Rajdhani', sans-serif;
-            font-size: 0.65rem;
-            font-weight: 400;
-            color: rgba(255,255,255,0.4);
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: rgba(255,255,255,0.65);
             letter-spacing: 0.05em;
           `;
         }
@@ -1895,16 +1925,21 @@ export class MainMenuScene {
     `;
 
     const dialog = document.createElement('div');
+    dialog.id = 'lux-deployment-dialog';
     dialog.style.cssText = `
-      background: rgba(10, 15, 30, 0.95);
-      border: 1px solid rgba(79, 195, 247, 0.4);
+      background: rgba(8, 13, 28, 0.97);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(79, 195, 247, 0.45);
       border-radius: 16px;
-      padding: 32px;
-      width: 400px;
+      padding: clamp(18px, 4vw, 32px);
+      width: min(400px, 92vw);
+      max-height: 90vh;
+      overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 24px;
-      box-shadow: 0 16px 48px rgba(0,0,0,0.8), 0 0 24px rgba(79, 195, 247, 0.1);
+      gap: clamp(16px, 3vw, 24px);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.85), 0 0 28px rgba(79, 195, 247, 0.14);
       transform: translateY(20px);
       transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     `;

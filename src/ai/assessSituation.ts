@@ -1,6 +1,6 @@
 import type { Faction, GameState, PlanetData } from "../types";
 import { PLANET_PRODUCTION } from "../types";
-import type { AIStrategy, SituationAssessment } from "./AIStrategies";
+import type { AIStrategy, IncomingEnemySummary, SituationAssessment } from "./AIStrategies";
 
 /** Strategic snapshot; visibility is a policy supplied by the controller. */
 export function assessSituation(
@@ -13,50 +13,76 @@ export function assessSituation(
     state: GameState,
   ) => boolean,
 ): SituationAssessment {
-  const myPlanets = Array.from(state.planets.values()).filter(
-    (p) => p.faction === faction,
-  );
+  const myPlanets: PlanetData[] = [];
   let myParticles = 0;
   let myProduction = 0;
-
-  for (const p of myPlanets) {
-    myProduction += PLANET_PRODUCTION[p.upgradeLevel];
-  }
 
   const enemyFactions = new Map<
     Faction,
     { planets: PlanetData[]; particles: number; production: number }
   >();
+  const neutralsAvailable: PlanetData[] = [];
   let totalEnemyParticles = 0;
   let bestEnemyProduction = 0;
   let bestEnemyParticles = 0;
   let strongestEnemyFaction: Faction | null = null;
 
-  // Scan planets for enemy data
+  // Single pass over planets: classify owned, enemy, and visible neutral planets
   for (const planet of state.planets.values()) {
-    if (planet.faction === "neutral") continue;
-    if (planet.faction === faction) continue;
-    if (!enemyFactions.has(planet.faction)) {
-      enemyFactions.set(planet.faction, {
-        planets: [],
-        particles: 0,
-        production: 0,
-      });
+    if (planet.faction === faction) {
+      myPlanets.push(planet);
+      myProduction += PLANET_PRODUCTION[planet.upgradeLevel];
+    } else if (planet.faction === "neutral") {
+      if (isPlanetVisible(planet, faction, state)) {
+        neutralsAvailable.push(planet);
+      }
+    } else {
+      let entry = enemyFactions.get(planet.faction);
+      if (!entry) {
+        entry = { planets: [], particles: 0, production: 0 };
+        enemyFactions.set(planet.faction, entry);
+      }
+      entry.planets.push(planet);
+      entry.production += PLANET_PRODUCTION[planet.upgradeLevel];
     }
-    const entry = enemyFactions.get(planet.faction)!;
-    entry.planets.push(planet);
-    entry.production += PLANET_PRODUCTION[planet.upgradeLevel];
   }
 
-  // Scan particles
+  // Single pass over particles: total strength + O(1) per-planet orbiting & incoming indexes
+  const orbitingStrengthByPlanet = new Map<string, number>();
+  const incomingEnemiesByPlanet = new Map<string, IncomingEnemySummary>();
+
   for (const p of state.particles) {
     if (!p.alive) continue;
+
+    if (p.mode === "orbiting" && p.homePlanetId) {
+      orbitingStrengthByPlanet.set(
+        p.homePlanetId,
+        (orbitingStrengthByPlanet.get(p.homePlanetId) ?? 0) + p.strength,
+      );
+    }
+
     if (p.faction === faction) {
       myParticles += p.strength;
     } else if (p.faction !== "neutral") {
       totalEnemyParticles += p.strength;
-      if (enemyFactions.has(p.faction)) {
-        enemyFactions.get(p.faction)!.particles += p.strength;
+      const efEntry = enemyFactions.get(p.faction);
+      if (efEntry) {
+        efEntry.particles += p.strength;
+      }
+
+      if (p.mode === "traveling" && p.targetPlanetId) {
+        let incoming = incomingEnemiesByPlanet.get(p.targetPlanetId);
+        if (!incoming) {
+          incoming = {
+            strength: 0,
+            factions: new Set<Faction>(),
+            homePlanetIds: new Set<string>(),
+          };
+          incomingEnemiesByPlanet.set(p.targetPlanetId, incoming);
+        }
+        incoming.strength += p.strength;
+        incoming.factions.add(p.faction);
+        if (p.homePlanetId) incoming.homePlanetIds.add(p.homePlanetId);
       }
     }
   }
@@ -75,17 +101,6 @@ export function assessSituation(
     if (data.production > highestProduction) {
       highestProduction = data.production;
       highestProductionFaction = ef;
-    }
-  }
-
-  // Collect visible neutrals
-  const neutralsAvailable: PlanetData[] = [];
-  for (const planet of state.planets.values()) {
-    if (
-      planet.faction === "neutral" &&
-      isPlanetVisible(planet, faction, state)
-    ) {
-      neutralsAvailable.push(planet);
     }
   }
 
@@ -124,6 +139,8 @@ export function assessSituation(
     unitAdvantage:
       bestEnemyParticles > 0 ? myParticles / bestEnemyParticles : Infinity,
     enemyFactions,
+    orbitingStrengthByPlanet,
+    incomingEnemiesByPlanet,
     isVisionBlocked,
     canUpgradeForVision,
   };

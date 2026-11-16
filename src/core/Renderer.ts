@@ -39,6 +39,7 @@ export class Renderer {
   private _fitX     = 0;
   private _fitY     = 0;
   private _fitScale = 1;
+  private _resizeListeners = new Set<(width: number, height: number) => void>();
 
   // ── Public accessors ────────────────────────────────────────
 
@@ -129,9 +130,29 @@ export class Renderer {
 
     // Apply default world fit (2048×2048 → screen)
     this._fitWorld(this._worldWidth, this._worldHeight);
+
+    // Keep starfield background and world fit responsive across viewport resizes
+    this.app.renderer.on('resize', (width: number, height: number) => {
+      if (width <= 0 || height <= 0) return;
+      const oldBg = this.layers.background.removeChildren();
+      oldBg.forEach((child) => child.destroy());
+      this._buildBackground(this.layers.background, width, height);
+      this._fitWorld(this._worldWidth, this._worldHeight);
+      for (const listener of this._resizeListeners) {
+        listener(width, height);
+      }
+    });
   }
 
   // ── Public API ──────────────────────────────────────────────
+
+  /** Subscribe to PixiJS renderer resize events; returns an unsubscribe function. */
+  onResize(cb: (width: number, height: number) => void): () => void {
+    this._resizeListeners.add(cb);
+    return () => {
+      this._resizeListeners.delete(cb);
+    };
+  }
 
   getWidth():  number { return this.app.screen.width; }
   getHeight(): number { return this.app.screen.height; }
@@ -181,6 +202,7 @@ export class Renderer {
   }
 
   destroy(): void {
+    this._resizeListeners.clear();
     this.app.destroy(true, { children: true, texture: true });
   }
 
